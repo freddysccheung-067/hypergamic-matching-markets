@@ -1,20 +1,13 @@
-# Test targets are added as their sources appear, so an early `cmake -B build`
-# works before any test file exists in the tree.
+# Each test_*.cpp becomes its own executable. CONFIGURE_DEPENDS makes CMake re-run
+# when a test file is added, so creating test_agent.cpp mid-session registers it on
+# the next build without a manual reconfigure.
 include(CTest)
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test_agent.cpp)
-    add_executable(test_agent test_agent.cpp)
-    target_link_libraries(test_agent PRIVATE hypergamic_core Catch2::Catch2WithMain)
-    add_test(NAME test_agent COMMAND test_agent)
-endif()
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test_matching.cpp)
-    add_executable(test_matching test_matching.cpp)
-    target_link_libraries(test_matching PRIVATE hypergamic_core Catch2::Catch2WithMain)
-    add_test(NAME test_matching COMMAND test_matching)
-endif()
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/test_*.cpp)
 
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test_population.cpp)
-    add_executable(test_population test_population.cpp)
-    target_link_libraries(test_population PRIVATE hypergamic_core Catch2::Catch2WithMain)
-    add_test(NAME test_population COMMAND test_population)
-endif()
+foreach(test_source ${TEST_SOURCES})
+    get_filename_component(test_name ${test_source} NAME_WE)
+    add_executable(${test_name} ${test_source})
+    target_link_libraries(${test_name} PRIVATE hypergamic_core Catch2::Catch2WithMain)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
