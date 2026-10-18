@@ -35,36 +35,37 @@ Read docs/PREREQUISITES.md and docs/INTERFACES.md before starting.
 ```
 Read docs/PREREQUISITES.md first.
 
+Current state (verified 2026-10-18): the MSVC toolchain works, a venv already exists at
+.venv/ with all requirements installed, and build/Release/_hypergamic.cp312-win_amd64.pyd
+imports cleanly. Re-verify rather than rebuild from scratch.
+
 The repo already has a working CMakeLists.txt, requirements.txt, .gitignore, and stub
-placeholder files. Do not rewrite them from scratch — verify and fix.
+placeholder files. Do not rewrite them.
 
-1. Confirm the MSVC toolchain is visible to CMake:
-   cmake -B build -DCMAKE_BUILD_TYPE=Release
-   If CMake errors with "No CMAKE_CXX_COMPILER could be found", stop and report that
-   Visual Studio Build Tools are not installed. Do not try to work around it.
-
-2. Confirm you are in the project venv before touching pip — never install into the
-   global interpreter, it shares packages with other projects on this machine:
+1. Activate the venv. Never install into the global interpreter — it shares packages with
+   other projects on this machine, and requirements.txt pins older versions that would
+   downgrade them:
    .\.venv\Scripts\Activate.ps1
-   python -m pip install -r requirements.txt
-   If build/ was already configured against the global Python, delete it and reconfigure,
-   otherwise the extension links against a different interpreter than the one importing it.
+   python -c "import sys; print(sys.executable)"
+   Confirm the path contains `.venv`. If it does not, stop and fix that first.
 
-3. Add a throwaway stub so the build has something to link: create src/cpp/stub.cpp
-   containing only `int hypergamic_stub() { return 0; }`, and src/cpp/bindings.cpp
-   with PYBIND11_MODULE(_hypergamic, m) { m.doc() = "stub"; }
+2. Confirm CMake is configured against the venv interpreter. Reconfigure with it explicit:
+   cmake -B build -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE="$PWD\.venv\Scripts\python.exe"
+   The output must print:
+     -- Python interpreter : ...\.venv\Scripts\python.exe
+     -- OpenMP: enabled (/openmp) ...
+   If OpenMP says NOT found, that is acceptable — record it and continue.
 
-4. Build and locate the module:
+3. Build and find the module:
    cmake --build build --config Release --parallel
-   Get-ChildItem -Recurse build -Filter "_hypergamic*"
+   Get-ChildItem -Recurse build -Filter "_hypergamic*.pyd" | Select-Object FullName
 
-5. Verify the import path used by every later session:
+4. Verify the import path every later session relies on:
    python -c "import sys; sys.path.insert(0, 'build/Release'); import _hypergamic; print('ok')"
 
-6. Report: the exact .pyd path, whether OpenMP_CXX_FOUND was true, and whether
-   Python3 found the same interpreter as `python` on PATH.
+5. Report: the exact .pyd path, whether OpenMP was enabled, and the venv interpreter path.
 
-Leave the stub commit uncommitted — it gets replaced in 1-B.
+Do not commit src/cpp/stub.cpp or src/cpp/bindings.cpp — 1-B replaces them.
 ```
 
 ---

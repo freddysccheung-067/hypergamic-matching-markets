@@ -36,6 +36,11 @@ if(Python3_VERSION VERSION_LESS 3.9)
 endif()
 
 find_package(OpenMP QUIET)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "OpenMP: enabled (/openmp) — note MSVC implements OpenMP 2.0 only")
+else()
+    message(STATUS "OpenMP: NOT found — the epoch loop will run serially")
+endif()
 
 # ── compiler flags (MSVC vs GCC/Clang) ────────────────────────────────────────
 if(MSVC)
@@ -76,3 +81,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 
 add_subdirectory(tests/cpp)
+
+message(STATUS "")
+message(STATUS "Python interpreter : ${Python3_EXECUTABLE}")
+message(STATUS "Extension output   : \${CMAKE_BINARY_DIR}/\${CMAKE_CFG_INTDIR}")
+message(STATUS "")
