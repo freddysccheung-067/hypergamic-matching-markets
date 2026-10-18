@@ -43,7 +43,12 @@ placeholder files. Do not rewrite them from scratch — verify and fix.
    If CMake errors with "No CMAKE_CXX_COMPILER could be found", stop and report that
    Visual Studio Build Tools are not installed. Do not try to work around it.
 
-2. Install Python deps: python -m pip install -r requirements.txt
+2. Confirm you are in the project venv before touching pip — never install into the
+   global interpreter, it shares packages with other projects on this machine:
+   .\.venv\Scripts\Activate.ps1
+   python -m pip install -r requirements.txt
+   If build/ was already configured against the global Python, delete it and reconfigure,
+   otherwise the extension links against a different interpreter than the one importing it.
 
 3. Add a throwaway stub so the build has something to link: create src/cpp/stub.cpp
    containing only `int hypergamic_stub() { return 0; }`, and src/cpp/bindings.cpp

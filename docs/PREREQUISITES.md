@@ -30,12 +30,24 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools --source winget `
 Then **open a new terminal** — the environment only refreshes on shell start. Verify:
 
 ```powershell
-& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property displayName
+& "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property displayName
 cmake --version
 ```
 
+Note `-products *`, not `-product *`. The singular form is not a valid switch and vswhere
+answers with `Error 0x57: Unknown parameter: product`.
+
 You do not need `cl.exe` on `PATH`. CMake locates the toolchain itself once VS is installed;
 just configure with no `-G` flag and CMake picks the Visual Studio generator.
+
+A successful configure prints the toolchain it chose:
+
+```
+-- Building for: Visual Studio 17 2022
+-- The CXX compiler identification is MSVC 19.44.35229.0
+-- Found Python3: ...\python.exe (found version "3.12.10")
+-- Found pybind11: ... (found version "2.12.0")
+```
 
 ### Option B — MSYS2 / MinGW-w64
 
@@ -53,14 +65,69 @@ Pick A unless you specifically need OpenMP 4+ constructs. The plan below assumes
 
 ## Configure and build
 
+### Use a virtual environment — do not install into the global interpreter
+
+This machine runs a **shared global Python 3.12** that other projects depend on (the global
+site-packages contains `open-webui`, `kubernetes`, and `opencv-python-headless`). Installing
+`requirements.txt` globally **downgrades** their pinned dependencies:
+
+| Package | Global version | requirements.txt pin |
+|---------|---------------|----------------------|
+| numpy | 2.5.4 | 1.26.4 |
+| pandas | 3.0.3 | 2.2.2 |
+| torch | 2.14.1 | 2.3.1 |
+| scipy | 1.18.1 | 1.13.1 |
+| pyyaml | 6.0.3 | 6.0.1 |
+| pybind11 | 3.1.0 | 2.12.0 |
+| pytest | 9.1.1 | 8.2.2 |
+| networkx | 3.7 | 3.3 |
+| tqdm | 4.70.1 | 4.66.4 |
+
+A global install breaks `open-webui` (it pins `pandas==3.0.3`) and `opencv-python-headless`
+(it requires `numpy>=2`). Always work inside a venv.
+
+```powershell
+# from the project root
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+If `Activate.ps1` is blocked, allow scripts for the current user once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+### Point CMake at the venv interpreter
+
+CMake caches the Python it found at configure time. If `build/` was configured against the
+global interpreter, **delete it** and reconfigure from an activated venv, otherwise the
+extension is built against a different Python than the one that imports it:
+
+```powershell
+Remove-Item -Recurse -Force build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel
+```
+
+Confirm the configure output names `.venv`:
+
+```
+-- Found Python3: D:/hypergamic-matching-markets/.venv/Scripts/python.exe ...
+```
+
+If it still names the global Python, pass it explicitly:
+
+```powershell
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DPython3_EXECUTABLE="$PWD\.venv\Scripts\python.exe"
+```
+
 Multi-config generators put the extension in a per-configuration subdirectory, which is the usual
 reason a "successful" build still throws `ModuleNotFoundError`.
 
 ```powershell
-# from the project root
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --parallel
-
 # confirm the module actually exists
 Get-ChildItem -Recurse build -Filter "_hypergamic*" | Select-Object FullName
 ```
