@@ -83,18 +83,27 @@ Performance-critical loops live in C++; tensor ops and visualization live in Pyt
 - `visualization.py` — static plots and epoch animations
 - `config.py` — dataclass holding all hyperparameters (α, β, γ, δ, k, N, T, η)
 
-## Interface Contract (Pybind11)
+## Interface Contract
+
+**[docs/INTERFACES.md](INTERFACES.md) is the authoritative contract.** It fixes the state matrix,
+every exported signature, numerical conventions, the metrics DataFrame schema, and the complexity
+limits. This section only summarises the shape of the boundary; if the two ever disagree, the
+contract file wins and this one is stale.
 
 ```cpp
-// Exposed to Python
-py::dict run_epoch(const py::dict& config, py::array_t<double> states,
-                   py::array_t<int> swipe_log, int epoch);
-py::array_t<int> gale_shapley(py::array_t<int> pref_lists, int k,
-                              bool full_info);
-py::array_t<double> sample_population(int n, const py::dict& dist_params);
+sample_population(n, config, seed)            -> float64 (n, 7)
+generate_swipes(states, config, epoch)        -> int32   (S, 3)   [user, item, label]
+build_full_info_pref_lists(states, config)    -> (prop_prefs, acc_prefs)   // O(N²) memory
+deferred_acceptance(prop, acc, truncated)     -> {matches, unmatched_*, n_blocking}
+compute_welfare(states, matches, config)      -> {welfare, welfare_proposer, ...}
+update_thresholds(states, n_prop, n_match, eta) -> None   // mutates states[:, 6]
 ```
 
-Python passes NumPy arrays in; C++ returns NumPy arrays out. No copies across the boundary where possible (use `py::array_t` with `py::array::c_style`).
+Python passes NumPy arrays in and gets NumPy arrays out, using `py::array_t` with
+`py::array::c_style` so no copy is made at the boundary.
+
+The reason a separate file exists: the C++ and Python layers are written in different Claude Code
+sessions that share no context. The contract is the only thing keeping the two halves compatible.
 
 ## Scalability Targets
 
