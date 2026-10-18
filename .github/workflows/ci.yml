@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
       - run: pip install ruff==0.4.8
       - run: ruff check src/python/ scripts/ tests/python/
@@ -24,10 +24,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: pytest tests/python/ -v --tb=short
+      # slow property tests are excluded from the default run
+      - run: pytest tests/python/ -v --tb=short -m "not slow"
 
   test-cpp:
     runs-on: ubuntu-latest

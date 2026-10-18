@@ -1,7 +1,7 @@
 # Hypergamic Matching Markets
 
 ![Build](https://img.shields.io/github/actions/workflow/status/freddysccheung-067/hypergamic-matching-markets/ci.yml?style=flat-square)
-![Python](https://img.shields.io/badge/python-3.11-blue?style=flat-square)
+![Python](https://img.shields.io/badge/python-3.12-blue?style=flat-square)
 ![C++](https://img.shields.io/badge/C%2B%2B-17-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
@@ -37,12 +37,23 @@ See [docs/THEORY.md](docs/THEORY.md) for full mathematical formulation and [docs
 
 ## Installation
 
-```bash
-# Prerequisites: CMake 3.18+, Python 3.11+, C++17 compiler, OpenMP
+Requires CMake 3.18+, Python 3.9+, and a C++17 compiler. See
+[docs/PREREQUISITES.md](docs/PREREQUISITES.md) for the Windows toolchain setup — MSVC Build Tools
+are needed and are not installed by default.
+
+```powershell
 git clone https://github.com/freddysccheung-067/hypergamic-matching-markets
 cd hypergamic-matching-markets
-pip install -r requirements.txt
-cmake -B build && cmake --build build -j$(nproc)
+python -m pip install -r requirements.txt
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel
+```
+
+The compiled extension lands in `build\Release`. Put that directory on `PYTHONPATH` before
+importing `src.python`:
+
+```powershell
+python -c "import sys; sys.path.insert(0, 'build/Release'); import _hypergamic; print('ok')"
 ```
 
 ## Usage
@@ -50,13 +61,13 @@ cmake -B build && cmake --build build -j$(nproc)
 ```python
 from src.python.orchestrator import Simulation
 
-sim = Simulation(config="experiments/base.yaml")
+sim = Simulation(config_path="experiments/base.yaml")
 metrics = sim.run(n_epochs=100)
 ```
 
 Run a parameter sweep over the hypergamy coefficient:
 
-```bash
+```powershell
 python scripts/run_sweep.py --delta-values 0.0,0.5,1.0,1.5 --output-dir data/processed/
 ```
 
