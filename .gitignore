@@ -1,0 +1,49 @@
+# Build
+build/
+cmake-build-*/
+*.so
+*.pyd
+*.dylib
+_hypergamic*.pyd
+_hypergamic*.so
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+.venv/
+venv/
+
+# Models — keep .gitkeep, ignore weights
+models/*.pt
+models/*.pth
+models/*.ckpt
+
+# Data — keep .gitkeep, ignore outputs
+data/raw/*.csv
+data/raw/*.npz
+data/raw/*.parquet
+data/processed/*.csv
+data/processed/*.npz
+data/processed/*.parquet
+
+# Profiling
+profile.out
+*.prof
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# Figures generated at runtime
+docs/figures/*.png
+docs/figures/*.gif
+docs/figures/*.svg
+
+# OS
+.DS_Store
+Thumbs.db

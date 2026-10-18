@@ -1,0 +1,46 @@
+population:
+  n: 1000
+  seed: 42
+  traits:
+    status:
+      dist: lognormal
+      mean: 0.0
+      std: 0.8
+    attractiveness:
+      dist: normal
+      mean: 0.5
+      std: 0.15
+    sociability:
+      dist: normal
+      mean: 0.5
+      std: 0.15
+    age:
+      dist: normal
+      mean: 30.0
+      std: 6.0
+
+hypergamy:
+  delta: 0.5       # status surplus threshold δ
+  alpha: 1.0       # status weight in female utility
+  beta: 0.8        # attractiveness weight
+  gamma: 0.3       # distance penalty weight
+  lambda: 1.5      # indicator bonus for status surplus
+
+ncf:
+  embed_dim: 64
+  mlp_layers: [128, 64, 32]
+  lr: 0.001
+  l2_reg: 0.00001
+  pos_weight: 4.0
+  top_k: 20
+  n_negatives: 4
+
+simulation:
+  n_epochs: 100
+  bayesian_eta: 0.1
+  n_generations: 5
+  turnover_fraction: 0.2   # bottom fraction replaced each generation
+
+output:
+  dir: data/processed/
+  save_every: 10           # checkpoint model every N epochs
