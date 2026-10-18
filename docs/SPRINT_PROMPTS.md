@@ -148,6 +148,17 @@ src/cpp/simulation.cpp
     * Emit [user_id, item_id, label] with label 1 for positives, 0 for negatives
     * Wrap the outer per-agent loop in #pragma omp parallel for when _OPENMP is defined
 
+  THREAD SAFETY — get this right the first time, it is a silent-corruption bug:
+    * Do NOT push_back into a shared vector from inside the parallel region. Either
+      pre-size the output to n_agents * k * (1 + n_negatives) and write at a computed
+      index, or give each thread a private buffer and concatenate after the loop in
+      thread-index order. The second keeps the output deterministic across thread counts.
+    * Do NOT share one std::mt19937_64 across threads — it is not thread-safe and the run
+      stops being reproducible. Derive a per-thread seed from rng_seed and the thread id
+      (e.g. std::seed_seq{rng_seed, thread_id}), then use a thread-local engine.
+    * A test asserting "same seed → identical output" must pass at BOTH omp_set_num_threads(1)
+      and (4). If it only passes at 1, you still have the race.
+
 Write tests/cpp/test_population.cpp:
 - sample_population(200, cfg, 42) returns 200 agents, exactly 100 of each type
 - Every attractiveness and sociability value lies in [0, 1]
