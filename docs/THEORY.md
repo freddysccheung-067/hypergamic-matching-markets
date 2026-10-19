@@ -70,6 +70,15 @@ $\hat{p}_i$. That was wrong on two counts: no prior or likelihood is defined any
 computes. A genuine Bayesian treatment would need an explicit Beta prior over match probability —
 a different model, not a rename.
 
+**$\theta_i$ is a utility cutoff, and it gates swipes.** A candidate $j$ is swipeable by $i$ only
+when $U_i(j) \geq \theta_i$, and the top-$k$ is then taken among the admissible candidates; this is
+what closes the loop, because a $\theta_i$ pushed upward by a high match yield shrinks the positive
+set the NCF trains on. Because the update target is a *yield* in $[0,1]$ while $\theta_i$ is
+compared against utilities on the scale of $\alpha s + \beta a - \gamma d$, $\theta_i$ is
+calibrated at $t=0$ as the $(1-\phi)$ quantile of each agent's own utility distribution, with
+$\phi$ = `population.admissible_fraction` (default 0.2), so that roughly $\phi N/2$ candidates per
+agent are admissible at the start rather than all or none.
+
 ---
 
 ## 4. NCF Recommendation Engine

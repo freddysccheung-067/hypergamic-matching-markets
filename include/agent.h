@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 // ── Agent ─────────────────────────────────────────────────────────────────────
 // The in-memory mirror of one row of the state matrix in docs/INTERFACES.md §1:
@@ -29,6 +30,15 @@ struct UtilityParams {
 // to a full-unit trait gap instead of letting age dominate the distance.
 inline constexpr double kAgeScale = 10.0;
 
+// θ before calibration: the agent admits every candidate. sample_population
+// stamps this, and calibrate_thresholds() in population.h replaces it with a
+// quantile of the agent's own utility distribution. -inf (rather than 0.0) is the
+// neutral default because utilities are unbounded reals and several of them are
+// negative — a 0.0 default would silently drop part of the market before anyone
+// had calibrated anything.
+inline constexpr double kUncalibratedThreshold =
+    -std::numeric_limits<double>::infinity();
+
 struct Agent;
 
 // Weighted Euclidean distance d(v_a, v_b) over (status, attractiveness,
@@ -46,11 +56,12 @@ struct Agent {
     double sociability = 0.0;
     double age = 0.0;
 
-    double threshold = 0.0;  // selectivity θ_i, mutated in place each epoch
-
-    // Per-epoch counters, kept on the agent so the Bayesian update can read them.
-    std::int32_t epoch_proposals = 0;
-    std::int32_t epoch_matches = 0;
+    // Selectivity θ_i, in the same units as utility_toward. generate_swipes admits
+    // a candidate only when utility_toward(candidate) >= threshold, so θ is a
+    // utility cutoff, not a probability: it must sit inside the utility range of
+    // the agent's candidate pool, which is what calibrate_thresholds() arranges.
+    // Mutated in place each epoch by update_threshold().
+    double threshold = kUncalibratedThreshold;
 
     // U_i(j) from docs/THEORY.md §2:
     //   W evaluating a man : alpha*s_j + beta*a_j - gamma*d + lambda*1[s_j >= s_i + delta]
@@ -68,6 +79,10 @@ struct Agent {
 
     // θ ← θ + η·(matches/proposals − θ). A zero-proposal epoch carries no
     // information about this agent's match probability, so θ is left alone.
+    //
+    // The per-epoch proposal and match counts are passed in, not stored: the
+    // caller owns them for the epoch it is closing, and keeping a second copy on
+    // the agent created two sources of truth for one quantity.
     void update_threshold(std::uint32_t proposals, std::uint32_t matches, double eta) {
         if (proposals == 0) {
             return;

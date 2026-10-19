@@ -28,10 +28,33 @@ All are exposed as `_hypergamic.<name>`.
 
 ```python
 sample_population(n: int, config: dict, seed: int) -> np.ndarray[float64, (n, 7)]
+#   θ in column 6 is calibrated, not a config constant: by default each agent's
+#   θ is set to the (1 - population.admissible_fraction) quantile of its own
+#   utilities toward the opposite side, so that roughly that share of candidates
+#   is swipeable at epoch 0. Setting population.init_threshold to a number
+#   overrides calibration with that absolute utility cutoff.
 
 generate_swipes(states, config: dict, epoch: int) -> np.ndarray[int32, (S, 3)]
 #   columns: [user_id, item_id, label]; label 1 = right swipe
-#   S is not fixed: k positives per agent plus sampled negatives
+#   S is not fixed: up to k positives per agent plus sampled negatives
+#
+#   Seeding rule. Each agent gets its own engine, seeded from the 5-tuple
+#       (config["population"]["seed"], agent_id, config["ncf"]["top_k"], epoch)
+#   fed through std::seed_seq. Consequences, all of which are tested:
+#     * the output is independent of the thread count (the seed never contains a
+#       thread id or any shared state), so a one-thread and a four-thread run are
+#       bit-identical;
+#     * the same (seed, epoch) reproduces exactly;
+#     * a new epoch produces a different *negative* sample while the positives —
+#       a function of traits and θ only — are unchanged.
+#
+#   θ enters here: a candidate is swipeable only if
+#       utility_toward(user, candidate, config["hypergamy"]) >= states[user, 6]
+#   Positives are the top-k *among admissible candidates*, so θ can only ever
+#   truncate the list, never reorder it (the top-k of a filtered set is a prefix
+#   of the global top-k). Negatives are drawn uniformly without replacement from
+#   every candidate not reported as a positive, admissible-but-not-selected ones
+#   included.
 
 build_full_info_pref_lists(states, config: dict)
     -> tuple[list[list[int]], list[list[int]]]
@@ -77,14 +100,17 @@ Uses the same `alpha, beta, gamma, delta, lambda` from `config["hypergamy"]` as 
 - float64 everywhere except `labels`, `ids` and match arrays (int32).
 - `label = 1` for a right swipe; `0` for a sampled negative.
 - Utilities are unbounded reals, never clipped. Only `attractiveness` and `sociability` are clipped, and only at sampling.
-- One `std::mt19937_64` per run, seeded from `seed`. Population sampling and negative sampling draw from the same stream so `(seed, config)` fully determines a run.
+- Population sampling uses one `std::mt19937_64` seeded from `seed`; swipe generation uses one engine per agent, seeded from `(seed, agent_id, k, epoch)` as described in §2. There is no shared stream between the two phases, so `(seed, epoch, config)` fully determines a run.
+- Uniforms are derived from `engine()` output directly — `(engine() >> 11) * 2^-53` — rather than through `std::generate_canonical`, and normals come from Box–Muller on those uniforms rather than through `std::normal_distribution`. Both library facilities are implementation-defined in their number of engine calls and rounding, which would have made `(n, cfg, seed)` reproduce only within one toolchain. The residual caveat: `std::exp`, `std::log` and `std::pow` are only required to be correctly rounded to within a few ulp, so cross-*compiler* identity of a sampled trait is not guaranteed by the standard; what the code does guarantee is that no *engine-level* ambiguity remains. Byte-identical results are guaranteed within one toolchain and across thread counts.
 - Preference lists are `list[list[int]]` (ragged Python lists), not offset arrays. Simpler to debug; the O(N·k) matching loop is not the bottleneck.
 
 ## 4. Complexity and scale limits
 
 | call | time | memory | safe N |
 |------|------|--------|--------|
-| `sample_population` | O(N) | O(N) | any |
+| `sample_population` | O(N) + calibration | O(N) | any |
+| `calibrate_thresholds` | O(N² log N) | O(N) | ≤ 50,000 |
+| `flatten_states` / `unflatten_states` | O(N) | O(N) | any |
 | `generate_swipes` | O(N²) | O(N·k) | ≤ 50,000 |
 | `build_full_info_pref_lists` | O(N² log N) | **O(N²)** | ≤ 5,000 |
 | `deferred_acceptance` (truncated) | O(N·k) | O(N·k) | ≤ 500,000 |
