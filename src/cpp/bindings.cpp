@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "agent.h"
+#include "matching.h"
 #include "population.h"
 #include "simulation.h"
 
@@ -263,4 +264,188 @@ PYBIND11_MODULE(_hypergamic, m) {
         py::arg("states"), py::arg("config"), py::arg("admissible_fraction") = 0.2,
         "Set states[:, 6] in place to each agent's (1 - admissible_fraction) "
         "utility quantile.");
+
+    m.def(
+        "build_full_info_pref_lists",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            const PrefLists lists =
+                build_full_info_pref_lists(pop, params_from(config), compute_trait_stats(pop));
+
+            // Ragged lists, per INTERFACES.md §3: a list[list[int]] of Python
+            // ints, not an offset array. Simple to debug, and the matching loop
+            // is not the bottleneck.
+            py::list proposers(lists.proposers.size());
+            for (std::size_t i = 0; i < lists.proposers.size(); ++i) {
+                proposers[static_cast<py::ssize_t>(i)] =
+                    py::cast(lists.proposers[i]);
+            }
+            py::list acceptors(lists.acceptors.size());
+            for (std::size_t i = 0; i < lists.acceptors.size(); ++i) {
+                acceptors[static_cast<py::ssize_t>(i)] =
+                    py::cast(lists.acceptors[i]);
+            }
+            return py::make_tuple(proposers, acceptors);
+        },
+        py::arg("states"), py::arg("config"),
+        "Full-information preference lists: (proposer_prefs, acceptor_prefs), "
+        "dense indexes on both sides (docs/INTERFACES.md §2.3). O(N^2) memory; "
+        "do not call above N=5000 (§4).");
+
+    m.def(
+        "deferred_acceptance",
+        [](const std::vector<std::vector<std::int32_t>>& prop_prefs,
+           const std::vector<std::vector<std::int32_t>>& acc_prefs, bool truncated) {
+            const MatchResult r = deferred_acceptance(prop_prefs, acc_prefs, truncated);
+
+            py::array_t<std::int32_t> matches(
+                {static_cast<py::ssize_t>(r.matches.size()), py::ssize_t{2}});
+            std::int32_t* m = matches.mutable_data();
+            for (std::size_t i = 0; i < r.matches.size(); ++i) {
+                m[2 * i + 0] = r.matches[i][0];
+                m[2 * i + 1] = r.matches[i][1];
+            }
+
+            py::array_t<std::int32_t> unmatched_p(
+                {static_cast<py::ssize_t>(r.unmatched_proposers.size())});
+            std::copy(r.unmatched_proposers.begin(), r.unmatched_proposers.end(),
+                      unmatched_p.mutable_data());
+
+            py::array_t<std::int32_t> unmatched_a(
+                {static_cast<py::ssize_t>(r.unmatched_acceptors.size())});
+            std::copy(r.unmatched_acceptors.begin(), r.unmatched_acceptors.end(),
+                      unmatched_a.mutable_data());
+
+            py::array_t<std::int32_t> proposals(
+                {static_cast<py::ssize_t>(r.proposals.size())});
+            std::copy(r.proposals.begin(), r.proposals.end(), proposals.mutable_data());
+
+            py::dict out;
+            out["matches"] = matches;
+            out["unmatched_proposers"] = unmatched_p;
+            out["unmatched_acceptors"] = unmatched_a;
+            out["n_blocking"] = r.n_blocking;
+            out["proposals"] = proposals;
+            return out;
+        },
+        py::arg("prop_prefs"), py::arg("acc_prefs"), py::arg("truncated"),
+        "Gale-Shapley deferred acceptance, proposers proposing. Returns the dict "
+        "of docs/INTERFACES.md §2.1. Indexes are dense per-side positions (§2.3); "
+        "'proposals' counts attempts made and received, rejections included.");
+
+    m.def(
+        "count_blocking_pairs",
+        [](const std::vector<std::vector<std::int32_t>>& prop_prefs,
+           const std::vector<std::vector<std::int32_t>>& acc_prefs,
+           py::array_t<std::int32_t, py::array::c_style | py::array::forcecast> matches) {
+            const auto minfo = matches.request();
+            if (minfo.ndim != 2 || minfo.shape[1] != 2) {
+                throw std::invalid_argument("matches must be an int32 array of shape (P, 2)");
+            }
+            const auto* mdata = static_cast<const std::int32_t*>(minfo.ptr);
+            std::vector<std::array<std::int32_t, 2>> pairs(
+                static_cast<std::size_t>(minfo.shape[0]));
+            for (py::ssize_t i = 0; i < minfo.shape[0]; ++i) {
+                pairs[static_cast<std::size_t>(i)] = std::array<std::int32_t, 2>{
+                    mdata[2 * i + 0], mdata[2 * i + 1]};
+            }
+            return count_blocking_pairs(prop_prefs, acc_prefs, pairs);
+        },
+        py::arg("prop_prefs"), py::arg("acc_prefs"), py::arg("matches"),
+        "Blocking pairs in `matches` judged against these preference lists. BPR "
+        "must be counted against the full-information lists, not the truncated "
+        "ones: a truncated run is stable with respect to its own lists by "
+        "construction, so that count is always zero.");
+
+    m.def(
+        "compute_welfare",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           py::array_t<std::int32_t, py::array::c_style | py::array::forcecast> matches,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            const auto minfo = matches.request();
+            if (minfo.ndim != 2 || minfo.shape[1] != 2) {
+                throw std::invalid_argument("matches must be an int32 array of shape (P, 2)");
+            }
+            const auto* mdata = static_cast<const std::int32_t*>(minfo.ptr);
+            std::vector<std::array<std::int32_t, 2>> pairs(
+                static_cast<std::size_t>(minfo.shape[0]));
+            for (py::ssize_t i = 0; i < minfo.shape[0]; ++i) {
+                pairs[static_cast<std::size_t>(i)] = std::array<std::int32_t, 2>{
+                    mdata[2 * i + 0], mdata[2 * i + 1]};
+            }
+
+            const Welfare w = compute_welfare(pop, pairs, params_from(config),
+                                              compute_trait_stats(pop));
+            py::dict out;
+            out["welfare"] = w.total;
+            out["welfare_proposer"] = w.proposer;
+            out["welfare_acceptor"] = w.acceptor;
+            out["n_pairs"] = w.n_pairs;
+            return out;
+        },
+        py::arg("states"), py::arg("matches"), py::arg("config"),
+        "Social welfare over a matching: sum of U_prop(acc) + U_acc(prop) "
+        "(docs/INTERFACES.md §2.2). Weights and standardization are the same as "
+        "generate_swipes.");
+
+    m.def(
+        "update_thresholds",
+        // Untyped and stride-checked for the same reason as calibrate_thresholds:
+        // a py::array_t<double> argument would forcecast into a temporary and the
+        // write to states[:, 6] would land there instead of in the caller's array.
+        [](py::array states, py::array n_proposals, py::array n_matches, double eta) {
+            if (!states.dtype().is(py::dtype::of<double>())) {
+                throw std::invalid_argument(
+                    "states must be float64; a converted copy would take the θ update "
+                    "and the caller's column would stay unchanged");
+            }
+            const auto info = states.request();
+            if (info.ndim != 2 || info.shape[1] != 7) {
+                throw std::invalid_argument(
+                    "states must be a C-contiguous float64 array of shape (N, 7)");
+            }
+            if ((info.strides[0] != 7 * static_cast<py::ssize_t>(sizeof(double))) ||
+                (info.strides[1] != static_cast<py::ssize_t>(sizeof(double)))) {
+                throw std::invalid_argument(
+                    "states must be C-contiguous; a strided view would be copied and "
+                    "the in-place θ update lost");
+            }
+            const int n = static_cast<int>(info.shape[0]);
+
+            auto read_counts = [n](py::array& arr, const char* name) {
+                if (!arr.dtype().is(py::dtype::of<std::int32_t>())) {
+                    throw std::invalid_argument(std::string(name) + " must be int32");
+                }
+                const auto c = arr.request();
+                if (c.ndim != 1 || c.shape[0] != n) {
+                    throw std::invalid_argument(std::string(name) +
+                                                " must be 1-D with one entry per state row");
+                }
+                const auto* d = static_cast<const std::int32_t*>(c.ptr);
+                return std::vector<std::int32_t>(d, d + n);
+            };
+            const std::vector<std::int32_t> proposals = read_counts(n_proposals, "n_proposals");
+            const std::vector<std::int32_t> matched = read_counts(n_matches, "n_matches");
+
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+            update_thresholds(pop, proposals, matched, eta);
+            const std::vector<double> flat = flatten_states(pop);
+            std::copy(flat.begin(), flat.end(), static_cast<double*>(info.ptr));
+        },
+        py::arg("states"), py::arg("n_proposals"), py::arg("n_matches"), py::arg("eta"),
+        "θ ← θ + η·(matches/proposals − θ) per agent, in place on states[:, 6]. "
+        "Counts are indexed by row; agents with no proposals are left alone.");
 }
