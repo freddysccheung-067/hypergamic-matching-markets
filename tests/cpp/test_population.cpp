@@ -232,7 +232,7 @@ TEST_CASE("the same seed reproduces the population exactly", "[population]") {
 
 TEST_CASE("flatten and unflatten round-trip bit for bit", "[population][states]") {
     // Every field is overwritten with a value that differs from its default and
-    // from its neighbour's, so a column written to the wrong offset or a field
+    // from its neighbor's, so a column written to the wrong offset or a field
     // dropped by the conversion shows up as a mismatch rather than as a value that
     // happens to coincide.
     std::vector<Agent> pop(8);
@@ -282,7 +282,7 @@ TEST_CASE("flatten and unflatten round-trip bit for bit", "[population][states]"
 
 TEST_CASE("flatten preserves non-finite thresholds", "[population][states]") {
     // θ defaults to -infinity before calibration, so the conversion has to carry
-    // that value rather than normalise it. The config helper sets 0.25 for the
+    // that value rather than normalize it. The config helper sets 0.25 for the
     // other tests, so this one builds a PopConfig that leaves init_threshold at
     // its default and checks that the default really is the uncalibrated value.
     PopConfig cfg = config(0.0, 0.8);

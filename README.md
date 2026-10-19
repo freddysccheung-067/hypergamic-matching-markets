@@ -85,6 +85,49 @@ notebooks/      Full-pipeline demo notebook
 docs/           Mathematical formulation and architecture diagrams
 ```
 
+## Limitations
+
+This is a model of a mechanism, not a measurement of a population. The distinction matters most
+for attractiveness, so it gets its own note.
+
+**Every trait is synthetic.** Status, attractiveness, sociability and age are drawn from
+distributions chosen for tractability. Nothing here estimates a real quantity, and no output says
+anything about an actual person.
+
+**Attractiveness is not measurable on the scale the model uses.** Three separate problems, and the
+model only absorbs the first:
+
+- *Self-report compression.* People cluster near the top of the scale — a 7/10 rather than a 5/10
+  for someone who feels average. A shift shared by everyone is an intercept and cancels in a
+  ranking comparison, so this is less damaging than it looks. What it destroys is usable variance:
+  if everyone reports 7, the term carries no information.
+- *Rank scales are ordinal, not interval.* A 7 and a 5 are labels, not measurements. Treating them
+  as reals assumes comparable gaps between them, which nothing in how they are elicited supports.
+- *There is no absolute scale.* A 7 in one city, age group or app is a 5 in another. Any empirical
+  calibration would have to name its reference population.
+
+Because traits are standardized before entering the utility, only the *rank order* of
+attractiveness matters — the specific 0–1 scale and the self-report question cancel. What the
+model cannot survive is a distribution with no variance, which heavy compression would produce.
+That is why the default is not a self-report-shaped distribution: a term that barely varies cannot
+test anything. The results should be read as an upper bound on how much attractiveness can
+influence selection, not as an estimate of how much it does.
+
+**The Matthew effect needs its control.** A rising Gini under the recommender proves nothing on
+its own — preferences alone concentrate attention on high-status agents. The claim this project
+supports is `Gini(NCF) − Gini(random)`, measured against a random-exposure arm sharing the same
+population, seed and utilities. Gini(NCF) reported alone is not evidence of algorithmic
+amplification.
+
+**Correlation among matched pairs is a selection artifact.** Traits are drawn independently, so no
+trait causes another. The market sorts on several at once, which makes the survivors correlate —
+strongly at the top of the distribution. That is a collider, not a finding about individuals.
+
+**Other limits.** The full-information benchmark is capped near N=5000 for memory reasons.
+M-proposing Gale-Shapley returns the proposer-optimal matching, which understates the acceptor
+side's dissatisfaction. Generational turnover is the only population dynamic; there is no entry,
+exit or preference learning from outside the simulation.
+
 ## License
 
 MIT

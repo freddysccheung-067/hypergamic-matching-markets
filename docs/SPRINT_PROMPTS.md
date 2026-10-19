@@ -135,7 +135,7 @@ include/population.h + src/cpp/population.cpp
     * Supported dist names: "normal", "lognormal", "pareto"
       - pareto via inverse CDF: x = x_min * pow(U, -1.0/alpha), U ~ Uniform(0,1)
     * Clamp attractiveness and sociability to [0, 1] AFTER sampling
-    * threshold initialised to cfg.init_threshold for every agent
+    * threshold initialized to cfg.init_threshold for every agent
     * One std::mt19937_64 seeded with `seed`, used for every draw — the same
       (n, cfg, seed) must reproduce the population bit for bit
 
@@ -184,7 +184,7 @@ Session 1-B and 1-C are built and green, but review found five issues. Fix them 
 1. THRESHOLD IS INERT — the most important fix.
    Agent::threshold is updated every epoch by update_threshold(), but utility_toward() never
    reads it and generate_swipes() never reads it. Consequences:
-     - the adaptive-expectation mechanism in THEORY.md §3 has no effect on behaviour;
+     - the adaptive-expectation mechanism in THEORY.md §3 has no effect on behavior;
      - positives are top-k by utility, which depends only on traits, so the SAME positives are
        produced on every epoch regardless of seed;
      - the "closed loop" is therefore open, and the NCF trains on a static target.
@@ -277,7 +277,7 @@ Read docs/THEORY.md §2 and docs/INTERFACES.md §1–§3 first.
 
 Two independent problems. Do them in this order.
 
-1. STANDARDISE TRAITS FOR UTILITY.
+1. STANDARDIZE TRAITS FOR UTILITY.
    Raw traits have incompatible scales: status is lognormal(0, 0.8) with sd 1.31 and a max
    near 44; attractiveness is normal(0.5, 0.15) clipped to [0,1], sd 0.15. So α=1.0 and
    β=0.8 do not mean "status slightly more important than attractiveness" — they mean
@@ -290,16 +290,16 @@ Two independent problems. Do them in this order.
    Implementation notes:
    - Compute (mean, sd) per trait across the whole population, once, after
      sample_population(). Store them on the Population or pass them in a small struct.
-   - utility_toward() and weighted_distance() use the standardised values.
+   - utility_toward() and weighted_distance() use the standardized values.
    - The distance term becomes scale-free, which also softens the "s enters twice"
      collinearity documented in THEORY.md §2.1.
    - δ is now expressed in standard deviations of log-status. Document that in THEORY.md
      and in the base.yaml comment.
-   - Guard sd == 0 (a degenerate constant trait) by leaving that trait unstandardised
+   - Guard sd == 0 (a degenerate constant trait) by leaving that trait unstandardized
      rather than dividing by zero.
 
    Do NOT change the raw state matrix layout in INTERFACES.md §1. Column 6 (θ) stays in
-   utility units, which are now standardised units — state that explicitly.
+   utility units, which are now standardized units — state that explicitly.
 
 2. WIRE ncf.n_negatives THROUGH, AND ADD THE MISSING KEYS.
    experiments/base.yaml declares ncf.n_negatives: 4, but simulation.cpp hardcodes
@@ -320,7 +320,7 @@ Two independent problems. Do them in this order.
    - set beta: 2.0 (see item 3) and note why in a comment
 
 3. MAKE delta ABLE TO MATTER — a default-config change, not a code change.
-   With standardised traits, measured top-1000 overlap between δ=0.0 and δ=1.0:
+   With standardized traits, measured top-1000 overlap between δ=0.0 and δ=1.0:
 
      alpha=1.0 beta=0.8  -> 1.000  (inert)
      alpha=1.0 beta=2.0  -> 0.915  (some power)
@@ -344,7 +344,7 @@ Two independent problems. Do them in this order.
    and is not just always-passing.
 
 4. UPDATE THE DOCS WITH WHAT WAS MEASURED.
-   - THEORY.md §2: note that traits are standardised before utility computation, and that
+   - THEORY.md §2: note that traits are standardized before utility computation, and that
      δ is therefore in standard-deviation units.
    - THEORY.md: add a short "δ has power only when β/α ≥ 2" note with the mechanism —
      the indicator is a constant unless the cutoff bisects the competitive set, which
@@ -357,8 +357,8 @@ Build and run the full suite:
    ctest --test-dir build -C Release --output-on-failure
 
 Every existing test must still pass. The θ calibration tests will need their
-utility-scale assumptions revisited — θ is now a quantile of standardised-unit utilities,
-which changes its numeric range but not its behaviour. If a calibration test hardcodes a
+utility-scale assumptions revisited — θ is now a quantile of standardized-unit utilities,
+which changes its numeric range but not its behavior. If a calibration test hardcodes a
 raw-scale number, fix the test, not the calibration.
 ```
 
@@ -395,7 +395,7 @@ class NCFTrainer:
       * interactions shape (B, 3) int32 — [user_id, item_id, label]; label 1 = right swipe
       * BCEWithLogitsLoss(pos_weight=torch.tensor(4.0))
       * Negative sampling: for each positive (label==1), sample 4 random (user, item) pairs
-        not present in the log. The C++ layer already emits labelled negatives; use those
+        not present in the log. The C++ layer already emits labeled negatives; use those
         as-is and only top up if a batch is short of them.
   - top_k_recommendations(self, user_ids, candidate_ids, k) → dict[int, list[int]]
       * Compute the full score matrix ONCE: batch users × candidates through the model,
@@ -529,7 +529,7 @@ def gini_coefficient(exposures: np.ndarray) -> float
 def market_clearing_rate(n_matched: int, n_total: int) -> float
 
 def rank_satisfaction_index(matches, pref_lists: dict[int, list[int]]) -> float
-    Mean rank of the partner within the proposer's list, normalised by list length.
+    Mean rank of the partner within the proposer's list, normalized by list length.
     Unmatched agents excluded. Return float('nan') if no matches.
 
 def algorithmic_loss(welfare_full: float, welfare_alg: float) -> float
@@ -665,7 +665,7 @@ pairs and concluding "high-status people are also better looking" is reading a c
 3. Write tests/python/test_attribution.py:
    - generative correlation between status and attractiveness is within +/-0.01
    - selection-induced correlation at top-10 EXCEEDS the generative correlation
-     (this documents the artefact rather than asserting it is absent)
+     (this documents the artifact rather than asserting it is absent)
    - leave-one-term-out: zeroing alpha drops overlap below 0.2; zeroing the indicator
      leaves overlap above 0.9 at the base config.
 
@@ -674,7 +674,7 @@ pairs and concluding "high-status people are also better looking" is reading a c
    - the model cannot therefore answer "does status reflect attractiveness"; it can only
      answer "how much does each term drive selection", which is what leave-one-term-out
      measures
-   - correlation among matched pairs is a selection artefact and must never be reported as
+   - correlation among matched pairs is a selection artifact and must never be reported as
      a finding about individuals
 
 This section is what keeps the README honest. Without it the project reads as though it
@@ -773,7 +773,7 @@ In hypergamic-matching-markets. The full metrics pipeline works and sweep CSVs a
 
 Read docs/INTERFACES.md §6 first — your plots must read exactly those column names.
 
-Write src/python/visualization.py. matplotlib, dark theme, colour-blind-safe series colours.
+Write src/python/visualization.py. matplotlib, dark theme, color-blind-safe series colors.
 Use plt.rcParams rather than plt.style.use('dark_background') so the figures still read
 correctly when embedded in a light-mode README (the README is the main consumer).
 
@@ -837,7 +837,7 @@ In hypergamic-matching-markets. Target: N=100,000 agents × 100 epochs in under 
    - Compute the full score matrix in ONE batched forward pass instead of per-user.
      At N=5000 that is 5000 sequential forwards; batched it is a handful of matmuls.
    - torch.topk on the score matrix instead of sorting.
-   - Reuse the optimiser and model across epochs; never rebuild them.
+   - Reuse the optimizer and model across epochs; never rebuild them.
 
    C++ side (only if `_hypergamic` dominates):
    - Pre-compute the distance matrix once per epoch, outside the OpenMP loop.
@@ -971,7 +971,7 @@ Badge row (shields.io, flat-square): CI status, Python 3.12, C++17, MIT.
 Link the CI badge to the real workflow path.
 
 Opening paragraph: what hypergamy is, and the specific question — what happens to a
-matching market when an engagement-optimising recommender sits between the two sides.
+matching market when an engagement-optimizing recommender sits between the two sides.
 
 ## The Model
 Three layers in prose, then the mermaid diagram from docs/ARCHITECTURE.md, then the

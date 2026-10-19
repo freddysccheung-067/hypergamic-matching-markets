@@ -12,7 +12,7 @@
 // Each agent swipes right on its top-k *admissible* candidates of the opposite
 // type: candidates are ranked by utility_toward, and those whose utility falls
 // below the agent's own θ are dropped before the top-k is taken. θ is therefore a
-// live gate on behaviour, not a counter kept for reporting — it is what makes the
+// live gate on behavior, not a counter kept for reporting — it is what makes the
 // adaptive-expectation loop in docs/THEORY.md §3 close, since a rising θ shrinks
 // the positive set and the NCF's target moves with it.
 //

@@ -18,9 +18,30 @@ states: np.float64, C-contiguous, shape (N, 7)
 | 3 | `attractiveness` | clipped to `[0, 1]` at sampling |
 | 4 | `sociability` | clipped to `[0, 1]` at sampling |
 | 5 | `age` | years |
-| 6 | `threshold` | selectivity θ, starts at a config default, **mutated in place** by `update_thresholds` |
+| 6 | `threshold` | selectivity θ, in **standardized utility units** after calibration, **mutated in place** by `update_thresholds` |
 
 One flat array rather than a list of structs: the hot loop touches 10⁵ rows per epoch and the cost of marshalling per-agent dicts through pybind11 dwarfs the arithmetic.
+
+### 1.1 Columns 2–5 are modeling constructs
+
+None of these columns holds a measured quantity. They are draws from distributions chosen for
+tractability, and every downstream result inherits that status. See THEORY.md §1.1 for the full
+argument; the parts that bind this interface:
+
+- **Column 3 (`attractiveness`) is the weakest of the four.** It is not measurable on an interval
+  scale, the scales used to elicit it are ordinal, and self-reported values cluster near the top
+  (a 7/10 for self-described average) so their usable variance is small. The model treats it as a
+  real number with a roughly Gaussian population spread — an assumption of convenience, not an
+  empirical claim.
+- **Only rank order matters, not units.** Traits are standardized before entering the utility, so
+  a caller may pass any monotone rescaling of a trait and get the same ranking. What breaks the
+  model is a trait with no variance, not a trait on the wrong scale.
+- **Do not compare these columns to real data.** Any empirical calibration is a separate exercise
+  requiring a named reference population, which this project does not have.
+
+Consumers of the state matrix — the NCF trainer, the metrics layer, the visualization — should
+treat columns 2–5 as opaque coordinates and never attach real-world units to them in a caption or
+a README sentence.
 
 ## 2. Exported functions
 
@@ -134,7 +155,7 @@ M proposes; W accepts. Gale-Shapley returns the **proposer-optimal** stable matc
 | `seed` | int | |
 | `gini` | float | over per-agent exposure counts |
 | `mcr` | float | `2 · n_matched / N` |
-| `rsi` | float | mean normalised partner rank, in `(0, 1]` |
+| `rsi` | float | mean normalized partner rank, in `(0, 1]` |
 | `bpr` | float | `n_blocking / max(n_matched, 1)` |
 | `welfare_alg` | float | |
 | `welfare_full` | float | `NaN` when the benchmark was not run |

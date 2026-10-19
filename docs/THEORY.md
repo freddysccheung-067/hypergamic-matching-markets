@@ -11,9 +11,54 @@ $$\mathbf{v}_i = [s_i,\ a_i,\ c_i,\ t_i]^\top$$
 | $s_i$ | Socio-economic status | $\text{LogNormal}(\mu_s, \sigma_s)$ or Pareto($\alpha_s$) |
 | $a_i$ | Physical attractiveness score | $\mathcal{N}(\mu_a, \sigma_a)$, clipped to $[0,1]$ |
 | $c_i$ | Sociability metric | $\mathcal{N}(\mu_c, \sigma_c)$, clipped to $[0,1]$ |
-| $t_i$ | Temporal age | $\mathcal{U}(18, 45)$ at initialization |
+| $t_i$ | Temporal age | $\mathcal{N}(\mu_t, \sigma_t)$ at initialization |
 
 The population is partitioned into two disjoint demographic sets $M$ and $W$ with $|M| = |W| = N/2$.
+
+### 1.1 Every trait here is a modeling construct, not a measurement
+
+$s$, $a$ and $c$ are synthetic draws. Nothing in this model estimates a real quantity, and the
+results say nothing about any actual person. That is true of all three traits; it is worth
+spelling out for $a$ in particular, because attractiveness is the trait the model handles least
+honestly if left unexplained.
+
+**Attractiveness is not measurable on the scale this model uses.** Three distinct problems, only
+one of which the model can absorb:
+
+1. **Self-report compression.** Asked to rate themselves, most people cluster near the top of the
+   scale — a 7/10, not a 5/10, for someone who considers themselves average. The reported
+   distribution is therefore shifted and truncated relative to whatever the underlying variable
+   is. This does *not* necessarily bias the ranking: a shift shared by everyone is an intercept,
+   and an intercept cancels when you compare candidates. What it destroys is *usable variance*.
+   If everyone reports 7, the term carries no information.
+
+2. **Rank scales are not interval scales.** A "7" and a "5" are ordinal labels. Treating them as
+   reals — as this model does — assumes the gaps are comparable, which nothing in the
+   elicitation supports. Averaging ordinal ratings is not meaningful in the way averaging
+   heights is.
+
+3. **Ratings are relative to a reference population.** A 7 in one city, age group or app is a 5
+   in another. There is no absolute scale. Any empirical calibration would need to name its
+   reference population, and none of the commonly cited sources do.
+
+**What this model does and does not claim.** It assumes $a_i$ is a real-valued score on an
+interval scale with a roughly Gaussian population distribution. That is an assumption of
+convenience, chosen so the utility function is differentiable and the simulation tractable. It is
+not an empirical claim, and no result in this project should be read as an estimate of a real
+attractiveness distribution.
+
+**What survives the assumption.** Because traits are standardized before entering the utility
+(§2), $a_i$'s *units* cancel: only its rank order matters. So the model's conclusions depend on
+attractiveness being ordinally comparable, not on the specific 0–1 scale or on the ratings being
+self-reported. What it cannot survive is a distribution with no variance, or one whose ordering
+is noise — which is exactly what heavy self-report compression would produce.
+
+**Why the default is not a self-report distribution.** Setting $a \sim \mathcal{N}(0.7, 0.08)$ to
+mimic self-report would look more faithful while making the term behave as near-constant, since
+almost all its variance would fall inside a narrow band. A model in which attractiveness barely
+varies cannot test anything about attractiveness. The honest choices are to declare the
+assumption, report results as an upper bound on the term's influence, and treat any empirical
+calibration as a separate exercise requiring data this project does not have.
 
 ---
 
@@ -28,21 +73,21 @@ $$U_w(m) = \alpha \cdot s_m + \beta \cdot a_m - \gamma \cdot d(\mathbf{v}_w, \ma
 - $\mathbb{1}[\cdot]$ — indicator function that penalizes/rewards the status gap
 - $d(\cdot,\cdot)$ — Euclidean distance, expanded below
 
-The distance term must be written out, because an unspecified $d$ hides two modelling decisions
+The distance term must be written out, because an unspecified $d$ hides two modeling decisions
 that change the results:
 
 $$d(\mathbf{v}_i, \mathbf{v}_j) = \sqrt{(s_i - s_j)^2 + (a_i - a_j)^2 + (c_i - c_j)^2 + \left(\frac{t_i - t_j}{10}\right)^2}$$
 
 **Age scaling.** Age is measured in years, with a population spread of roughly 20, while the other
 three traits live at unit scale. Without the divisor the age gap would dominate $d$ and the
-distance term would be almost purely an age penalty. The constant 10 is a modelling choice, not a
+distance term would be almost purely an age penalty. The constant 10 is a modeling choice, not a
 derived quantity.
 
 **A collinearity that must be acknowledged.** $s$ enters twice: as the linear reward $\alpha s_m$
 and again inside $d$. The model therefore rewards high status *and* penalises status dissimilarity,
 so $\gamma$ carries part of the status weight with the opposite sign. At the defaults
 $\alpha = 1.0$, $\gamma = 0.3$ the two do not cancel, but any claim of the form "$\alpha$ is the
-weight on status" holds only up to this coupling. Two defensible resolutions: standardise the
+weight on status" holds only up to this coupling. Two defensible resolutions: standardize the
 traits before computing $d$ and drop $s$ from it, or keep $s$ in $d$ and report $\alpha$ and
 $\gamma$ jointly rather than interpreting either in isolation.
 

@@ -87,7 +87,7 @@ Performance-critical loops live in C++; tensor ops and visualization live in Pyt
 
 **[docs/INTERFACES.md](INTERFACES.md) is the authoritative contract.** It fixes the state matrix,
 every exported signature, numerical conventions, the metrics DataFrame schema, and the complexity
-limits. This section only summarises the shape of the boundary; if the two ever disagree, the
+limits. This section only summarizes the shape of the boundary; if the two ever disagree, the
 contract file wins and this one is stale.
 
 ```cpp
