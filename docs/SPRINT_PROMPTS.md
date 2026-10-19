@@ -768,30 +768,61 @@ Read docs/INTERFACES.md §6, docs/THEORY.md §2.3 and §7.1, and src/python/orch
 
 WHAT IS ACTUALLY BEING MEASURED, AND WHAT IS NOT.
 
-There is a tempting claim to make here and it is FALSE in this codebase. You might want to
-write: "the NCF learns to favour high-status men, funnelling exposure and amplifying the
-Matthew effect." That is not what the pipeline does. `generate_swipes` takes no shown-set
-argument — it is a pure function of (states, params, stats, seed, epoch) and diffs of the
-utility rankings. It does not see, and cannot respond to, what the recommender surfaced.
+FIRST, A CORRECTION TO THIS SESSION'S EARLIER VERSION. An earlier draft said this was an
+exposure-mediated model with no feedback loop, because `generate_swipes` takes no shown-set
+argument. That was half right and the wrong half was load-bearing. Measured:
 
-So this is an exposure-mediated model, not a closed feedback loop:
+- Swipes genuinely do not see the shown list. `generate_swipes` is a pure function of
+  (states, params, stats, seed, epoch). Preferences never respond to what the recommender
+  surfaced.
+- BUT `update_thresholds` mutates `states[:, 6]` at the end of every epoch from the matching
+  outcome, and `generate_swipes` gates on that same theta. Measured after ONE epoch at the
+  base config: 982 of 1000 theta values change.
+- So there IS a loop: DA outcome → theta → admissible set → swipe log. It closes through
+  selectivity, not through exposure.
 
-- Swipes are NOT conditioned on recommendations. Preferences are independent of exposure.
-- The NCF learns the structure of preferences, then decides who is VISIBLE.
-- What reaches the matching is a truncated, algorithmically-chosen list.
-- `algorithmic_loss` therefore measures the welfare cost of the recommender's ranking error
-  against the same static preferences.
+AND SECOND, THAT LOOP IS CURRENTLY INERT. This is the same bug class as the original inert
+threshold from Session 1.5, reintroduced at the calibration layer. theta only binds when an
+agent has fewer than k candidates clearing it, which needs
 
-State this in the README. It is a limitation, and it is also a cleaner experiment than a
-closed loop: the counterfactual is well defined instead of path-dependent. A respondent who
-asks "would swipes change if the app showed different people" is asking a question this model
-was built not to answer.
+    admissible_fraction < k / n_side        (0.2 shipped, 20/500 = 0.04 required)
 
-The Matthew effect is still real and still measurable — algorithmic loss and truncation do
-concentrate exposure. It is simply not compounded by feedback here.
+Measured at N=1000, k=20, over six epochs:
+
+| admissible_fraction | admissible per agent | agents with < k positives | positives moved by a delta-theta shift |
+|---|---|---|---|
+| 0.20 (shipped) | 100 | 0 / 1000 | 0 |
+| 0.05 | 25 | 0 / 1000 | 0 |
+| 0.02 | 10 | 1000 / 1000 | 6709 |
+| 0.01 | 5 | 1000 / 1000 | 3869 |
+
+At the shipped 0.2, no agent is ever truncated by theta: the top-20 of 100 admissible candidates
+is 20, and theta has no room to act. The loop exists and does nothing. Fixing this belongs to
+this session, not to a later one, because every ablation result you produce before it is
+produced in a market that does not respond to its own outcomes.
+
+The fix is a calibration change, not new machinery: set `population.admissible_fraction` so the
+admissible set is comfortably smaller than k (0.02 at k=20, N=1000). Then verify the loop is
+live — keep the assertion in this session, it is the only thing that says the market is dynamic:
+
+    after one epoch, at least 90% of theta values have changed, AND
+    at least 50% of agents have fewer than k positives, AND
+    shifting theta by -1.0 changes a non-trivial share of the positive set
+
+If you pick a fraction where those hold, the feedback loop is real. Report the fraction and the
+measured numbers, and note in THEORY.md §3 that the loop is live only above this threshold —
+which is a genuine property of the model, worth stating rather than hiding.
+
+Consequence for what follows: with the loop live, `algorithmic_loss` is no longer "the cost of
+ranking error against static preferences". It is the cost of ranking error in a market that
+partially adapts to its own clearing outcomes. That is the more defensible story, and it is the
+one the project was designed to tell.
 
 THE FOUR ARMS. Measured on a numpy replica before this prompt was written, N=1000, k=20,
-rank-8 SVD standing in for the NCF, base config, over FIVE seeds:
+rank-8 SVD standing in for the NCF, base config at the shipped admissible_fraction, over FIVE
+seeds. NOTE: these were measured with the loop inert. Re-run them after the calibration fix and
+report both — the comparison between the two regimes is itself the evidence that feedback
+matters.
 
 | arm | Gini mean ± sd | reach | top1% share |
 |---|---|---|---|
