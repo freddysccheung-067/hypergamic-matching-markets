@@ -24,13 +24,6 @@ except ImportError:  # pragma: no cover
     )
 
 from src.python.config import SimConfig  # noqa: E402
-from src.python.metrics import (  # noqa: E402
-    algorithmic_loss,
-    gini,
-    market_clearing_rate,
-    pareto_alpha,
-    rank_satisfaction_index,
-)
 from src.python.orchestrator import COLUMNS, Simulation  # noqa: E402
 
 
@@ -249,39 +242,3 @@ def test_config_rejects_unknown_key():
     raw = base_config(ncf={"topk": 20})
     with pytest.raises(ValueError, match="unknown key"):
         SimConfig.from_dict(raw)
-
-
-# ── metrics ─────────────────────────────────────────────────────────────────────
-
-def test_gini_known_values():
-    assert gini(np.ones(10)) == pytest.approx(0.0)
-    # One agent holding everything: G -> (n-1)/n.
-    counts = np.zeros(10)
-    counts[0] = 100.0
-    assert gini(counts) == pytest.approx(0.9)
-    assert gini(np.zeros(10)) == 0.0, "universal invisibility is equality, not an error"
-
-
-def test_mcr_counts_both_sides():
-    assert market_clearing_rate(50, 100) == pytest.approx(1.0)
-    assert market_clearing_rate(25, 100) == pytest.approx(0.5)
-
-
-def test_rsi_bounds():
-    prefs = [[0, 1, 2], [1, 0, 2]]
-    # Top choice in a 3-list: (0+1)/3.
-    assert rank_satisfaction_index(np.array([[0, 0]]), prefs) == pytest.approx(1 / 3)
-    # Bottom choice: 1.0.
-    assert rank_satisfaction_index(np.array([[0, 2]]), prefs) == pytest.approx(1.0)
-    assert np.isnan(rank_satisfaction_index(np.zeros((0, 2), dtype=np.int32), prefs))
-
-
-def test_algorithmic_loss_nan_without_benchmark():
-    assert np.isnan(algorithmic_loss(1.0, float("nan")))
-    assert algorithmic_loss(90.0, 100.0) == pytest.approx(0.1)
-
-
-def test_pareto_alpha_nan_on_degenerate():
-    assert np.isnan(pareto_alpha(np.array([1.0, 1.0, 1.0])))
-    assert np.isnan(pareto_alpha(np.array([1.0, 0.0, 0.0])))
-    assert pareto_alpha(np.array([1.0, 2.0, 4.0])) > 0

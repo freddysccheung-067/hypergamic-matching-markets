@@ -31,6 +31,7 @@ import torch
 from src.python.config import SimConfig
 from src.python.metrics import (
     algorithmic_loss,
+    blocking_pair_ratio,
     gini,
     market_clearing_rate,
     pareto_alpha,
@@ -301,7 +302,7 @@ class Simulation:
             if self._full_prefs is not None:
                 n_blocking = int(count_blocking_pairs(self._full_prefs[0],
                                                       self._full_prefs[1], matches))
-                bpr = n_blocking / max(n_matched, 1)
+                bpr = blocking_pair_ratio(n_blocking, n_matched)
             else:
                 n_blocking = int(da["n_blocking"])
                 bpr = float("nan")
@@ -325,8 +326,9 @@ class Simulation:
                 "bpr": bpr,
                 "welfare_alg": welfare_alg,
                 "welfare_full": self._welfare_full if ok_benchmark else float("nan"),
-                "algorithmic_loss": algorithmic_loss(welfare_alg, self._welfare_full)
-                if ok_benchmark else float("nan"),
+                "algorithmic_loss": algorithmic_loss(
+                    welfare_alg=welfare_alg, welfare_full=self._welfare_full
+                ) if ok_benchmark else float("nan"),
                 "n_matched": n_matched,
                 "n_blocking": n_blocking,
                 "pareto_alpha": alpha,

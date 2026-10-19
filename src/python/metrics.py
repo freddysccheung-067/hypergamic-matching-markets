@@ -55,6 +55,19 @@ def market_clearing_rate(n_matched: int, n_agents: int) -> float:
     return 2.0 * float(n_matched) / float(n_agents)
 
 
+def blocking_pair_ratio(n_blocking: int, n_matched: int) -> float:
+    """BPR = n_blocking / max(n_matched, 1) (INTERFACES.md §6).
+
+    The floor of one in the denominator keeps a run that matched nobody from
+    dividing by zero; in that case every counted blocking pair is one unit of
+    instability and the ratio is just the count. The ratio is therefore always
+    finite here — when it is genuinely unmeasurable (no full-information lists
+    to count against), the caller reports NaN rather than this function
+    fabricating a number.
+    """
+    return float(n_blocking) / float(max(n_matched, 1))
+
+
 def rank_satisfaction_index(
     matches: np.ndarray,
     prop_prefs: list[list[int]],
@@ -93,8 +106,14 @@ def rank_satisfaction_index(
     return float(np.mean(ranks))
 
 
-def algorithmic_loss(welfare_alg: float, welfare_full: float) -> float:
+def algorithmic_loss(*, welfare_alg: float, welfare_full: float) -> float:
     """Δ = (SW(μ*) − SW(μ_alg)) / SW(μ*) (THEORY.md §7.4).
+
+    Both parameters are keyword-only on purpose. The two arguments have the same
+    type and nearly the same name, so a positional call that swaps them returns
+    ``(alg − full)/alg`` instead of ``(full − alg)/full``: a finite, plausible,
+    wrong number that no downstream assertion would catch. Requiring the names
+    makes that call impossible rather than merely discouraged.
 
     Undefined — and NaN — when the benchmark was not run, and when the benchmark's
     own welfare is zero, since the ratio has no scale to divide by. Negative
@@ -118,14 +137,17 @@ def pareto_alpha(cumulative_counts: np.ndarray) -> float:
     point, an agent with no cumulative matches is outside the support rather than
     an observation at the boundary.
 
-    NaN when the positive part is degenerate — fewer than two distinct values
-    means there is no tail to describe, and the MLE is infinite.
+    NaN when the positive part is too small or too flat to fit. The MLE needs
+    more than two points to carry information — with one it is infinite, and with
+    exactly two it is a number whose only content is the ratio of those two, so
+    it is reported as NaN rather than as a fit. A degenerate sample (fewer than
+    two distinct values) is likewise no tail at all.
     """
     x = np.asarray(cumulative_counts, dtype=np.float64).ravel()
     x = x[x > 0.0]
-    if x.size < 2:
+    if x.size < 3:
         return float("nan")
-    x_min = x.min()
     if np.unique(x).size < 2:
         return float("nan")
+    x_min = x.min()
     return float(x.size / np.log(x / x_min).sum())
