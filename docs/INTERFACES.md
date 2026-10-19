@@ -98,7 +98,8 @@ generate_swipes(states, config: dict, epoch: int) -> np.ndarray[int32, (S, 3)]
 
 build_full_info_pref_lists(states, config: dict)
     -> tuple[list[list[int]], list[list[int]]]
-#   (proposer_prefs, acceptor_prefs); O(N²) — see limits in §4
+#   (proposer_prefs, acceptor_prefs); O(N²) — see limits in §4. Both lists use the
+#   index space of §2.3, so the result feeds deferred_acceptance directly.
 
 deferred_acceptance(prop_prefs: list[list[int]],
                     acc_prefs: list[list[int]],
@@ -119,8 +120,19 @@ update_thresholds(states, n_proposals: np.ndarray[int32, (N,)],
   "unmatched_proposers": np.int32, shape (U,),
   "unmatched_acceptors": np.int32, shape (V,),
   "n_blocking":          int,
+  "proposals":           np.int32, shape (n_prop + n_acc,),  # by global agent id
 }
 ```
+
+`P` is the number of matched pairs; `U` and `V` are the unmatched counts. The first four keys
+are what the rest of this file refers to and are not to be renamed.
+
+`proposals` is additive, and it is what makes `update_thresholds` callable at all: the
+Robbins–Monro step in THEORY.md §3 divides *matches* by *proposals*, and a proposal count
+cannot be recovered from the matching afterwards, because a rejected proposal leaves no trace
+in `matches`. It counts attempts *made* against a proposer's id and *received* against an
+acceptor's id, rejections included — the update target is a yield, so the denominator has to
+be every attempt. Length is `n_prop + n_acc`; see §2.3 for the index space.
 
 ### 2.2 `compute_welfare` return
 
@@ -134,6 +146,25 @@ update_thresholds(states, n_proposals: np.ndarray[int32, (N,)],
 ```
 
 Uses the same `alpha, beta, gamma, delta, lambda` from `config["hypergamy"]` as `generate_swipes`. If the two disagree, every welfare number in the project is meaningless — this is the single most likely source of a silent bug.
+
+### 2.3 Index space of preference lists
+
+`prop_prefs` and `acc_prefs` are indexed **densely**, not by global agent id:
+
+- `prop_prefs[p]` is the preference list of the `p`-th proposer, and `acc_prefs[a]` that of the
+  `a`-th acceptor, each listed in descending preference order.
+- The integer ids *inside* the lists are the other side's **global** ids from `states[:, 0]`
+  (column 0 of the matrix), which is the same id space `generate_swipes` reports. So a list
+  entry and a `matches` column are directly comparable.
+- `n_prop` is the number of rows with `states[:, 1] == 0.0` and `n_acc` those with `== 1.0`.
+  `sample_population` emits M first, so in a sampled population id `i` is proposer `i` for
+  `i < n_prop`; callers must not rely on that and should derive the counts by counting types.
+
+The dense outer index keeps the lists a plain `list[list[int]]` however the ids inside are
+numbered, and it is why the return arrays are sized by count rather than by max id.
+
+`compute_welfare` takes no preference lists, so it is unaffected; it reads `states[:, 0]` as the
+id space for `matches` and looks the rows up by that column.
 
 ## 3. Numerical conventions
 
