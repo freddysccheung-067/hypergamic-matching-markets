@@ -605,7 +605,164 @@ All existing tests must still pass; report the full count.
 
 ---
 
+### Session 3-H: Preference heterogeneity — run this before 3-C and any sweep
+
+Read docs/INTERFACES.md §1–§2, docs/THEORY.md §2 and include/agent.h first.
+
+WHY THIS EXISTS. Every agent currently shares one set of utility weights, so every chooser
+ranks the same way. Measured at the base config (N=1000, k=20, admissible_fraction 0.2):
+only 7.8% of agents ever appear in anyone's shortlist, the oracle Gini is 0.957, and the top 1%
+of agents absorb 25% of all exposure. At N=4000 that becomes 2.1% of agents and 89% of
+exposure on the top 1%. The market is not clearing badly; it is barely a market.
+
+That kills the project's central comparison, not just the clearing rate. The random-exposure
+control in 3-C samples among each chooser's *admissible* set, and under shared weights those
+sets nearly coincide, so the control arm reaches only 30% of agents (Gini 0.80). A control that
+cannot reach most of the population is not a control.
+
+Measured on a numpy replica of the pipeline at N=1000, k=20, before writing this prompt.
+"Reach" is the share of agents appearing in at least one list; "random" is k uniform draws from
+each chooser's admissible set:
+
+| taste_sigma | shock (noise/signal) | oracle Gini | oracle reach | random Gini | random reach | mcr |
+|---|---|---|---|---|---|---|
+| 0 | 0 | 0.957 | 7.8% | 0.799 | 30.1% | 0.052 |
+| 0.5 | 0 | 0.944 | 14.3% | 0.772 | 40.6% | 0.062 |
+| 1.0 | 0 | 0.920 | 40.0% | 0.735 | 58.4% | 0.076 |
+| 0 | 1.0 | 0.735 | 85.9% | 0.575 | 92.5% | 0.220 |
+| 0.5 | 0.5 | 0.843 | 69.9% | 0.656 | 83.4% | 0.140 |
+| 0.5 | 1.0 | 0.656 | 94.6% | 0.507 | 98.6% | 0.244 |
+
+Two things to read off it. Per-agent taste weights alone are weak: even at sigma 1.0 only 40% of
+agents are reached, because multiplicative weights keep every utility monotone in every trait
+and the Pareto-frontier candidates stay on everyone's list. Persistent pairwise noise is what
+spreads attention. And the gap between the oracle and random columns, which is the room the
+Matthew-effect measurement has to work in, is 0.16-0.19 throughout: the control was never
+saturated, it was just unrepresentative. Use both knobs: tastes are learnable low-rank
+structure the NCF can recover, pairwise noise is irreducible "chemistry" it cannot.
+
+```
+Read docs/INTERFACES.md §1–§2, docs/THEORY.md §2 and include/agent.h first.
+
+Add two kinds of preference heterogeneity. Both default to OFF, and with both off every
+existing test and every existing number must be reproduced exactly.
+
+A. PER-AGENT TASTE MULTIPLIERS.
+   Each agent i carries three multipliers (m_alpha, m_beta, m_gamma), each drawn once at
+   sampling from lognormal(-sigma^2/2, sigma) so the mean is 1, with sigma =
+   population.taste_sigma. The utility becomes
+
+       U_i(j) = m_alpha_i*alpha*z(s_j) + m_beta_i*beta*z(a_j) - m_gamma_i*gamma*d_ij
+                + [W only] lambda*1[ z(s_j) >= z(s_i) + delta ]
+
+   Leave lambda and delta homogeneous. Per-agent lambda is a legitimate extension, but it
+   makes delta's population-level effect uninterpretable, so it is out of scope here.
+
+B. PERSISTENT PAIRWISE NOISE ("chemistry").
+   Add  + shock_scale * L(i, j)  to every utility, where L is a standard logistic variate
+   that is a DETERMINISTIC FUNCTION of (run seed, key_i, key_j). Requirements:
+   - Deterministic and persistent: the same pair gets the same value in every epoch and in
+     every call site (generate_swipes, calibrate_thresholds, build_full_info_pref_lists,
+     compute_welfare). If any of those disagree, welfare and the swipes describe different
+     markets and nothing is detectable.
+   - ASYMMETRIC: L(i,j) != L(j,i). i's chemistry with j is not j's chemistry with i. Hash the
+     ORDERED pair.
+   - Computed on demand from a splitmix64-style mix of (seed, key_i, key_j), mapped to a
+     uniform strictly inside (0,1) and then through the logistic quantile ln(u/(1-u)).
+     No stored N x N matrix.
+   - When shock_scale == 0 the term is skipped entirely, not computed and multiplied by 0.
+
+STATE MATRIX. The matrix grows from 7 to 11 columns. Append, do not reorder:
+     7 taste_alpha | 8 taste_beta | 9 taste_gamma | 10 key
+   `key` is a per-agent identifier for the hash. It must be an integer below 2^53 so it
+   round-trips exactly through float64; draw it as the top 52 bits of an engine output.
+   Resampling an agent (generational turnover, Session 4-A) must draw a fresh key, which is
+   what gives a replaced agent fresh chemistry without disturbing anyone else's.
+   Sampling the new columns must come from a SEPARATE engine stream than the one that draws
+   the four traits, so that with taste_sigma = 0 the traits are bit-identical to before.
+
+   Update, in this order: Agent struct, flatten_states / unflatten_states (kCols), the shape
+   guards in bindings.cpp (there are four, each hard-coded to 7), INTERFACES.md §1, and every
+   test that hard-codes 7 (tests/cpp/test_population.cpp lines ~257-270).
+
+CONFIG. Two new keys, validated in config.py with the strict unknown-key check:
+     population.taste_sigma : float >= 0   (default 0.0)
+     hypergamy.shock_scale  : float >= 0   (default 0.0)
+   shock_scale is in ABSOLUTE utility units, not a ratio. UtilityParams gains shock_scale
+   and shock_seed as trailing members so the existing five-field aggregate initializers in
+   the tests still compile. Set base.yaml to taste_sigma 0.5 and shock_scale 1.5.
+   Measured at the base weights: sd(u) = 2.40 with no tastes and 2.75 at taste_sigma 0.5, and
+   a logistic with scale s has sd 1.8138*s, so shock_scale 1.5 is a noise-to-signal ratio of
+   about 1.0. Do not claim that ratio in the config; compute it.
+
+RATIO DIAGNOSTIC. Add a binding  utility_sd(states, config) -> float  that returns the
+   standard deviation of the noise-free utility over a deterministic sample of at most 4000
+   ordered pairs. The orchestrator logs the implied ratio  shock_scale*1.8138 / utility_sd
+   once at construction. This exists because alpha and beta get retuned, and a fixed
+   absolute shock_scale silently changes its meaning when they do.
+
+TESTS (add to tests/cpp and tests/python; every number below was measured on a numpy replica,
+so treat the bounds as targets to confirm in C++, not as proven):
+
+ 1. Backward compatibility. With taste_sigma = 0 and shock_scale = 0, generate_swipes on a
+    fixed seed is bit-identical to its output before this session. Record the output hash
+    BEFORE changing any code and assert it afterwards.
+ 2. Determinism and asymmetry of the shock: same (seed, i, j) gives the same value across
+    calls and across 1 vs 4 threads; L(i,j) != L(j,i) for the vast majority of pairs;
+    the sample mean is within 0.05 of 0 and the sample sd within 3% of 1.8138 over 100k pairs.
+ 3. Taste multipliers have sample mean within 3% of 1 and log-sd within 5% of taste_sigma.
+ 4. Concentration. At N=1000, k=20 with base.yaml's new values, at least 60% of agents appear
+    in at least one oracle shortlist and the oracle Gini is below 0.85. With both knobs at 0
+    the same measurement stays near 8% and 0.96 — assert both so the test distinguishes the
+    two worlds and cannot pass vacuously.
+ 5. The delta guardrail still holds under noise. test_delta_power.cpp must keep passing with
+    shock_scale at its base value. Measured: top-20 overlap between delta 0 and 1 is 0.81 at
+    noise ratio 0.5, 0.84 at 1.0, 0.91 at 2.0 — all under the 0.95 floor — but noise does erode
+    delta's power, so check this with the real values rather than assuming it.
+ 6. Round trip: flatten/unflatten is bit-exact on all 11 columns including key.
+ 7. n_negatives, theta calibration and the 1-vs-4-thread swipe test all still pass.
+
+PERFORMANCE. Each utility call now adds a hash and a log. Report wall-clock for one
+generate_swipes at N=2000 before and after. If it is more than 3x slower, say so rather than
+optimizing; Day 5 owns performance.
+
+DOCUMENT in THEORY.md, as a new §2.3:
+ - the utility with tastes and chemistry, and which parts a recommender can learn: the
+   multipliers are low-rank and learnable, the pairwise noise is full-rank and not. So the
+   oracle arm in 3-C is an upper bound that includes unlearnable chemistry, and
+   algorithmic_loss will carry an irreducible component even for a perfect learner. Say this
+   in the README's limitations too, because it changes how that metric must be read.
+ - that taste_sigma and shock_scale have NO empirical anchor. They are modeling knobs. Every
+   headline result must be reported as a function of them, never at a single setting, and the
+   concentration-versus-heterogeneity curve is itself a result worth showing.
+ - that heterogeneity is what makes the control arm meaningful at all (see WHY above).
+
+ALSO RECORD THE MCR SCALING LAW, which nothing in the docs states yet. I earlier described the
+clearing rate as capped near 2k/N; that was wrong in general. It held only for the fully
+concentrated market, where every list held the same ~k people. With spread-out lists the
+ceiling grows like k^2/N.
+Measured at N=2000 with the new heterogeneity: k=5 -> 0.027, k=10 -> 0.077, k=20 -> 0.166,
+k=40 -> 0.346, k=80 -> 0.573. With k fixed at 20, mcr falls roughly as 1/N (0.39 at N=500,
+0.09 at N=4000); with k ~ 0.9*sqrt(N/2) it stays flat (0.26, 0.24, 0.24, 0.22). Add this to
+THEORY.md §7.2 and the README limitations: MCR is not comparable across N unless k scales with
+sqrt(N), and the swipe log then grows as N^1.5 rather than N, which Day 5 must budget for.
+Do NOT change top_k or add a metrics column in this session.
+
+Build and run everything:
+   cmake --build build --config Release --parallel
+   ctest --test-dir build -C Release --output-on-failure
+   python -m pytest tests/python -q
+
+Report: the before/after swipe hash from test 1, the measured reach and Gini at base config,
+and the generate_swipes timing.
+```
+
+---
+
 ### Session 3-C: The ablation arm — what makes the Matthew effect attributable
+
+Requires Session 3-H. Without preference heterogeneity the random arm reaches only 30% of
+agents and the comparison below measures nothing.
 
 Read docs/INTERFACES.md §6 and docs/THEORY.md §7.1 first.
 
