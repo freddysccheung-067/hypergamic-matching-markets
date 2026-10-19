@@ -9,8 +9,6 @@
 
 namespace {
 
-constexpr int kNegativesPerPositive = 4;
-
 // A candidate paired with the utility it earns. Carrying the score next to the id
 // is what lets the partition below split admissible from inadmissible in one pass
 // and then rank only the admissible part.
@@ -60,16 +58,24 @@ std::size_t uniform_index(std::mt19937_64& engine, std::size_t lo, std::size_t h
 }  // namespace
 
 std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent>& pop,
-                                                         const UtilityParams& p, int k,
+                                                         const UtilityParams& p,
+                                                         const TraitStats& stats, int k,
                                                          std::uint64_t rng_seed,
-                                                         std::uint64_t epoch) {
+                                                         std::uint64_t epoch,
+                                                         int n_negatives) {
     if (k <= 0 || pop.empty()) {
         return {};
+    }
+    // A negative ratio is meaningless and would underflow the unsigned stride
+    // arithmetic below into a gigantic allocation. Treat it as "no negatives",
+    // which is a legal configuration: an all-positive log.
+    if (n_negatives < 0) {
+        n_negatives = 0;
     }
 
     const std::size_t n_agents = pop.size();
     const std::size_t stride =
-        static_cast<std::size_t>(k) * (1u + static_cast<std::size_t>(kNegativesPerPositive));
+        static_cast<std::size_t>(k) * (1u + static_cast<std::size_t>(n_negatives));
 
     // Fixed-size private block per agent: no thread ever writes where another
     // writes, and no push_back happens inside the parallel region. Blocks that
@@ -94,7 +100,7 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
             if (pop[j].type == user.type) {
                 continue;
             }
-            candidates.push_back(Scored{user.utility_toward(pop[j], p), pop[j].id});
+            candidates.push_back(Scored{user.utility_toward(pop[j], p, stats), pop[j].id});
         }
 
         // θ gates acceptance: a candidate is swipeable only if its utility clears
@@ -124,7 +130,8 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
         // followed by every inadmissible one, in whatever order the partition
         // left them.
         const std::size_t n_neg = std::min(
-            static_cast<std::size_t>(k) * kNegativesPerPositive, candidates.size() - n_pos);
+            static_cast<std::size_t>(k) * static_cast<std::size_t>(n_negatives),
+            candidates.size() - n_pos);
         for (std::size_t t = 0; t < n_neg; ++t) {
             const std::size_t swap_at = uniform_index(engine, n_pos + t, candidates.size() - 1);
             std::swap(candidates[n_pos + t], candidates[swap_at]);

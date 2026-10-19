@@ -95,6 +95,11 @@ std::vector<Agent> unflatten_states(const double* data, int n);
 // Sets each agent's θ to the (1 - admissible_fraction) quantile of that agent's
 // own utilities toward the opposite side.
 //
+// The utilities are computed on *standardized* traits (agent.h TraitStats), so θ
+// lands in those units. That is a change of numeric range, not of behavior: θ is
+// still a quantile of the agent's own utility distribution, and still compared
+// against utility_toward() on the same scale it was calibrated on.
+//
 // Why a per-agent quantile and not one number for the whole population: θ is
 // compared against utility_toward(), whose scale is fixed by alpha/beta/gamma and
 // by how status is distributed, not by the agent. A constant θ therefore admits
@@ -114,5 +119,9 @@ std::vector<Agent> unflatten_states(const double* data, int n);
 // can overshoot the target substantially (a 2-of-10 target admits a 7-member tie
 // group). Continuous traits make exact ties measure-zero in practice, but a
 // discretised population would need a tie-breaking rule.
+//
+// `stats` must be compute_trait_stats(pop) — the same standardization the
+// utility itself uses. Passing an identity TraitStats gives the pre-standardization
+// behavior and is only for tests that pin raw arithmetic.
 void calibrate_thresholds(std::vector<Agent>& pop, const UtilityParams& p,
-                          double admissible_fraction);
+                          double admissible_fraction, const TraitStats& stats);

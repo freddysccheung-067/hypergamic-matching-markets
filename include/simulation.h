@@ -20,11 +20,18 @@
 // epoch. Negatives also differ per epoch: the per-agent engine is seeded from
 // (rng_seed, agent id, k, epoch). See docs/INTERFACES.md §2 for the seeding rule.
 //
-// Negatives: k * 4 candidates drawn uniformly without replacement from the pool
-// of candidates that are *not* admissible-and-selected. That pool includes the
-// admissible ones outside the top-k, so a dropped-for-low-utility candidate can
-// come back as a negative — correct, since the label records what the agent did,
-// not what it could have done.
+// Negatives: k * n_negatives candidates drawn uniformly without replacement from
+// the pool of candidates that are *not* admissible-and-selected. That pool
+// includes the admissible ones outside the top-k, so a dropped-for-low-utility
+// candidate can come back as a negative — correct, since the label records what
+// the agent did, not what it could have done.
+//
+// n_negatives comes from config["ncf"]["n_negatives"] (bindings.cpp) and defaults
+// to 4. It is a training-dynamics knob, not a modeling constant: the
+// negative:positive ratio changes how hard the NCF's implicit-feedback problem is
+// and therefore how sharply it funnels exposure, which is exactly what the
+// experiment matrix varies. It is deliberately NOT part of the per-agent seed, so
+// a run at n_negatives = 4 reproduces the pre-parameter output bit for bit.
 //
 // Output rows are [user_id, item_id, label] with label 1 for a positive and 0 for
 // a negative, as fixed by docs/INTERFACES.md §2. Positives precede negatives
@@ -39,6 +46,8 @@
 // shared state, so the output is identical at any thread count — the exact
 // regression the thread-safety test is there to catch.
 std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent>& pop,
-                                                         const UtilityParams& p, int k,
+                                                         const UtilityParams& p,
+                                                         const TraitStats& stats, int k,
                                                          std::uint64_t rng_seed,
-                                                         std::uint64_t epoch = 0);
+                                                         std::uint64_t epoch = 0,
+                                                         int n_negatives = 4);

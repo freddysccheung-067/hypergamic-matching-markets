@@ -92,6 +92,27 @@ bool has_explicit_threshold(const py::dict& config) {
     return pop.contains("init_threshold");
 }
 
+// config["ncf"]["n_negatives"], defaulting to 4 when the block or the key is
+// absent. Defaulting rather than requiring is deliberate and asymmetric with the
+// hypergamy weights above: those are required because a missing one silently
+// changes every welfare number, whereas this one only changes training hardness
+// and 4 is the documented default (docs/INTERFACES.md §2). A run that omits the
+// key therefore reproduces the historical behavior exactly.
+int n_negatives_from(const py::dict& config) {
+    if (!config.contains("ncf")) {
+        return 4;
+    }
+    const py::dict ncf = config["ncf"].cast<py::dict>();
+    if (!ncf.contains("n_negatives")) {
+        return 4;
+    }
+    const int n = ncf["n_negatives"].cast<int>();
+    if (n < 0) {
+        throw std::invalid_argument("ncf.n_negatives must be >= 0; got " + std::to_string(n));
+    }
+    return n;
+}
+
 // Validate an incoming (N, 7) float64 array and hand back a contiguous copy.
 py::array_t<double, py::array::c_style | py::array::forcecast> require_states(
     const py::array_t<double, py::array::c_style | py::array::forcecast>& states) {
@@ -128,8 +149,14 @@ PYBIND11_MODULE(_hypergamic, m) {
                                : kUncalibratedThreshold;
 
             std::vector<Agent> pop = sample_population(n, cfg, seed);
+            // Standardization statistics, computed once from the sampled traits.
+            // The raw values stay on the population and in the state matrix; these
+            // numbers are only what the utility divides by (agent.h TraitStats).
+            // θ is calibrated against the same use of them, so the quantile and the
+            // gate it later feeds are on one scale.
+            const TraitStats stats = compute_trait_stats(pop);
             if (!explicit_theta) {
-                calibrate_thresholds(pop, params_from(config), admissible_fraction);
+                calibrate_thresholds(pop, params_from(config), admissible_fraction, stats);
             }
             const std::vector<double> flat = flatten_states(pop);
             py::array_t<double> out({static_cast<py::ssize_t>(pop.size()), py::ssize_t{7}});
@@ -152,9 +179,18 @@ PYBIND11_MODULE(_hypergamic, m) {
             std::vector<Agent> pop = unflatten_states(data, n);
             const UtilityParams p = params_from(config);
             const int k = config["ncf"]["top_k"].cast<int>();
+            const int n_negatives = n_negatives_from(config);
             const std::uint64_t base_seed = config["population"]["seed"].cast<std::uint64_t>();
 
-            const auto rows = generate_swipes(pop, p, k, base_seed, epoch);
+            // Recomputed from the states rather than stashed at sample time: the
+            // matrix is the only thing crossing the boundary, and recomputing from
+            // it keeps utility_toward here identical to the one sample_population
+            // calibrated θ with. Traits are not mutated by update_thresholds, so
+            // an evolving θ does not move these.
+            const TraitStats stats = compute_trait_stats(pop);
+
+            const auto rows =
+                generate_swipes(pop, p, stats, k, base_seed, epoch, n_negatives);
 
             py::array_t<std::int32_t> out(
                 {static_cast<py::ssize_t>(rows.size()), py::ssize_t{3}});
@@ -219,7 +255,8 @@ PYBIND11_MODULE(_hypergamic, m) {
             const int n = static_cast<int>(info.shape[0]);
             std::vector<Agent> pop =
                 unflatten_states(static_cast<const double*>(info.ptr), n);
-            calibrate_thresholds(pop, params_from(config), admissible_fraction);
+            calibrate_thresholds(pop, params_from(config), admissible_fraction,
+                                 compute_trait_stats(pop));
             const std::vector<double> flat = flatten_states(pop);
             std::copy(flat.begin(), flat.end(), static_cast<double*>(info.ptr));
         },

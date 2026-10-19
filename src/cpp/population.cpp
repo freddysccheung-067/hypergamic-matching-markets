@@ -170,7 +170,7 @@ std::vector<Agent> unflatten_states(const double* data, int n) {
 }
 
 void calibrate_thresholds(std::vector<Agent>& pop, const UtilityParams& p,
-                          double admissible_fraction) {
+                          double admissible_fraction, const TraitStats& stats) {
     // θ must leave at least one admissible candidate: a theta above every utility
     // would make the agent swipe on nothing, which is a different failure from
     // the one this replaces, not a fix for it.
@@ -188,7 +188,7 @@ void calibrate_thresholds(std::vector<Agent>& pop, const UtilityParams& p,
             if (cand.type == a.type) {
                 continue;
             }
-            utilities.push_back(a.utility_toward(cand, p));
+            utilities.push_back(a.utility_toward(cand, p, stats));
         }
         if (utilities.empty()) {
             continue;  // a one-sided market has nothing to calibrate against

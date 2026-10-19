@@ -24,6 +24,12 @@ UtilityParams indicator_only(double delta, double lambda) {
     return UtilityParams{0.0, 0.0, 0.0, delta, lambda};
 }
 
+// The identity standardization: z(t) == t. These tests pin the arithmetic of the
+// utility formula itself against hand-computed raw numbers, so they deliberately
+// opt out of z-scoring rather than routing through a population. The
+// standardized path is covered separately in test_population.cpp.
+const TraitStats kRaw = TraitStats::identity();
+
 }  // namespace
 
 TEST_CASE("W's indicator fires above her cutoff and not below it", "[agent]") {
@@ -34,8 +40,8 @@ TEST_CASE("W's indicator fires above her cutoff and not below it", "[agent]") {
     // δ = 0.5 puts the cutoff at s_w + δ = 0.9: 1.00 clears it, 0.80 does not.
     const UtilityParams p = indicator_only(0.5, 1.5);
 
-    const double u_surplus = woman.utility_toward(man_surplus, p);
-    const double u_below = woman.utility_toward(man_below, p);
+    const double u_surplus = woman.utility_toward(man_surplus, p, kRaw);
+    const double u_below = woman.utility_toward(man_below, p, kRaw);
 
     CHECK(u_surplus == Catch::Approx(1.5));
     CHECK(u_below == Catch::Approx(0.0));
@@ -48,7 +54,7 @@ TEST_CASE("W's indicator is inclusive at the cutoff", "[agent]") {
     const Agent man_exact = make_agent(AgentType::M, 0.9, 0.5, 0.5, 30.0);
     const UtilityParams p = indicator_only(0.5, 2.0);
 
-    CHECK(woman.utility_toward(man_exact, p) == Catch::Approx(2.0));
+    CHECK(woman.utility_toward(man_exact, p, kRaw) == Catch::Approx(2.0));
 }
 
 TEST_CASE("M's utility does not depend on delta", "[agent]") {
@@ -58,10 +64,10 @@ TEST_CASE("M's utility does not depend on delta", "[agent]") {
     // Non-zero alpha/beta/gamma so the comparison covers the full formula and
     // not just an all-zero degenerate case.
     UtilityParams p{1.0, 0.8, 0.3, /*delta=*/0.0, 1.5};
-    const double u_delta_0 = man.utility_toward(woman, p);
+    const double u_delta_0 = man.utility_toward(woman, p, kRaw);
 
     p.delta = 2.0;
-    const double u_delta_2 = man.utility_toward(woman, p);
+    const double u_delta_2 = man.utility_toward(woman, p, kRaw);
 
     CHECK(u_delta_0 == Catch::Approx(u_delta_2));
 }
@@ -73,7 +79,7 @@ TEST_CASE("M's utility matches the document formula", "[agent]") {
 
     // Distance is the 0.2 status gap; attractiveness, sociability and age match.
     const double expected = 1.0 * 0.4 + 0.8 * 0.6 - 0.3 * 0.2;
-    CHECK(man.utility_toward(woman, p) == Catch::Approx(expected));
+    CHECK(man.utility_toward(woman, p, kRaw) == Catch::Approx(expected));
 }
 
 TEST_CASE("threshold rises to 1.0 when every proposal matches", "[agent]") {

@@ -88,6 +88,11 @@ int count_positives(const std::vector<std::array<std::int32_t, 3>>& swipes) {
     return n;
 }
 
+// The standardization stats for a population, which is what every production
+// call site passes. Recomputed rather than cached because these tests build a
+// fresh population per case and the stats have to follow it.
+TraitStats stats_of(const std::vector<Agent>& pop) { return compute_trait_stats(pop); }
+
 }  // namespace
 
 // ── population sampling ──────────────────────────────────────────────────────
@@ -310,7 +315,8 @@ TEST_CASE("calibration admits roughly the requested fraction of candidates",
     const UtilityParams p = status_only();
 
     std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 31);
-    calibrate_thresholds(pop, p, 0.25);
+    const TraitStats stats = stats_of(pop);
+    calibrate_thresholds(pop, p, 0.25, stats);
 
     // Count, per agent, how many candidates clear its calibrated θ.
     double total_fraction = 0.0;
@@ -320,7 +326,7 @@ TEST_CASE("calibration admits roughly the requested fraction of candidates",
             if (cand.type == user.type) {
                 continue;
             }
-            admissible += (user.utility_toward(cand, p) >= user.threshold) ? 1 : 0;
+            admissible += (user.utility_toward(cand, p, stats) >= user.threshold) ? 1 : 0;
         }
         total_fraction += static_cast<double>(admissible) / kCandidates;
     }
@@ -353,7 +359,8 @@ TEST_CASE("calibration admits exactly lround(f*n) candidates when utilities diff
 
         for (const double fraction : {0.05, 0.1, 0.2, 0.5, 1.0}) {
             std::vector<Agent> pop = base;
-            calibrate_thresholds(pop, p, fraction);
+            const TraitStats stats = stats_of(pop);
+            calibrate_thresholds(pop, p, fraction, stats);
 
             const int expected =
                 std::clamp(static_cast<int>(std::lround(fraction * n_side)), 1, n_side);
@@ -364,7 +371,7 @@ TEST_CASE("calibration admits exactly lround(f*n) candidates when utilities diff
                     if (cand.type == user.type) {
                         continue;
                     }
-                    admitted += (user.utility_toward(cand, p) >= user.threshold) ? 1 : 0;
+                    admitted += (user.utility_toward(cand, p, stats) >= user.threshold) ? 1 : 0;
                 }
                 CAPTURE(n_side, fraction, expected, admitted);
                 CHECK(admitted == expected);
@@ -378,7 +385,8 @@ TEST_CASE("a calibrated theta leaves some candidates on both sides of it",
     // The bug this guards against: a θ that is inert because it sits below every
     // utility (admit all) or above every utility (admit none).
     std::vector<Agent> pop = sample_population(200, config(0.0, 0.8), 12);
-    calibrate_thresholds(pop, status_only(), 0.2);
+    const TraitStats stats = stats_of(pop);
+    calibrate_thresholds(pop, status_only(), 0.2, stats);
 
     for (const Agent& user : pop) {
         int above = 0;
@@ -387,7 +395,7 @@ TEST_CASE("a calibrated theta leaves some candidates on both sides of it",
             if (cand.type == user.type) {
                 continue;
             }
-            (user.utility_toward(cand, status_only()) >= user.threshold ? above : below) += 1;
+            (user.utility_toward(cand, status_only(), stats) >= user.threshold ? above : below) += 1;
         }
         CHECK(above > 0);
         CHECK(below > 0);
@@ -403,7 +411,7 @@ TEST_CASE("generate_swipes gives k distinct positives per agent", "[simulation]"
     std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 42);
     admit_everyone(pop);
     const std::vector<std::array<std::int32_t, 3>> swipes =
-        generate_swipes(pop, status_only(), kK, 1234);
+        generate_swipes(pop, status_only(), stats_of(pop), kK, 1234);
 
     const auto by_user = group_by_user(swipes);
     REQUIRE(by_user.size() == static_cast<std::size_t>(kN));
@@ -439,9 +447,12 @@ TEST_CASE("positives are exactly the top-k by utility", "[simulation]") {
     std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 8);
     admit_everyone(pop);
     // Status-as-utility makes the expected ranking a plain sort of the ids by the
-    // candidate's status, which is what the assertion below recomputes.
+    // candidate's status, which is what the assertion below recomputes. The
+    // ranking is unchanged by standardization because z is a strictly increasing
+    // affine function of the raw trait — only the *gaps* between utilities move,
+    // not their order.
     const UtilityParams p = status_only();
-    const auto swipes = generate_swipes(pop, p, kK, 77);
+    const auto swipes = generate_swipes(pop, p, stats_of(pop), kK, 77);
 
     for (const Agent& user : pop) {
         std::vector<std::pair<double, std::int32_t>> ranked;
@@ -482,13 +493,13 @@ TEST_CASE("theta gates acceptance and the positive set shrinks as it rises",
     // because the positives were top-k by utility and ignored θ entirely.
     std::vector<Agent> open_all = sample_population(kN, config(0.0, 0.8), 55);
     admit_everyone(open_all);
-    const int n_open = count_positives(generate_swipes(open_all, p, kK, 9));
+    const int n_open = count_positives(generate_swipes(open_all, p, stats_of(open_all), kK, 9));
 
     std::vector<Agent> shut = sample_population(kN, config(0.0, 0.8), 55);
     for (Agent& a : shut) {
         a.threshold = std::numeric_limits<double>::infinity();
     }
-    const int n_shut = count_positives(generate_swipes(shut, p, kK, 9));
+    const int n_shut = count_positives(generate_swipes(shut, p, stats_of(shut), kK, 9));
 
     CAPTURE(n_open, n_shut);
     CHECK(n_open > 0);
@@ -500,8 +511,9 @@ TEST_CASE("theta gates acceptance and the positive set shrinks as it rises",
     std::vector<int> counts;
     for (const double fraction : {1.0, 0.10, 0.05, 0.02}) {
         std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 55);
-        calibrate_thresholds(pop, p, fraction);
-        counts.push_back(count_positives(generate_swipes(pop, p, kK, 9)));
+        const TraitStats stats = stats_of(pop);
+        calibrate_thresholds(pop, p, fraction, stats);
+        counts.push_back(count_positives(generate_swipes(pop, p, stats, kK, 9)));
     }
 
     CAPTURE(counts);
@@ -525,12 +537,14 @@ TEST_CASE("a threshold above the k-th utility truncates the positive set",
 
     std::vector<Agent> open_all = sample_population(kN, config(0.0, 0.8), 44);
     admit_everyone(open_all);
-    const auto open_swipes = generate_swipes(open_all, p, kK, 21);
+    const TraitStats open_stats = stats_of(open_all);
+    const auto open_swipes = generate_swipes(open_all, p, open_stats, kK, 21);
 
     // 0.02 of 100 candidates rounds to two admissible, below k = 3.
     std::vector<Agent> tight = sample_population(kN, config(0.0, 0.8), 44);
-    calibrate_thresholds(tight, p, 2.0 / kCandidates);
-    const auto tight_swipes = generate_swipes(tight, p, kK, 21);
+    const TraitStats tight_stats = stats_of(tight);
+    calibrate_thresholds(tight, p, 2.0 / kCandidates, tight_stats);
+    const auto tight_swipes = generate_swipes(tight, p, tight_stats, kK, 21);
 
     std::map<std::int32_t, std::set<std::int32_t>> open_pos;
     std::map<std::int32_t, std::set<std::int32_t>> tight_pos;
@@ -555,22 +569,22 @@ TEST_CASE("a threshold above the k-th utility truncates the positive set",
     }
 
     // Mean utility of the positives must rise when the low end is cut.
-    auto mean_utility = [&](const std::vector<Agent>& pop,
+    auto mean_utility = [&](const std::vector<Agent>& pop, const TraitStats& stats,
                             const std::map<std::int32_t, std::set<std::int32_t>>& pos) {
         double sum = 0.0;
         int n = 0;
         for (const auto& [user, items] : pos) {
             for (const std::int32_t item : items) {
                 sum += pop[static_cast<std::size_t>(user)].utility_toward(
-                    pop[static_cast<std::size_t>(item)], p);
+                    pop[static_cast<std::size_t>(item)], p, stats);
                 ++n;
             }
         }
         return n > 0 ? sum / n : 0.0;
     };
 
-    const double u_open = mean_utility(open_all, open_pos);
-    const double u_tight = mean_utility(tight, tight_pos);
+    const double u_open = mean_utility(open_all, open_stats, open_pos);
+    const double u_tight = mean_utility(tight, tight_stats, tight_pos);
     CAPTURE(u_open, u_tight);
     CHECK(u_tight > u_open);
 }
@@ -581,6 +595,7 @@ TEST_CASE("generate_swipes is identical at one and four threads", "[simulation]"
 
     const std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 42);
     const UtilityParams p = status_only();
+    const TraitStats stats = stats_of(pop);
 
     // Both calls are made for real; the thread count only decides the schedule.
     // If the per-agent seeding were keyed on a thread id instead of an agent id,
@@ -588,12 +603,12 @@ TEST_CASE("generate_swipes is identical at one and four threads", "[simulation]"
 #ifdef _OPENMP
     omp_set_num_threads(1);
 #endif
-    const auto serial = generate_swipes(pop, p, kK, 2024, 3);
+    const auto serial = generate_swipes(pop, p, stats, kK, 2024, 3);
 
 #ifdef _OPENMP
     omp_set_num_threads(4);
 #endif
-    const auto parallel = generate_swipes(pop, p, kK, 2024, 3);
+    const auto parallel = generate_swipes(pop, p, stats, kK, 2024, 3);
 
 #ifdef _OPENMP
     omp_set_num_threads(omp_get_max_threads());
@@ -613,10 +628,11 @@ TEST_CASE("the epoch is part of the per-agent seed", "[simulation]") {
     std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 42);
     admit_everyone(pop);
     const UtilityParams p = status_only();
+    const TraitStats stats = stats_of(pop);
 
-    const auto epoch0 = generate_swipes(pop, p, kK, 2024, 0);
-    const auto epoch0_again = generate_swipes(pop, p, kK, 2024, 0);
-    const auto epoch1 = generate_swipes(pop, p, kK, 2024, 1);
+    const auto epoch0 = generate_swipes(pop, p, stats, kK, 2024, 0);
+    const auto epoch0_again = generate_swipes(pop, p, stats, kK, 2024, 0);
+    const auto epoch1 = generate_swipes(pop, p, stats, kK, 2024, 1);
 
     // Same epoch: bit-identical, negatives included.
     CHECK(epoch0 == epoch0_again);
@@ -654,11 +670,17 @@ TEST_CASE("negative sampling is uniform over the non-positive pool", "[simulatio
         a.threshold = kUncalibratedThreshold;
     }
     const UtilityParams p{1.0, 0.0, 0.0, 0.5, 1.5};
+    // Every trait is constant across the population here, so every sd is 0 and
+    // standardize() leaves each value untouched — the stats are the identity in
+    // practice as well as in intent. That is the documented degenerate case, and
+    // it keeps this test's hand-computed expectations valid.
+    const TraitStats stats = stats_of(pop);
 
     // M's top-k are the lowest ids on the W side: 100..109.
     std::map<std::int32_t, int> counts;
     for (int trial = 0; trial < kTrials; ++trial) {
-        const auto swipes = generate_swipes(pop, p, kK, static_cast<std::uint64_t>(trial));
+        const auto swipes =
+            generate_swipes(pop, p, stats, kK, static_cast<std::uint64_t>(trial));
         for (const auto& s : swipes) {
             if (s[0] == 0 && s[2] == 0) {
                 ++counts[s[1]];
@@ -693,21 +715,20 @@ TEST_CASE("delta changes who W swipes on: mean status of her positives rises",
     // not reach the ranking, all three runs would produce the same positive set
     // and the hypergamy hypothesis would be untestable.
     //
-    // Why beta > alpha here. U_W is alpha*s + beta*a - gamma*d + lambda*1[.]. The
-    // indicator is non-decreasing in status, so when alpha*s dominates the utility
-    // is monotone in status across the whole market, and adding lambda to the men
-    // above the cutoff is a *constant* on the top-k — it shifts every value in the
-    // shortlist by the same amount and reorders nothing. Measured on this
-    // population at the base.yaml weights (alpha=1.0, beta=0.8), raising δ from
-    // 0.0 to 1.0 moves 0 of 199 women's positive sets. Weighting attractiveness
-    // over status gives status the span to matter: delta then decides which
-    // high-status men are worth the distance, and the effect is large and
-    // monotone.
+    // Why beta > alpha here. U_W is alpha*z(s) + beta*z(a) - gamma*d + lambda*1[.].
+    // The indicator is non-decreasing in status, so when alpha*z(s) dominates the
+    // utility is monotone in status across the whole market, and adding lambda to
+    // the men above the cutoff is a *constant* on the top-k — it shifts every
+    // value in the shortlist by the same amount and reorders nothing. Measured on
+    // this population at the old raw-scale base weights (alpha=1.0, beta=0.8),
+    // raising δ from 0.0 to 1.0 moved 0 of 199 women's positive sets. Weighting
+    // attractiveness over status gives status the span to matter: delta then
+    // decides which high-status men are worth the distance, and the effect is
+    // large and monotone.
     //
-    // This is a property of the model, not of the test, and it is why the sweep in
-    // experiments/base.yaml should not be read as evidence about hypergamy until
-    // alpha and beta are reported jointly (see docs/THEORY.md §2.1 on the s-enters-
-    // twice collinearity).
+    // Since standardization, the same mechanism holds but the threshold moved: δ
+    // has real power when beta/alpha >= 2, and base.yaml now ships alpha=1.0,
+    // beta=2.0 for exactly that reason (docs/THEORY.md §2.2).
     constexpr int kN = 400;
     constexpr int kK = 5;
     constexpr double kAlpha = 0.3;
@@ -720,9 +741,10 @@ TEST_CASE("delta changes who W swipes on: mean status of her positives rises",
     for (const double delta : {0.0, 0.5, 1.0}) {
         std::vector<Agent> pop = sample_population(kN, config(0.0, 0.8), 101);
         const UtilityParams p{kAlpha, kBeta, kGamma, delta, kLambda};
-        calibrate_thresholds(pop, p, 0.25);
+        const TraitStats stats = stats_of(pop);
+        calibrate_thresholds(pop, p, 0.25, stats);
 
-        const auto swipes = generate_swipes(pop, p, kK, 500);
+        const auto swipes = generate_swipes(pop, p, stats, kK, 500);
 
         double sum = 0.0;
         int n = 0;
