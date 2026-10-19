@@ -790,86 +790,108 @@ was built not to answer.
 The Matthew effect is still real and still measurable — algorithmic loss and truncation do
 concentrate exposure. It is simply not compounded by feedback here.
 
-THE FOUR ARMS. These were measured on a numpy replica before this prompt was written
-(N=1000, k=20, rank-8 SVD standing in for the NCF, base config):
+THE FOUR ARMS. Measured on a numpy replica before this prompt was written, N=1000, k=20,
+rank-8 SVD standing in for the NCF, base config, over FIVE seeds:
 
-| arm | Gini | reach | top1% share |
+| arm | Gini mean ± sd | reach | top1% share |
 |---|---|---|---|
-| oracle (true utility, no learning) | 0.664 | 95.5% | 12.2% |
-| lowrank (rank-8 approximation of utility) | 0.929 | 29.0% | 23.7% |
-| random (uniform among θ-admissible) | 0.509 | 98.2% | 4.5% |
-| popularity (most-shown wins) | 0.960 | 4.0% | 25.0% |
+| oracle (true utility, no learning) | 0.653 ± 0.007 | 96.1% | 12.1% |
+| lowrank (rank-8 approximation) | 0.925 ± 0.003 | 30.0% | 23.0% |
+| random (uniform among θ-admissible) | 0.501 ± 0.004 | 98.3% | 4.5% |
+| popularity (most-shown wins) | 0.960 ± 0.000 | 4.0% | 25.0% |
 
-Three results worth internalising before you start:
+Per-seed gaps, which is the form the result must be reported in:
 
-1. **A lossy personalisation concentrates MORE than the oracle** — 0.929 vs 0.664, a gap of
-   0.265. Estimation error pushes novel agents out of every shortlist, which is the mechanism
-   the project is actually about. It is not "the algorithm is biased toward status"; it is
-   "the algorithm cannot represent everyone, so it drops the uncertain ones".
-2. **Popularity is the most concentrated arm** (0.960) and reaches 4% of agents, with no model
-   at all. Any Matthew-effect claim must be stated against popularity as well as against
-   random, or a critic can attribute the whole effect to trivial feedback.
-3. **The random arm has the LOWEST Gini** (0.509), below oracle. That is expected — uniform
-   exposure is close to equal by construction — but it means `Gini(NCF) − Gini(random)` is
-   dominated by how far from uniform the model is, not by how much better it is at matching.
-   Do not present that difference alone as harm.
+    gini(lowrank) - gini(random)      = +0.424 ± 0.005
+    gini(oracle)  - gini(random)      = +0.153 ± 0.006
+    gini(popularity) - gini(random)   = +0.459 ± 0.004
 
-The quantities that matter are the two DIFFERENCES: oracle→lowrank is the price of learning
-only a low-rank approximation, and lowrank→popularity is the price of forgetting preferences.
+All three separate at more than 20 standard deviations. That is a statement about the model,
+not about the world — the seed spread only says the simulation is stable, so five seeds is
+enough and fifty would be theatre. Report mean ± sd across seeds, never a single run, and never
+a bare point estimate without its spread.
+
+Four results worth internalising before you start:
+
+1. **A lossy personalisation concentrates MORE than the oracle** — 0.925 vs 0.653. Estimation
+   error pushes novel agents out of every shortlist. That is the mechanism the project is
+   actually about: not "the algorithm favours status", but "the algorithm cannot represent
+   everyone, so it drops the uncertain ones". This is the headline finding.
+2. **Popularity is the most concentrated arm**, and it has a CLOSED FORM. Giving every agent
+   the same top-k list means exactly 2k agents receive all the exposure in equal amounts, so
+       Gini = 1 − 2k/N = 0.960   and   mcr = 2k/N = 0.040
+   exactly, with zero variance. Measured: 0.960 ± 0.000. Use the identity as a test assertion
+   rather than a loose ordering check — it catches an implementation that gives agents
+   *different* lists while calling itself a popularity baseline.
+3. **Do not try to distinguish two definitions of popularity.** Ranking by in-degree in the
+   true utility lists and ranking by in-degree in the arm's own previous output produce
+   *identical* results (gap 0.000 ± 0.000), because both reduce to one shared list per side and
+   the in-degree ordering converges in a single step. Implement the simpler one and test the
+   identity in point 2. Spending effort on the distinction buys nothing.
+4. **The random arm has the LOWEST Gini**, below oracle, because uniform exposure is
+   near-equal by construction. So `Gini(NCF) − Gini(random)` mostly measures distance from
+   uniformity, not harm. The quantity that carries the argument is
+   `gini(lowrank) − gini(oracle)`: how much the recommender's approximation costs relative to
+   an oracle that ranks identically but perfectly.
 
 ```
-In hypergamic-matching-markets. Read the session preamble above carefully; it changes what
-you are allowed to claim.
+In hypergamic-matching-markets. Read the session preamble above carefully; it constrains what
+you may claim.
 
 1. ABLATION HARNESS. Add a `recommender` field to Simulation, one of
    "ncf" | "random" | "popularity" | "oracle", threaded through the epoch loop.
    - Every arm MUST share the same population, seed, theta, utility params and
-     `deferred_acceptance` call. Only the ranking rule that produces the preference lists
-     changes. If any arm resamples the population the comparison is meaningless.
+     deferred_acceptance call. Only the rule that produces the preference lists changes. A
+     resampled population makes the comparison meaningless — assert it, do not assume it.
    - "random" samples uniformly WITHOUT replacement from each chooser's theta-admissible
-     candidates. It must not sample from the whole market, or the arms differ in two ways.
-   - "popularity" ranks candidates by their in-degree in the PREVIOUS epoch's preference
-     lists, with ties broken by id. Epoch 0 has no previous epoch: use the oracle ranking and
-     say so in a comment, rather than silently starting from zeros.
-   - "oracle" ranks by `utility_toward`, no learning.
-   - "ncf" is the existing path. Do not change it, and do not retrain per arm.
+     candidates. Sampling the whole market would differ from the other arms in two ways.
+   - "popularity": every chooser on a side gets the SAME list — the top-k of the other side by
+     in-degree, ties by id. Epoch 0 has no history: use the oracle ranking and say so in a
+     comment rather than starting from zeros (zeros make every tie-break by id, which is a
+     different and accidental baseline).
+   - "oracle" ranks by utility_toward. "ncf" keeps the existing path; do not retrain per arm.
 
-2. EXPOSURE SERIES. Expose per-epoch exposure counts from Simulation.run() as an (T, N) int
-   array. Gini already runs over this (THEORY.md §7.1); the series is what makes before/after
-   Lorenz curves possible rather than only a final state.
+2. EXPOSURE SERIES. Expose per-epoch exposure counts from Simulation.run() as a (T, N) int
+   array so the Lorenz plot can show the trajectory, not only the final state.
 
-3. scripts/run_ablation.py — all four arms, same seed, one CSV each plus a summary with
-   columns [arm, epoch, gini, reach, top1_share, mcr, rsi, welfare_alg].
-   Derive: gini_over_random and gini_over_popularity. Do NOT emit a bare
-   "gini_excess_over_random" as though it were the headline finding — see preamble point 3.
+3. scripts/run_ablation.py — all four arms across at least 5 seeds, one CSV per (arm, seed)
+   plus a summary keyed by arm with mean and sd of each metric. Columns:
+   [arm, seed, epoch, gini, reach, top1_share, mcr, rsi, welfare_alg, noise_ratio].
+   Also emit the three per-seed gaps from the preamble, with their spread. Do NOT emit a bare
+   "gini_excess_over_random" as a headline — see preamble point 4.
 
-4. tests/python/test_ablation.py. Assert the ORDERINGS, not just "they differ", since the
-   measured table above is the expected shape:
-   - Gini: random < oracle < lowrank-ncf < popularity. If your NCF lands below oracle, that
-     is a real signal about the model and worth reporting rather than adjusting the test.
-   - reach: popularity << random.
-   - Every arm reproduces exactly under the same seed.
-   - All four arms see identical states: assert `np.array_equal` on the state matrices the
-     arms were handed, so a future refactor that resamples cannot pass silently.
-   - The popularity arm's epoch-0 fallback is covered explicitly.
+4. tests/python/test_ablation.py. Assert both identities and orderings:
+   - popularity: gini == 1 - 2k/N and mcr == 2k/N, within 1e-9, at two different k. This is an
+     exact prediction, not a fuzzy one.
+   - ordering, over 3 seeds: gini(random) < gini(oracle) < gini(lowrank) < gini(popularity),
+     with the gaps stated as mean ± sd rather than asserted on a single run.
+   - reach: popularity is below 5% while random is above 90%.
+   - reproducibility: same (arm, seed) reproduces the exposure matrix exactly.
+   - all arms see identical states: assert np.array_equal on the matrices each arm was handed.
+   - the popularity arm's epoch-0 fallback is covered explicitly.
+   If your NCF lands BELOW oracle that is a real signal about the model and must be reported,
+   not adjusted for in the test.
 
-5. Print the implied noise-to-signal ratio once per run (Simulation already logs it) and
-   record it in the summary CSV. These numbers only mean something at a known heterogeneity
-   setting, and THEORY.md 2.3 says results are reported as a function of it.
+5. Record the implied noise-to-signal ratio in the summary (Simulation already computes it).
+   These numbers mean something only at a known heterogeneity setting, and THEORY.md 2.3 says
+   results are reported as a function of it.
 
-6. THEORY.md §7: add the three results from the preamble table, the oracle→lowrank and
-   lowrank→popularity differences as the quantities of interest, and an explicit paragraph
-   that this is an exposure-mediated model with no swipe feedback. In the README's
-   Limitations, say the same in one sentence.
+6. THEORY.md §7: add the seed-replicated table, state the popularity identity
+   (Gini = 1 − 2k/N, mcr = 2k/N) as a closed form, give gini(lowrank) − gini(oracle) as the
+   quantity that carries the argument, and add an explicit paragraph that this is an
+   exposure-mediated model: generate_swipes takes no shown-set argument, so preferences never
+   respond to exposure and the Matthew effect is not compounded by feedback. One sentence of
+   the same in the README's Limitations.
 
 Build and run:
    cmake --build build --config Release --parallel
    ctest --test-dir build -C Release --output-on-failure
    python -m pytest tests/python -q
 
-Report: the four Gini values, the two differences, and whether the NCF landed where the
-rank-8 replica predicted.
+Report: the four Gini values with seed spread, the three gaps, whether the popularity identity
+held exactly, and where the real NCF landed relative to the rank-8 replica.
 ```
+
 
 ---
 
