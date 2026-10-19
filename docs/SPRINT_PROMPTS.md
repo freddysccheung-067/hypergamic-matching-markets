@@ -991,42 +991,123 @@ demonstrates something about real people rather than about a specified mechanism
 
 ## DAY 4 — Parameter Sweeps & Longitudinal Dynamics
 
-### Session 4-A: Experiment Configuration & Multi-Generational Loop
+### Session 4-A: Generational turnover, and making the feedback loop live by default
 
-Read docs/INTERFACES.md first — §6 is the DataFrame this session must produce.
+Run on Opus. Two jobs, and the first is a bug fix that changes every number the project has
+published.
+
+WHAT EXISTS. `Simulation` runs single epochs through `run(n_epochs)`. Rows already carry
+`generation` (derived as `epoch // epochs_per_gen`), `_cumulative_matches` is maintained, and
+`pareto_alpha` is computed on generation-final rows only. `d_frames`, `experiments/base.yaml`
+and `scripts/run_sweep.py` are all present and committed.
+
+WHAT DOES NOT EXIST. **`run_multigen` is not implemented.** Nothing performs turnover: no agent
+is ever replaced, so `n_generations` currently affects only the label written into a column.
+Do not assume it works.
+
+PART 1 — THE BUG. THE FEEDBACK LOOP IS INERT AT THE SHIPPED CONFIG.
+
+Measured on this machine, N=1000, k=20, `population.admissible_fraction: 0.2`:
+
+    agents with fewer than k admissible candidates : 0 / 1000
+    positives changed by a one-unit shift in theta: 0
+
+`update_thresholds` mutates `states[:, 6]` every epoch from the matching outcome, and
+`generate_swipes` gates on that theta — so there is a loop. But theta can only bind when it
+cuts the admissible set *below* k, and at phi=0.2 an agent has ~100 admissible candidates
+against a top-20 shortlist. The gate never acts. The project has been measuring a market that
+does not respond to its own outcomes.
+
+The gate binds iff
+
+    phi < 2k/N
+
+which at k=20, N=1000 is 0.04. Measured across the threshold:
+
+| phi | admissible per agent | agents truncated | positives moved by a one-unit theta shift |
+|---|---|---|---|
+| 0.20 (shipped) | 100 | 0 / 1000 | 0 |
+| 0.05 | 25 | 0 / 1000 | 0 |
+| 0.02 | 10 | 1000 / 1000 | 6709 |
+| 0.01 | 5 | 1000 / 1000 | 3869 |
+
+Required changes:
+
+1. Set `population.admissible_fraction: 0.02` in `experiments/base.yaml`, with a comment
+   recording the condition phi < 2k/N and both measured points. Note that phi and k interact:
+   raising k requires lowering phi, so state the rule rather than only the number.
+2. Add a validation check in `config.py`: warn (do not raise) when `phi >= 2*k/N`, because that
+   combination silently produces a static market and is almost never intended.
+3. Re-run the 3-C ablation at the new default and save it to `data/processed/ablation_live/`
+   alongside the existing `data/processed/ablation/` (the inert regime). Keep both. The
+   difference between the two is itself a result: it is what says feedback matters.
+4. THEORY.md §3 already documents the threshold. Update it from "live only above this
+   threshold" to state which regime the shipped config is in, and which the headline results use.
+
+Do not change `update_thresholds` itself. The formula is fine; only its operating point was
+wrong, and redefining the update would invalidate every result already reported.
+
+PART 2 — GENERATIONAL TURNOVER.
 
 ```
-In hypergamic-matching-markets. The full single-epoch pipeline works end-to-end.
+Read docs/INTERFACES.md §6, THEORY.md §3, and src/python/orchestrator.py first.
 
-Read docs/INTERFACES.md first.
+1. Implement run_multigen(self) -> pd.DataFrame on Simulation.
+   - For each generation g in range(n_generations): run the generation's epochs, tagging
+     every row with generation=g. `run()` already derives that column; keep one source of
+     truth rather than recomputing it.
+   - After a generation's FINAL epoch, replace the bottom `turnover_fraction` of agents by
+     cumulative match count with fresh agents.
+   - Keep run() as the single-generation path and have run_multigen() drive it. Do not
+     duplicate the epoch loop.
 
-1. experiments/base.yaml ALREADY EXISTS and is committed. Do not rewrite it.
-   Read it, then extend it only if something is genuinely missing. The fields you need:
-   population.{n, seed, traits.*}, hypergamy.{alpha, beta, gamma, delta, lambda},
-   ncf.{embed_dim, mlp_layers, lr, l2_reg, pos_weight, top_k, n_negatives},
-   simulation.{n_epochs, bayesian_eta, n_generations, turnover_fraction},
-   output.{dir, save_every}.
+2. REPLACEMENT RULES, each of which is a test:
+   - Sampled fresh from the ORIGINAL trait distributions, using a generation-indexed seed so
+     the replacement is reproducible but not a literal repeat of generation 0.
+   - theta is RECALIBRATED for newcomers, not copied from the agent they replace. A newcomer
+     with a rejected agent's threshold starts life already pessimistic.
+   - A newcomer gets a NEW hash key (THEORY.md 2.3), so its chemistry is fresh with everyone
+     and nobody else's chemistry changes. tests/cpp/test_heterogeneity.cpp already asserts
+     the "nobody else changes" half; reuse that expectation.
+   - `_cumulative_matches` for a replaced slot resets to 0; otherwise the Pareto fit is
+     measuring the dead agent plus the new one.
+   - Replaced agents keep their SLOT, not their traits: id, side and row index are stable so
+     matching indexes stay valid within a generation boundary.
 
-2. Extend src/python/orchestrator.py Simulation class:
-   - run_multigen(self) → pd.DataFrame
-     For each generation g in range(n_generations):
-       - run n_epochs epochs, tagging every row with generation=g
-       - After the generation's final epoch: replace the bottom turnover_fraction of agents
-         by match rate with fresh agents re-sampled from the original distributions.
-         Fresh agents get the config's initial threshold, not a carried-over one.
-       - Fit Pareto alpha on cumulative match counts for that generation's final row only;
-         every other row gets NaN. Set epoch as the absolute index across generations so
-         time never resets in the plots.
-   - Keep run() as the single-generation path; run_multigen() calls it n_generations times.
+3. Epoch numbering must not reset. The `epoch` column is the absolute index across
+   generations, so a time series is continuous. `generation` increments. Assert that
+   `df["epoch"]` is exactly `range(len(df))`.
 
-3. scripts/run_sweep.py ALREADY EXISTS and is committed. Verify it still matches the
-   Simulation constructor signature (config=dict), and fix the script rather than the
-   orchestrator if they disagree. Run it, do not rewrite it.
+4. `pareto_alpha` stays NaN except on generation-final rows. Verify the existing behaviour
+   survives the new column handling rather than re-deriving it.
 
-4. Test: N=100, 5 epochs, n_generations=2, delta=[0.0, 0.5, 1.0]. Confirm 3 CSVs appear in
-   data/processed/, each with the §6 columns, and that generation, delta and seed are
-   populated on every row.
+5. scripts/run_sweep.py exists and already deep-copies base.yaml, so it picks up the new
+   keys. Do NOT rewrite it. Two changes only:
+   - add `--taste-sigma` and `--shock-scale` comma-separated options, because THEORY.md 2.3
+     says results are reported as a function of heterogeneity and the sweep cannot vary it yet;
+   - write the noise-to-signal ratio into each CSV (Simulation already computes it), so a
+     sweep's rows are self-describing.
+
+6. Tests, tests/python/test_multigen.py:
+   - turnover replaces exactly round(turnover_fraction * N) agents per generation;
+   - replaced slots have new keys, new traits and reset cumulative counts;
+   - all other agents are bit-identical before and after turnover (traits AND keys);
+   - `epoch` is contiguous 0..T-1 and `generation` is non-decreasing;
+   - `pareto_alpha` is non-NaN exactly on generation-final rows;
+   - reproducibility: same seed gives the same full multi-gen frame.
+
+7. Smoke run: N=200, 4 epochs, n_generations=2, delta in {0.0, 0.5, 1.0}. Confirm three CSVs
+   appear, every row carries generation/delta/seed, and no NaN appears in gini/mcr/rsi.
+
+Build and run:
+   cmake --build build --config Release --parallel
+   ctest --test-dir build -C Release --output-on-failure
+   python -m pytest tests/python -q
+
+Report: the phi change and its measured effect on the loop, the two ablation directories, and
+whether turnover changed the Pareto alpha across generations.
 ```
+
 
 ---
 
