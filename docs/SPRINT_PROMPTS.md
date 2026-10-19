@@ -250,6 +250,120 @@ Build and run the full suite when done:
 
 ---
 
+## DAY 1.6 — Trait scaling, config wiring, and the δ power guardrail
+
+Run before Day 2. Measured on this machine, at `experiments/base.yaml`'s weights, over
+N=200,000 draws:
+
+| term | sd |
+|------|-----|
+| `α·status` (α=1.0) | 1.338 |
+| `β·attractiveness` (β=0.8) | 0.120 |
+| `−γ·distance` (γ=0.3) | 0.326 |
+
+Status outweighs attractiveness by **11.2×** in the ranking, despite the weights reading 1.0 vs
+0.8. And δ is **completely inert**: raising it from 0.0 to 1.0 changes 0 of the top-1000, because
+every man in the shortlist already clears the cutoff, so the indicator adds the same `+λ` to all
+of them and reorders nothing.
+
+The `δ` fix is not a scaling fix — δ stays inert under z-scoring too at these weights. The cause is
+arithmetic: for the indicator to reorder anything, the cutoff `s_w + δ` must fall *inside* the
+competitive set, which requires non-status traits to be able to compensate for a status deficit.
+Measured across a grid, that happens at **β/α ≥ ~2**. Both changes are needed, and they answer
+different questions.
+
+```
+Read docs/THEORY.md §2 and docs/INTERFACES.md §1–§3 first.
+
+Two independent problems. Do them in this order.
+
+1. STANDARDISE TRAITS FOR UTILITY.
+   Raw traits have incompatible scales: status is lognormal(0, 0.8) with sd 1.31 and a max
+   near 44; attractiveness is normal(0.5, 0.15) clipped to [0,1], sd 0.15. So α=1.0 and
+   β=0.8 do not mean "status slightly more important than attractiveness" — they mean
+   11.2× more important.
+
+   Fix: z-score every trait to zero mean and unit standard deviation *for the purposes of
+   utility computation*, using population-level statistics computed once after sampling.
+   Keep the raw values on the Agent for reporting, plotting and the state matrix.
+
+   Implementation notes:
+   - Compute (mean, sd) per trait across the whole population, once, after
+     sample_population(). Store them on the Population or pass them in a small struct.
+   - utility_toward() and weighted_distance() use the standardised values.
+   - The distance term becomes scale-free, which also softens the "s enters twice"
+     collinearity documented in THEORY.md §2.1.
+   - δ is now expressed in standard deviations of log-status. Document that in THEORY.md
+     and in the base.yaml comment.
+   - Guard sd == 0 (a degenerate constant trait) by leaving that trait unstandardised
+     rather than dividing by zero.
+
+   Do NOT change the raw state matrix layout in INTERFACES.md §1. Column 6 (θ) stays in
+   utility units, which are now standardised units — state that explicitly.
+
+2. WIRE ncf.n_negatives THROUGH, AND ADD THE MISSING KEYS.
+   experiments/base.yaml declares ncf.n_negatives: 4, but simulation.cpp hardcodes
+   constexpr int kNegativesPerPositive = 4 and bindings.cpp never reads the key. Editing
+   the YAML does nothing today.
+
+   Chosen fix: thread it through, do not delete it. The negative:positive ratio changes NCF
+   training dynamics and is exactly the kind of knob the experiment matrix needs.
+
+   - generate_swipes gains a `int n_negatives` parameter (default 4).
+   - bindings.cpp reads config["ncf"]["n_negatives"], defaulting to 4 when absent.
+   - INTERFACES.md §2's signature note mentions it.
+
+   Also, in experiments/base.yaml:
+   - add population.admissible_fraction: 0.2 (the code already defaults to 0.2, but the key
+     is invisible today and the docstring points at a key that does not exist)
+   - remove the stray CJK character in the delta comment on the hypergamy block
+   - set beta: 2.0 (see item 3) and note why in a comment
+
+3. MAKE delta ABLE TO MATTER — a default-config change, not a code change.
+   With standardised traits, measured top-1000 overlap between δ=0.0 and δ=1.0:
+
+     alpha=1.0 beta=0.8  -> 1.000  (inert)
+     alpha=1.0 beta=2.0  -> 0.915  (some power)
+     alpha=1.0 beta=3.0  -> 0.803
+     alpha=0.6 beta=1.5  -> 0.783
+     alpha=0.3 beta=1.5  -> 0.478  (strong)
+
+   Rule of thumb: δ has real power when beta/alpha >= 2.
+
+   Set the base config to alpha=1.0, beta=2.0 so that status remains the dominant linear
+   term (preserving the Matthew-effect story) while δ is no longer structurally dead. Add a
+   comment recording the measured overlap so the choice is auditable.
+
+   ADD A GUARDRAIL TEST so this cannot silently regress:
+     with the base config's weights, the top-k computed at delta=0.0 and delta=1.0 must
+     differ for at least 5% of a 1000-candidate shortlist. Assert the measured overlap is
+     below 0.95. If someone later retunes alpha/beta and re-kills delta, this fails loudly.
+
+   Also add the inverse test, so the guardrail is not vacuous: at alpha=1.0, beta=0.1,
+   overlap must be 1.000 — proving the test distinguishes "δ has power" from "δ is dead"
+   and is not just always-passing.
+
+4. UPDATE THE DOCS WITH WHAT WAS MEASURED.
+   - THEORY.md §2: note that traits are standardised before utility computation, and that
+     δ is therefore in standard-deviation units.
+   - THEORY.md: add a short "δ has power only when β/α ≥ 2" note with the mechanism —
+     the indicator is a constant unless the cutoff bisects the competitive set, which
+     requires non-status traits to partly compensate for status.
+   - Keep the existing note that the raw-scale version made δ inert; it explains why the
+     change exists.
+
+Build and run the full suite:
+   cmake --build build --config Release --parallel
+   ctest --test-dir build -C Release --output-on-failure
+
+Every existing test must still pass. The θ calibration tests will need their
+utility-scale assumptions revisited — θ is now a quantile of standardised-unit utilities,
+which changes its numeric range but not its behaviour. If a calibration test hardcodes a
+raw-scale number, fix the test, not the calibration.
+```
+
+---
+
 ## DAY 2 — NCF Engine & Python Integration
 
 ### Session 2-A: Neural Collaborative Filtering
@@ -441,6 +555,130 @@ Write tests/python/test_metrics.py:
 - fit_pareto on [1,1,1] returns NaN rather than an exception
 
 Run python -m pytest tests/python/test_metrics.py -v
+```
+
+---
+
+### Session 3-C: The ablation arm — what makes the Matthew effect attributable
+
+Read docs/INTERFACES.md §6 and docs/THEORY.md §7.1 first.
+
+```
+In hypergamic-matching-markets. Metrics exist; the recommendation loop does not yet have a
+control condition.
+
+THE PROBLEM THIS SOLVES. A rising Gini under the NCF proves nothing on its own. At the base
+config, α·status has ~11× the spread of β·attractiveness, so positives concentrate on
+high-status men even if the recommender is a coin flip. Reporting Gini(NCF) alone would
+attribute a preference-driven effect to the algorithm.
+
+Measured on this population at base weights, a single chooser's baseline utility already
+puts 78% of its variance in the status term. So the honest claim needs a control:
+
+    Matthew effect  :=  Gini(NCF) - Gini(random)
+
+Both arms share population, seed, utilities, θ calibration and the matching algorithm.
+Only the exposure mechanism differs. Implement all four arms.
+
+1. Add a `recommender` field to Simulation, one of:
+     "ncf"      — the trained model (already built in 2-B)
+     "random"   — exposure sampled uniformly from the candidate pool
+     "popularity" — rank by raw popularity (in-degree from the previous epoch's swipes),
+                    no personalisation. This is the arm that isolates *personalisation*
+                    from *the Matthew effect*: a popularity recommender manufactures
+                    concentration with no ML at all.
+     "oracle"   — rank by true utility, no learning. Upper bound on match quality; shows
+                    what a perfect recommender would do to concentration.
+
+   Each arm consumes the same (population, seed, theta). The random arm must still respect
+   θ — it samples among admissible candidates — otherwise the arms differ in two ways at
+   once and the comparison is confounded.
+
+2. Add `exposure_counts` to the epoch output: an int array of length N, the number of times
+   each agent appeared in anyone's recommended list that epoch. Gini runs over this, per
+   THEORY.md §7.1. Expose it from Simulation.run() as a per-epoch matrix so the Lorenz plot
+   can show before/after rather than only the final state.
+
+3. Write scripts/run_ablation.py:
+   - Runs all four arms at the same seed and config
+   - Emits one CSV per arm plus a combined summary with columns
+     [arm, epoch, gini, gini_excess_over_random, mcr, rsi, mean_exposure_top1pct]
+   - gini_excess_over_random is the headline number
+
+4. Write tests/python/test_ablation.py:
+   - The random arm produces Gini below the NCF arm's Gini at the same seed
+   - The popularity arm produces a higher Gini than random, without training anything
+   - Oracle arm produces the highest mean rank satisfaction of all four
+   - Reproducibility: same seed, same arm, identical exposure matrix
+
+5. Document in THEORY.md under §7: state plainly that Gini alone is not evidence of
+   algorithmic amplification, that the random arm is the control, and that
+   gini_excess_over_random is the quantity the project's central claim rests on.
+
+Report: the four Gini values at epoch 50 and the excess over random.
+```
+
+---
+
+### Session 3-D: Attribution — can an observed status gap be read as attractiveness?
+
+Read docs/THEORY.md §1–2 first.
+
+```
+In hypergamic-matching-markets. This session adds the analysis that stops the project
+overclaiming, and it is the one a sceptical reviewer will reach for first.
+
+MEASURED FACT, established before this session: status and attractiveness are drawn
+independently in sample_population(). Measured correlation on a 200k draw: -0.0031.
+There is no generative link. But the SELECTED set does correlate, purely because the
+market sorts on both:
+
+    corr(status, attractiveness) among top-1000 by utility : -0.0088
+    corr(status, attractiveness) among top-10            : +0.4471
+
+That is selection-induced correlation, not a causal relationship. Anyone reading matched
+pairs and concluding "high-status people are also better looking" is reading a collider.
+
+1. Add src/python/attribution.py with:
+
+   def leave_one_term_out_effect(states, config, terms=("status","attract","distance","indicator"),
+                                 k=1000) -> dict[str, float]:
+       """For each term, recompute the top-k with that term's weight zeroed and return the
+       overlap with the baseline top-k (Jaccard or share-in-common). Measured on this
+       population at base weights: status->0 overlap 0.000, attract->0 0.967,
+       distance->0 0.863, indicator->0 1.000. Low overlap = that term drives selection."""
+
+   def selection_correlation(states, config, top_n) -> dict[str, float]:
+       """corr between each pair of traits within the selected set, versus the population."""
+
+   def delta_power(states, config, deltas=(0.0,0.5,1.0), k=1000) -> float:
+       """Share of the top-k held in common between delta=0 and the largest delta.
+       1.0 means delta is inert. Guard: warn loudly if it is 1.0."""
+
+2. Write scripts/run_attribution.py emitting a small markdown table into
+   docs/attribution.md, containing:
+   - the generative correlation for each trait pair (near zero, by construction)
+   - the selection-induced correlation at top-10 / top-100 / top-1000
+   - the leave-one-term-out overlaps
+   - the delta-power number for the configured weights
+
+3. Write tests/python/test_attribution.py:
+   - generative correlation between status and attractiveness is within +/-0.01
+   - selection-induced correlation at top-10 EXCEEDS the generative correlation
+     (this documents the artefact rather than asserting it is absent)
+   - leave-one-term-out: zeroing alpha drops overlap below 0.2; zeroing the indicator
+     leaves overlap above 0.9 at the base config.
+
+4. In THEORY.md, add §9 "Identification limits". State three things plainly:
+   - traits are sampled independently, so no trait causes another in this model
+   - the model cannot therefore answer "does status reflect attractiveness"; it can only
+     answer "how much does each term drive selection", which is what leave-one-term-out
+     measures
+   - correlation among matched pairs is a selection artefact and must never be reported as
+     a finding about individuals
+
+This section is what keeps the README honest. Without it the project reads as though it
+demonstrates something about real people rather than about a specified mechanism.
 ```
 
 ---
