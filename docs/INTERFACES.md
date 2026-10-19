@@ -116,11 +116,11 @@ update_thresholds(states, n_proposals: np.ndarray[int32, (N,)],
 
 ```python
 {
-  "matches":             np.int32, shape (P, 2),  # [proposer_id, acceptor_id]
+  "matches":             np.int32, shape (P, 2),  # [proposer_index, acceptor_index]
   "unmatched_proposers": np.int32, shape (U,),
   "unmatched_acceptors": np.int32, shape (V,),
   "n_blocking":          int,
-  "proposals":           np.int32, shape (n_prop + n_acc,),  # by global agent id
+  "proposals":           np.int32, shape (n_prop + n_acc,),  # proposers first
 }
 ```
 
@@ -153,18 +153,26 @@ Uses the same `alpha, beta, gamma, delta, lambda` from `config["hypergamy"]` as 
 
 - `prop_prefs[p]` is the preference list of the `p`-th proposer, and `acc_prefs[a]` that of the
   `a`-th acceptor, each listed in descending preference order.
-- The integer ids *inside* the lists are the other side's **global** ids from `states[:, 0]`
-  (column 0 of the matrix), which is the same id space `generate_swipes` reports. So a list
-  entry and a `matches` column are directly comparable.
-- `n_prop` is the number of rows with `states[:, 1] == 0.0` and `n_acc` those with `== 1.0`.
-  `sample_population` emits M first, so in a sampled population id `i` is proposer `i` for
-  `i < n_prop`; callers must not rely on that and should derive the counts by counting types.
+- The integer ids *inside* `prop_prefs[p]` are **acceptor indexes** `0..n_acc-1`; the ids inside
+  `acc_prefs[a]` are **proposer indexes** `0..n_prop-1`. Same space as the outer index, just the
+  other side of it.
+- `n_prop` is the number of rows with `states[:, 1] == 0.0` and `n_acc` those with `== 1.0`, so
+  proposer index `p` is the `p`-th type-0 row in matrix order and acceptor index `a` the `a`-th
+  type-1 row. `sample_population` emits M first, so in a sampled population index `p` is also row
+  `p`; callers must not rely on that and should derive the mapping by counting types.
 
-The dense outer index keeps the lists a plain `list[list[int]]` however the ids inside are
-numbered, and it is why the return arrays are sized by count rather than by max id.
+Dense indexes rather than global ids because `deferred_acceptance` is handed the lists and nothing
+else: with global ids it could not recover an unmatched acceptor's position, since an acceptor no
+one proposes to appears in no list at all. Every consumer that needs a row — the orchestrator, and
+`compute_welfare` internally — maps an index to a row through the type column, which is a lookup
+it already has the matrix for.
 
-`compute_welfare` takes no preference lists, so it is unaffected; it reads `states[:, 0]` as the
-id space for `matches` and looks the rows up by that column.
+`matches` and the two unmatched arrays therefore hold **index pairs**, not global ids.
+`update_thresholds` is the exception: its `n_proposals` and `n_matches` are indexed by **row**,
+because it writes `states[:, 6]` and the caller has already mapped back.
+
+`compute_welfare` takes no preference lists; it maps the index pair to rows through column 1 and
+reads the utilities off those rows.
 
 ## 3. Numerical conventions
 
@@ -191,7 +199,26 @@ The full-information benchmark is quadratic in memory: at N=5,000 each side's pr
 
 ## 5. Proposer direction — a design decision worth defending
 
-M proposes; W accepts. Gale-Shapley returns the **proposer-optimal** stable matching, so this produces the M-optimal / W-pessimal outcome. Hypergamy is imposed on W's utility function, so M-proposing is the *conservative* choice: it understates W's dissatisfaction relative to a W-proposing run. Worth one sentence in the README's limitations — a reviewer will ask, and the answer is good.
+M proposes; W accepts. Gale-Shapley returns the **proposer-optimal** stable matching, which is
+simultaneously the **acceptor-pessimal** one: among all stable matchings every M does at least as
+well, and every W at most as well, as in any other. So M-proposing hands each W her *worst* stable
+partner. Measured on the cyclic 3×3 in `tests/cpp/test_matching.cpp`: M-proposing leaves every
+woman with her last choice (sum of women's ranks 6), W-proposing gives every woman her first
+(sum 0).
+
+Consequences for how results may be read:
+
+- **W-side rank satisfaction is a lower bound across stable matchings, not a central estimate.**
+  Hypergamy lives in W's utility, so this choice lands on exactly the side the project is about.
+- The full-information versus NCF comparison uses the same direction in both arms, so the *gap*
+  between them (algorithmic loss) is largely unaffected; the absolute W-side level is what is
+  pessimistic.
+- Never compare a W-side level against a W-proposing baseline without saying so.
+- A W-proposing arm is a cheap sensitivity check if a reviewer asks: swap the two list arguments.
+
+An earlier version of this section called M-proposing "conservative" because it "understates W's
+dissatisfaction". That was backwards, and is corrected here. The README's limitations section
+states the correct version.
 
 ## 6. Metrics DataFrame schema
 

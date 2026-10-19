@@ -124,8 +124,11 @@ trait causes another. The market sorts on several at once, which makes the survi
 strongly at the top of the distribution. That is a collider, not a finding about individuals.
 
 **Other limits.** The full-information benchmark is capped near N=5000 for memory reasons.
-M-proposing Gale-Shapley returns the proposer-optimal matching, which understates the acceptor
-side's dissatisfaction. Generational turnover is the only population dynamic; there is no entry,
+M-proposing Gale-Shapley returns the proposer-optimal matching, which is the *worst* stable
+outcome for the acceptor side. Reported W-side rank satisfaction is therefore a lower bound across
+stable matchings rather than a central estimate; the full-information versus NCF comparison uses
+the same direction in both arms, so the gap between them is far less affected than the absolute
+level. Generational turnover is the only population dynamic; there is no entry,
 exit or preference learning from outside the simulation.
 
 ## License

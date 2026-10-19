@@ -465,48 +465,67 @@ Read docs/INTERFACES.md first and implement §1 and §2 exactly.
 Read docs/INTERFACES.md first — §2.1 fixes the return shape and §5 explains the proposer direction.
 
 ```
-In hypergamic-matching-markets. Focus: production-quality Gale-Shapley in C++.
+In hypergamic-matching-markets.
 
-Read docs/INTERFACES.md first.
+Read docs/INTERFACES.md §2.1 and include/matching.h first.
 
-Implement include/matching.h + src/cpp/matching.cpp:
+IMPORTANT — matching already exists and is committed. Do NOT rewrite
+include/matching.h or src/cpp/matching.cpp. Read them, then write the missing
+test file. The only new file in this session is tests/cpp/test_matching.cpp.
+
+Existing API (do not change it):
 
 struct MatchResult {
-  std::vector<std::pair<int32_t,int32_t>> matches;   // (proposer_id, acceptor_id)
-  std::vector<int32_t> unmatched_proposers;
-  std::vector<int32_t> unmatched_acceptors;
-  int32_t n_blocking;
+  std::vector<std::array<std::int32_t,2>> matches;  // [proposer_index, acceptor_index]
+  std::vector<std::int32_t> unmatched_proposers;
+  std::vector<std::int32_t> unmatched_acceptors;
+  std::int32_t n_blocking = 0;
+  std::vector<std::int32_t> proposals;   // attempts, proposers then acceptors
 };
 
-MatchResult deferred_acceptance(
-    const std::vector<std::vector<int32_t>>& proposer_prefs,  // ranked acceptor ids
-    const std::vector<std::vector<int32_t>>& acceptor_prefs,  // ranked proposer ids
-    bool truncated);
+MatchResult deferred_acceptance(prop_prefs, acc_prefs, bool truncated);
+std::int32_t count_blocking_pairs(prop_prefs, acc_prefs, matches);
 
-int32_t count_blocking_pairs(const MatchResult&, const std::vector<std::vector<int32_t>>&,
-                             const std::vector<std::vector<int32_t>>&);
+Two things to get right when reading it:
 
-Implementation requirements:
-- Deferred acceptance semantics: each acceptor holds at most one tentative match and
-  rejects a strictly worse proposer immediately. A rejected proposer advances to their
-  next preference.
-- Pre-compute acceptor rank tables (acceptor_id → rank of each proposer) once, as a
-  std::vector<std::vector<int32_t>> of size |acceptors| × |proposers|. The naive version
-  scans the list on every rejection, which is O(n·k²) and will show up in Day 5 profiling.
-- truncated=true: a proposer who exhausts their list is unmatched. truncated=false:
-  lists must be complete; assert this and give a clear message if not.
-- count_blocking_pairs: for each pair (p, a) not matched together, check whether p prefers
-  a to their partner AND a prefers p to theirs. Use the rank tables.
+- Index space. Ids inside prop_prefs[p] are acceptor indexes 0..n_acc-1, and
+  ids inside acc_prefs[a] are proposer indexes 0..n_prop-1. matches holds the
+  same index pairs, NOT global agent ids. See INTERFACES.md §2.1.
+- count_blocking_pairs takes the FULL lists and the algorithm's matching, and
+  measures instability under the true ordering. MatchResult::n_blocking is
+  computed against the lists it was given, so it is zero on a truncated run by
+  construction — that is why the free function exists. Do not "fix" that or
+  assert n_blocking > 0 on a truncated run; it would fail correctly.
 
-Write tests/cpp/test_matching.cpp:
-- The classic 3×3 textbook instance (m1: w1>w2>w3, etc.) yields the known stable matching
-- Truncated k=2 lists leave at least one proposer unmatched on a 6×6 instance
-- count_blocking_pairs == 0 for the full-information textbook matching
-- count_blocking_pairs > 0 for a truncated run on the same instance
-- Empty preference lists return an empty MatchResult without crashing
-- Unequal set sizes (|prop|=5, |acc|=3) are handled: extra proposers unmatched
+Write tests/cpp/test_matching.cpp with these cases:
 
-Build and run ctest. All tests must pass.
+1. Classic 3x3 textbook instance — m1:m2:m3 and w1:w2:w3 with the standard
+   crossed rankings — yields the known stable matching. Hand-compute the
+   expected result and assert exact pairs, not just "some" matching.
+2. Same instance, truncated to k=2 for both sides: at least one proposer goes
+   unmatched, and the returned unmatched arrays contain them.
+3. count_blocking_pairs == 0 on the full-information textbook matching. This is
+   also a check on the implementation: a non-zero count there is a bug.
+4. count_blocking_pairs > 0 when the matching is computed from truncated lists
+   but blocking is measured against the full lists.
+5. Empty preference lists (empty pop, and lists containing no entries) return an
+   empty MatchResult without crashing or reading out of bounds.
+6. Unequal sides: |prop|=5, |acc|=3 leaves 2 proposers unmatched, and the
+   matches array has exactly 3 pairs.
+7. Ties / duplicates: two proposers with identical lists must both terminate,
+   and the result must be a valid matching (no acceptor in two pairs).
+8. proposals is sized n_prop + n_acc and its proposer segment sums to at most
+   n_prop * k (a proposer cannot exceed its own list length).
+
+Assert structural properties (no acceptor matched twice, every match appears in
+both preference lists, unmatched agents are exactly those absent from matches)
+rather than only counting. Those are the properties the orchestrator relies on.
+
+Build and run:
+   cmake --build build --config Release --parallel
+   ctest --test-dir build -C Release --output-on-failure
+
+All existing tests must still pass; report the full ctest output.
 ```
 
 ---
@@ -516,45 +535,72 @@ Build and run ctest. All tests must pass.
 Read docs/INTERFACES.md first — §6 fixes the exact column names these functions feed.
 
 ```
-In hypergamic-matching-markets/src/python/. Gale-Shapley is implemented and tested.
+In hypergamic-matching-markets.
 
-Read docs/INTERFACES.md first.
+Read docs/INTERFACES.md §6 and src/python/metrics.py first.
 
-Write src/python/metrics.py:
+IMPORTANT — metrics.py already exists, is committed, and is imported by
+orchestrator.py and tests/python/test_orchestrator.py. Do NOT rewrite it and do
+NOT rename its functions. The implementation is correct (the sorted-form Gini and
+the Pareto MLE both check out by hand). This session adds the missing test file
+and closes four small gaps.
 
-def gini_coefficient(exposures: np.ndarray) -> float
-    Sorted-array formula: G = (2 * Σ i·x_(i)) / (n · Σ x) − (n+1)/n, for sorted x.
-    Return 0.0 if the total is 0.
+Existing API — keep these names exactly:
 
-def market_clearing_rate(n_matched: int, n_total: int) -> float
+  gini(counts)                                   # not gini_coefficient
+  market_clearing_rate(n_matched, n_agents)      # = 2*n_matched/n_agents
+  rank_satisfaction_index(matches, prop_prefs)   # (rank+1)/len(list), in (0, 1]
+  algorithmic_loss(welfare_alg, welfare_full)    # ALG FIRST — opposite of the old spec
+  pareto_alpha(cumulative_counts)                # returns a float, not (alpha, x_min)
 
-def rank_satisfaction_index(matches, pref_lists: dict[int, list[int]]) -> float
-    Mean rank of the partner within the proposer's list, normalized by list length.
-    Unmatched agents excluded. Return float('nan') if no matches.
+Gaps to close, in this order:
 
-def algorithmic_loss(welfare_full: float, welfare_alg: float) -> float
-    Δ = (SW* − SW_alg) / SW*. Return float('nan') if welfare_full is 0 or NaN.
+1. algorithmic_loss argument order is a silent-sign-flip hazard. Swapping the two
+   positional arguments returns (alg - full)/alg instead of (full - alg)/full: a
+   finite, plausible, wrong number. Make both parameters keyword-only
+   (def algorithmic_loss(*, welfare_alg, welfare_full)) and update the call sites in
+   orchestrator.py and test_orchestrator.py. Nothing about this should look
+   different in the output; it only makes the wrong call impossible.
 
-def blocking_pair_ratio(n_blocking: int, n_matched: int) -> float
+2. Add blocking_pair_ratio(n_blocking, n_matched) -> float, = n_blocking /
+   max(n_matched, 1), and use it in orchestrator.py where that expression is
+   currently inlined (search for `max(n_matched, 1)`). One definition, not two.
+   Preserve the existing NaN behavior when bpr is not measurable.
 
-def fit_pareto(match_counts: np.ndarray) -> tuple[float, float]
-    MLE: alpha = n / Σ ln(x_i / x_min), x_min = min positive count.
-    Requires scipy.stats; return (nan, nan) if fewer than 3 positive observations —
-    a silent NaN is far better than a garbage alpha propagating into the plots.
+3. pareto_alpha currently fits from two positive values, which gives a
+   meaningless number from two points. Require at least 3 positive observations
+   AND at least 2 distinct values; otherwise return NaN. A visible hole beats a
+   garbage alpha reaching the plots.
 
-def epoch_metrics(...) -> dict
-    Returns a flat dict with EXACTLY the keys in INTERFACES.md §6, in that order.
+4. Do NOT add an epoch_metrics() function. The orchestrator builds the row inline
+   and a second constructor of the same dict is a second source of truth. Instead,
+   assert the schema: a test that runs a 2-epoch Simulation and checks the
+   DataFrame columns equal INTERFACES.md §6 exactly, in order.
 
-Write tests/python/test_metrics.py:
-- gini_coefficient([1,1,1,1]) == 0.0 (within 1e-12)
-- gini_coefficient([0,0,0,4]) ≈ 0.75
-- gini_coefficient([0,0,0,0]) == 0.0 and does not divide by zero
-- algorithmic_loss(welfare_full=100, welfare_alg=60) == 0.4
-- algorithmic_loss handles welfare_full=0 by returning NaN, not raising
-- rank_satisfaction_index lands in (0, 1]
-- fit_pareto on [1,1,1] returns NaN rather than an exception
+Write tests/python/test_metrics.py. Several cases already exist in
+test_orchestrator.py (gini known values, mcr, rsi bounds, loss NaN, pareto
+degenerate); do NOT duplicate those — move them here if you prefer, but each
+assertion must live in exactly one file. New cases:
 
-Run python -m pytest tests/python/test_metrics.py -v
+- gini([1,1,1,1]) == 0.0 within 1e-12
+- gini([0,0,0,4]) == 0.75 within 1e-12   (hand-derived: 2*16/(4*4) - 5/4)
+- gini of any array is invariant to input order and to scaling by a constant
+- gini of a single nonzero entry among n equals (n-1)/n
+- algorithmic_loss(welfare_alg=60, welfare_full=100) == 0.4
+- algorithmic_loss is NaN when welfare_full is 0, NaN, or inf
+- algorithmic_loss can be negative when alg beats full — assert that it is NOT clipped
+- calling algorithmic_loss positionally raises TypeError (guards fix 1)
+- rank_satisfaction_index is in (0, 1] for any non-empty match set, equals
+  1/len(list) for a top choice, and 1.0 for a last choice
+- rank_satisfaction_index skips a partner absent from the list instead of scoring it
+- pareto_alpha([1,1,1]) is NaN; [1,2] is NaN (only 2 points); [1,2,4,8,16] is finite
+- pareto_alpha recovers a known alpha: draw 20000 samples from a Pareto with
+  alpha=2.0 and x_min=1 using a fixed seed; the estimate must land within 0.1
+- blocking_pair_ratio(10, 0) does not divide by zero
+
+Run:
+   python -m pytest tests/python -q
+All existing tests must still pass; report the full count.
 ```
 
 ---
@@ -999,8 +1045,9 @@ The 4-line Simulation snippet and the sweep command.
 ## Limitations
 Be honest and specific: synthetic utilities with no learned real-world weights; the
 full-information benchmark is capped at N=5000 for memory reasons; M-proposing
-Gale-Shapley returns the proposer-optimal matching, so W's dissatisfaction is
-understated (docs/INTERFACES.md §5); no dynamic entry/exit beyond generational turnover.
+Gale-Shapley returns the proposer-optimal matching, which is the worst stable outcome for W,
+so W-side rank satisfaction is a lower bound rather than a central estimate
+(docs/INTERFACES.md §5); no dynamic entry/exit beyond generational turnover.
 This section is what separates a serious project from a demo.
 
 ## Documentation
