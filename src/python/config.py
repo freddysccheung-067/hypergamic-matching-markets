@@ -60,6 +60,10 @@ class PopulationConfig:
     # A number here is an absolute utility cutoff and bypasses calibration, which
     # is why it is not given a plausible-looking default.
     init_threshold: float | None = None
+    # Spread of the per-agent taste multipliers (THEORY.md §2.3). lognormal with
+    # mean 1, so this is a coefficient of variation: 0 switches heterogeneity off
+    # and every multiplier is exactly 1.0. No empirical anchor — a modeling knob.
+    taste_sigma: float = 0.0
 
     def __post_init__(self) -> None:
         if self.n <= 0:
@@ -78,6 +82,8 @@ class PopulationConfig:
                 "population.admissible_fraction must be in (0, 1]; "
                 f"got {self.admissible_fraction}"
             )
+        if self.taste_sigma < 0.0:
+            raise ValueError(f"population.taste_sigma must be >= 0; got {self.taste_sigma}")
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -85,6 +91,7 @@ class PopulationConfig:
             "seed": self.seed,
             "admissible_fraction": self.admissible_fraction,
             "traits": {k: v.to_dict() for k, v in self.traits.items()},
+            "taste_sigma": self.taste_sigma,
         }
         if self.init_threshold is not None:
             out["init_threshold"] = self.init_threshold
@@ -98,6 +105,11 @@ class HypergamyConfig:
     beta: float
     gamma: float
     lam: float
+    # Absolute utility units of persistent pairwise chemistry (THEORY.md §2.3).
+    # Not a ratio: the orchestrator logs shock_scale * 1.8138 / utility_sd once at
+    # construction so the implied noise-to-signal ratio stays visible across
+    # retunes of alpha/beta. 0 switches the term off entirely.
+    shock_scale: float = 0.0
 
     def __post_init__(self) -> None:
         if self.delta < 0.0:
@@ -107,6 +119,8 @@ class HypergamyConfig:
             raise ValueError(f"hypergamy.delta must be >= 0; got {self.delta}")
         if self.gamma < 0.0:
             raise ValueError(f"hypergamy.gamma must be >= 0; got {self.gamma}")
+        if self.shock_scale < 0.0:
+            raise ValueError(f"hypergamy.shock_scale must be >= 0; got {self.shock_scale}")
 
     def to_dict(self) -> dict[str, Any]:
         # The C++ reads the key "lambda"; the Python attribute is `lam` because
@@ -117,6 +131,7 @@ class HypergamyConfig:
             "beta": self.beta,
             "gamma": self.gamma,
             "lambda": self.lam,
+            "shock_scale": self.shock_scale,
         }
 
 
@@ -192,6 +207,20 @@ def _require(mapping: dict[str, Any], key: str, where: str) -> Any:
     return mapping[key]
 
 
+def _reject_unknown(block: dict[str, Any], known: set[str], where: str) -> None:
+    """The same strict check _build applies, for a block parsed by hand.
+
+    ``population`` is built field by field rather than through _build (its trait
+    dict and optional init_threshold need their own handling), so it would
+    otherwise be the one block where a misspelled key passes unnoticed — and
+    ``taste_sigm`` silently sampling a homogeneous population is exactly the kind
+    of failure this rejects.
+    """
+    for key in block:
+        if key not in known:
+            raise ValueError(f"unknown key {where}.{key}")
+
+
 def _build(cls: type, block: dict[str, Any], where: str, renames: dict[str, str] | None = None):
     """Construct a dataclass from a config block, rejecting unknown keys.
 
@@ -237,6 +266,8 @@ class SimConfig:
             raise ValueError("config did not parse to a mapping")
 
         pop_raw = _require(raw, "population", "config")
+        _reject_unknown(pop_raw, {"n", "seed", "admissible_fraction", "traits",
+                                  "init_threshold", "taste_sigma"}, "population")
         traits_raw = _require(pop_raw, "traits", "population")
         traits = {
             name: _build(TraitDist, block, f"population.traits.{name}")
@@ -248,8 +279,12 @@ class SimConfig:
             admissible_fraction=pop_raw.get("admissible_fraction", 0.2),
             traits=traits,
             init_threshold=pop_raw.get("init_threshold"),
+            taste_sigma=pop_raw.get("taste_sigma", 0.0),
         )
 
+        # The strict unknown-key check lives in _build; these two blocks are built
+        # through it, so a misspelled "shock_scal" fails here rather than silently
+        # leaving the knob at its default.
         return cls(
             population=population,
             hypergamy=_build(

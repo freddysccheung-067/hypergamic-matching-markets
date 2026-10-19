@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <random>
 #include <stdexcept>
 #include <string>
@@ -94,7 +95,31 @@ double draw(const TraitDist& d, std::mt19937_64& engine, NormalSource& normal) {
 }
 
 // Column offsets for the flat matrix, in the order docs/INTERFACES.md §1 fixes.
-constexpr std::size_t kCols = 7;
+// The count lives in population.h as kStateCols so the shape guards in
+// bindings.cpp and this file cannot drift apart.
+constexpr std::size_t kCols = kStateCols;
+
+// A lognormal multiplier with mean exactly 1: exp(-sigma^2/2 + sigma*z).
+//
+// The -sigma^2/2 is what makes the mean 1 rather than exp(sigma^2/2), so the knob
+// changes the dispersion of tastes and not their level. At sigma == 0 this returns
+// exactly 1.0 — neither branch calls exp — which is what keeps the no-heterogeneity
+// path bit-identical.
+double taste_multiplier(double sigma, NormalSource& normal) {
+    if (sigma == 0.0) {
+        return 1.0;
+    }
+    return std::exp(-0.5 * sigma * sigma + sigma * normal());
+}
+
+// The top 52 bits of an engine output. 52 rather than 53 because the value has to
+// survive a round trip through a float64 with room to spare for any later
+// arithmetic: 2^53 is the first integer a double cannot represent exactly, and
+// staying one bit below it makes that boundary unreachable rather than merely
+// unlikely. Never returns a value at or above 2^53.
+std::uint64_t draw_key(std::mt19937_64& engine) {
+    return engine() >> 12;
+}
 
 }  // namespace
 
@@ -121,6 +146,31 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
     std::mt19937_64 engine(seed);
     NormalSource normal(engine);
 
+    // Two independent streams for the heterogeneity columns, both distinct from
+    // the trait stream. Separate rather than continuing the first because the
+    // trait draws are pinned: a population sampled with taste_sigma = 0 has to
+    // reproduce the pre-heterogeneity traits bit for bit, and interleaving new
+    // draws into that stream would move every subsequent trait.
+    //
+    // Keys and multipliers get their own engines as well, so that the keys do not
+    // depend on taste_sigma: at sigma = 0 no normal is consumed, and a shared
+    // engine would therefore shift every later key relative to a sigma = 0.5 run.
+    // With two streams an agent's chemistry is the same at every sigma, and the
+    // taste knob moves only the multipliers.
+    //
+    // The tags differ from any agent engine in simulation.cpp, so a key can never
+    // collide with a swipe-stream state by construction rather than by luck.
+    const std::uint32_t seed_lo = static_cast<std::uint32_t>(seed);
+    const std::uint32_t seed_hi = static_cast<std::uint32_t>(seed >> 32);
+    const std::uint32_t key_tag[3] = {seed_lo, seed_hi, 0x7A57E5EEDu};
+    std::seed_seq key_seq(std::begin(key_tag), std::end(key_tag));
+    std::mt19937_64 key_engine(key_seq);
+
+    const std::uint32_t taste_tag[3] = {seed_lo, seed_hi, 0x7A5AC4EE5u};
+    std::seed_seq taste_seq(std::begin(taste_tag), std::end(taste_tag));
+    std::mt19937_64 taste_engine(taste_seq);
+    NormalSource taste_normal(taste_engine);
+
     for (int i = 0; i < n; ++i) {
         Agent& a = pop[static_cast<std::size_t>(i)];
         a.id = i;
@@ -130,6 +180,16 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
         a.sociability = std::clamp(draw(cfg.sociability, engine, normal), 0.0, 1.0);
         a.age = draw(cfg.age, engine, normal);
         a.threshold = cfg.init_threshold;
+
+        // Fixed order — key first, then the three multipliers — and key from its
+        // own stream, so a key never depends on taste_sigma. A replaced agent
+        // (generational turnover) draws a fresh key, which is what gives it fresh
+        // chemistry without disturbing anyone else's: every other pair is a
+        // function of two keys, neither of which moved.
+        a.key = draw_key(key_engine);
+        a.taste_alpha = taste_multiplier(cfg.taste_sigma, taste_normal);
+        a.taste_beta = taste_multiplier(cfg.taste_sigma, taste_normal);
+        a.taste_gamma = taste_multiplier(cfg.taste_sigma, taste_normal);
     }
     return pop;
 }
@@ -146,6 +206,11 @@ std::vector<double> flatten_states(const std::vector<Agent>& pop) {
         row[4] = a.sociability;
         row[5] = a.age;
         row[6] = a.threshold;
+        row[7] = a.taste_alpha;
+        row[8] = a.taste_beta;
+        row[9] = a.taste_gamma;
+        // Exact: key < 2^52, so every bit is inside a double's 53-bit mantissa.
+        row[10] = static_cast<double>(a.key);
     }
     return out;
 }
@@ -165,6 +230,13 @@ std::vector<Agent> unflatten_states(const double* data, int n) {
         a.sociability = row[4];
         a.age = row[5];
         a.threshold = row[6];
+        a.taste_alpha = row[7];
+        a.taste_beta = row[8];
+        a.taste_gamma = row[9];
+        // The round trip is exact for any key below 2^53; a hand-built matrix with
+        // a larger value in this column would round here, which is why the sampler
+        // draws 52 bits rather than 53.
+        a.key = static_cast<std::uint64_t>(row[10]);
     }
     return pop;
 }

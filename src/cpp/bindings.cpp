@@ -2,8 +2,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -14,16 +17,22 @@
 #include "simulation.h"
 
 // The Python surface fixed by docs/INTERFACES.md §2. The C++ core keeps its own
-// signatures (named fields, std::vector<Agent>); the flat (N, 7) float64 matrix
-// the contract specifies exists only at this boundary, where numpy lives.
+// signatures (named fields, std::vector<Agent>); the flat (N, kStateCols) float64
+// matrix the contract specifies exists only at this boundary, where numpy lives.
 
 namespace py = pybind11;
 
 namespace {
 
-// Read a utility block from the config dict. Every key is required rather than
-// defaulted: a silently missing weight would change every welfare number in the
-// project, which is the failure mode §2.2 warns about.
+// Read a utility block from the config dict. The five weights are required rather
+// than defaulted: a silently missing weight would change every welfare number in
+// the project, which is the failure mode §2.2 warns about.
+//
+// shock_scale is the exception and defaults to 0.0. It is a modeling knob whose
+// "off" value is meaningful and is the historical behavior, so a config written
+// before this key existed must keep running unchanged. shock_seed is not a config
+// key at all: it is population.seed, so a run's chemistry follows the run's seed
+// without a second number anyone could forget to set.
 UtilityParams params_from(const py::dict& config) {
     if (!config.contains("hypergamy")) {
         throw std::invalid_argument("config is missing the 'hypergamy' block");
@@ -35,7 +44,24 @@ UtilityParams params_from(const py::dict& config) {
         }
         return h[key].cast<double>();
     };
-    return UtilityParams{get("alpha"), get("beta"), get("gamma"), get("delta"), get("lambda")};
+    double shock_scale = 0.0;
+    if (h.contains("shock_scale")) {
+        shock_scale = h["shock_scale"].cast<double>();
+    }
+    if (shock_scale < 0.0) {
+        throw std::invalid_argument("hypergamy.shock_scale must be >= 0; got " +
+                                    std::to_string(shock_scale));
+    }
+
+    UtilityParams p{get("alpha"), get("beta"), get("gamma"), get("delta"), get("lambda")};
+    p.shock_scale = shock_scale;
+    if (config.contains("population")) {
+        const py::dict pop = config["population"].cast<py::dict>();
+        if (pop.contains("seed")) {
+            p.shock_seed = pop["seed"].cast<std::uint64_t>();
+        }
+    }
+    return p;
 }
 
 TraitDist trait_from(const py::dict& d, const char* field) {
@@ -79,6 +105,15 @@ PopConfig pop_config_from(const py::dict& config) {
     if (pop.contains("admissible_fraction")) {
         cfg.admissible_fraction = pop["admissible_fraction"].cast<double>();
     }
+    // Absent means 0.0, the "no heterogeneity" default: a config predating this
+    // key must sample exactly the population it used to.
+    if (pop.contains("taste_sigma")) {
+        cfg.taste_sigma = pop["taste_sigma"].cast<double>();
+        if (cfg.taste_sigma < 0.0) {
+            throw std::invalid_argument("population.taste_sigma must be >= 0; got " +
+                                        std::to_string(cfg.taste_sigma));
+        }
+    }
     return cfg;
 }
 
@@ -114,12 +149,16 @@ int n_negatives_from(const py::dict& config) {
     return n;
 }
 
-// Validate an incoming (N, 7) float64 array and hand back a contiguous copy.
+// Validate an incoming (N, kStateCols) float64 array and hand back a contiguous
+// copy. The width comes from population.h's kStateCols rather than a literal, so
+// this guard and flatten_states cannot disagree — a guard left at the old width
+// would reject every array the sampler produces.
 py::array_t<double, py::array::c_style | py::array::forcecast> require_states(
     const py::array_t<double, py::array::c_style | py::array::forcecast>& states) {
     const auto info = states.request();
-    if (info.ndim != 2 || info.shape[1] != 7) {
-        throw std::invalid_argument("states must be a C-contiguous float64 array of shape (N, 7)");
+    if (info.ndim != 2 || info.shape[1] != static_cast<py::ssize_t>(kStateCols)) {
+        throw std::invalid_argument("states must be a C-contiguous float64 array of shape (N, " +
+                                    std::to_string(kStateCols) + ")");
     }
     return states;
 }
@@ -160,12 +199,13 @@ PYBIND11_MODULE(_hypergamic, m) {
                 calibrate_thresholds(pop, params_from(config), admissible_fraction, stats);
             }
             const std::vector<double> flat = flatten_states(pop);
-            py::array_t<double> out({static_cast<py::ssize_t>(pop.size()), py::ssize_t{7}});
+            py::array_t<double> out({static_cast<py::ssize_t>(pop.size()),
+                                     static_cast<py::ssize_t>(kStateCols)});
             std::copy(flat.begin(), flat.end(), out.mutable_data());
             return out;
         },
         py::arg("n"), py::arg("config"), py::arg("seed"),
-        "Draw a population and return the (n, 7) float64 state matrix of "
+        "Draw a population and return the (n, kStateCols) float64 state matrix of "
         "docs/INTERFACES.md §1.");
 
     m.def(
@@ -214,14 +254,14 @@ PYBIND11_MODULE(_hypergamic, m) {
         [](const py::array_t<double, py::array::c_style | py::array::forcecast>& states) {
             const auto arr = require_states(states);
             const auto info = arr.request();
-            py::array_t<double> out({info.shape[0], py::ssize_t{7}});
-            std::copy_n(static_cast<const double*>(info.ptr), info.shape[0] * 7,
+            py::array_t<double> out({info.shape[0], static_cast<py::ssize_t>(kStateCols)});
+            std::copy_n(static_cast<const double*>(info.ptr), info.shape[0] * kStateCols,
                         out.mutable_data());
             return out;
         },
         py::arg("states"),
-        "Identity on an already-flat (N, 7) matrix; exists so callers can normalize "
-        "an arbitrary input without branching.");
+        "Identity on an already-flat (N, kStateCols) matrix; exists so callers can "
+        "normalize an arbitrary input without branching.");
 
     m.def(
         "calibrate_thresholds",
@@ -243,11 +283,13 @@ PYBIND11_MODULE(_hypergamic, m) {
                     "states must be float64; a float32 (or other) array would be "
                     "converted to a temporary and the in-place θ update lost");
             }
-            if (info.ndim != 2 || info.shape[1] != 7) {
+            if (info.ndim != 2 || info.shape[1] != static_cast<py::ssize_t>(kStateCols)) {
                 throw std::invalid_argument(
-                    "states must be a C-contiguous float64 array of shape (N, 7)");
+                    "states must be a C-contiguous float64 array of shape (N, " +
+                    std::to_string(kStateCols) + ")");
             }
-            if ((info.strides[0] != 7 * static_cast<py::ssize_t>(sizeof(double))) ||
+            if ((info.strides[0] !=
+                 static_cast<py::ssize_t>(kStateCols) * static_cast<py::ssize_t>(sizeof(double))) ||
                 (info.strides[1] != static_cast<py::ssize_t>(sizeof(double)))) {
                 throw std::invalid_argument(
                     "states must be C-contiguous; a strided view would be copied "
@@ -363,6 +405,102 @@ PYBIND11_MODULE(_hypergamic, m) {
         "ones: a truncated run is stable with respect to its own lists by "
         "construction, so that count is always zero.");
 
+    // ── Noise-to-signal diagnostic ────────────────────────────────────────────
+    // shock_scale is in absolute utility units, so its *meaning* moves whenever
+    // alpha/beta are retuned: the same 1.5 is a huge shock at one weighting and a
+    // whisper at another. This returns the denominator of the ratio the
+    // orchestrator logs once at construction,
+    //
+    //     noise/signal = shock_scale * 1.8138 / utility_sd(states, config)
+    //
+    // so the number stays checkable across retunes instead of silently drifting.
+    m.def(
+        "utility_sd",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop = unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            // The noise-free utility: a copy of the params with the shock switched
+            // off, so the shock term is skipped rather than multiplied by zero.
+            UtilityParams p = params_from(config);
+            p.shock_scale = 0.0;
+
+            const TraitStats stats = compute_trait_stats(pop);
+
+            std::vector<std::int32_t> prop_rows;
+            std::vector<std::int32_t> acc_rows;
+            for (int i = 0; i < n; ++i) {
+                (pop[static_cast<std::size_t>(i)].type == AgentType::M ? prop_rows : acc_rows)
+                    .push_back(i);
+            }
+
+            // A deterministic, well-spread sample of ordered cross-side pairs,
+            // capped at 4000 utility evaluations. Not random: with the same states
+            // and config this must return the same number on every call, or a
+            // logged ratio could not be compared between two runs that differ only
+            // in noise.
+            //
+            // The index pair comes from an R2 low-discrepancy sequence (the
+            // additive recurrence with the golden-ratio conjugate) rather than from
+            // a fixed stride. A stride of n_pairs/4000 over a row-major enumeration
+            // advances the item index by the same amount every step, so with 500
+            // candidates the sample touches only a handful of distinct item columns
+            // and the sd it reports is of a slice, not of the market — measured
+            // 2.86 that way against 2.39 for a proper sample.
+            //
+            // BOTH orientations are emitted. M's utility and W's differ by the
+            // indicator term, so M->W alone understates the spread: measured 2.19
+            // (M->W), 2.57 (W->M), 2.39 pooled at the base weights. What the ratio
+            // needs is the spread of whichever utility the shock is added to, which
+            // is the pooled one.
+            constexpr std::size_t kMaxSamples = 4000;
+            const double kGoldenConj = 0.6180339887498949;
+
+            const std::size_t n_prop = prop_rows.size();
+            const std::size_t n_acc = acc_rows.size();
+            if (n_prop == 0 || n_acc == 0) {
+                return 0.0;
+            }
+            const std::size_t n_values = std::min<std::size_t>(kMaxSamples, 2 * n_prop * n_acc);
+            // Two values per point, so a point count of n_values/2 fills the budget
+            // with exactly balanced orientations.
+            const std::size_t n_points = std::max<std::size_t>(n_values / 2, 1u);
+
+            std::vector<double> samples;
+            samples.reserve(2 * n_points);
+            for (std::size_t s = 0; s < n_points; ++s) {
+                const double u = (static_cast<double>(s) + 0.5) / static_cast<double>(n_points);
+                const double v = (static_cast<double>(s) + 0.5) * kGoldenConj;
+                const double frac = v - std::floor(v);
+                const std::size_t ip = std::min(
+                    n_prop - 1, static_cast<std::size_t>(u * static_cast<double>(n_prop)));
+                const std::size_t ia = std::min(
+                    n_acc - 1, static_cast<std::size_t>(frac * static_cast<double>(n_acc)));
+                const Agent& m = pop[static_cast<std::size_t>(prop_rows[ip])];
+                const Agent& w = pop[static_cast<std::size_t>(acc_rows[ia])];
+                samples.push_back(m.utility_toward(w, p, stats));
+                samples.push_back(w.utility_toward(m, p, stats));
+            }
+
+            // Sample sd (n-1).
+            const double mean =
+                std::accumulate(samples.begin(), samples.end(), 0.0) / static_cast<double>(samples.size());
+            double ss = 0.0;
+            for (const double u : samples) {
+                const double d = u - mean;
+                ss += d * d;
+            }
+            const double denom = static_cast<double>(samples.size() - 1);
+            return denom > 0.0 ? std::sqrt(ss / denom) : 0.0;
+        },
+        py::arg("states"), py::arg("config"),
+        "Standard deviation of the noise-free utility over a deterministic sample "
+        "of at most 4000 ordered pairs. The orchestrator logs "
+        "shock_scale * 1.8138 / utility_sd as the implied noise-to-signal ratio.");
+
     m.def(
         "compute_welfare",
         [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
@@ -412,11 +550,13 @@ PYBIND11_MODULE(_hypergamic, m) {
                     "and the caller's column would stay unchanged");
             }
             const auto info = states.request();
-            if (info.ndim != 2 || info.shape[1] != 7) {
+            if (info.ndim != 2 || info.shape[1] != static_cast<py::ssize_t>(kStateCols)) {
                 throw std::invalid_argument(
-                    "states must be a C-contiguous float64 array of shape (N, 7)");
+                    "states must be a C-contiguous float64 array of shape (N, " +
+                    std::to_string(kStateCols) + ")");
             }
-            if ((info.strides[0] != 7 * static_cast<py::ssize_t>(sizeof(double))) ||
+            if ((info.strides[0] !=
+                 static_cast<py::ssize_t>(kStateCols) * static_cast<py::ssize_t>(sizeof(double))) ||
                 (info.strides[1] != static_cast<py::ssize_t>(sizeof(double)))) {
                 throw std::invalid_argument(
                     "states must be C-contiguous; a strided view would be copied and "

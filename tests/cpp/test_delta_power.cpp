@@ -76,6 +76,15 @@ std::vector<Agent> sample_base_population() {
     return sample_population(kAgents, cfg, kSeed);
 }
 
+// The same population with the base heterogeneity knobs on: taste_sigma 0.5 and
+// the multipliers it draws stay on the agents, and shock_scale reaches the
+// utility through the params the tests pass in.
+std::vector<Agent> sample_heterogeneous_population() {
+    PopConfig cfg = base_pop_config();
+    cfg.taste_sigma = 0.5;
+    return sample_population(kAgents, cfg, kSeed);
+}
+
 // The top-k candidate ids for one user under one utility weighting, ranked by
 // utility with the same id tie-break generate_swipes uses. θ is deliberately not
 // applied: this measures whether δ can reorder the ranking at all, which is a
@@ -105,10 +114,21 @@ std::set<std::int32_t> top_k_ids(const std::vector<Agent>& pop, const Agent& use
 // Mean share of each woman's top-k that survives a δ change, averaged over all
 // women. 1.0 means δ reorders nothing anywhere; 0.95 means 5% of the shortlist
 // moves, which is the guardrail's floor.
+//
+// `shock_scale` is threaded into the utility rather than bolted on here, so the
+// "with noise" case measures δ's power on exactly the ranking the experiment
+// uses. The per-agent tastes come from the population and the pair-specific
+// chemistry from the keys; both call sites see the same L(i,j) because it is a
+// pure function of the ordered pair, which is what keeps this an apples-to-apples
+// comparison rather than two different markets.
 double mean_top_k_overlap(const std::vector<Agent>& pop, const TraitStats& stats, double alpha,
-                          double beta, double gamma, double lambda) {
-    const UtilityParams delta_0{alpha, beta, gamma, 0.0, lambda};
-    const UtilityParams delta_1{alpha, beta, gamma, 1.0, lambda};
+                          double beta, double gamma, double lambda, double shock_scale = 0.0) {
+    UtilityParams delta_0{alpha, beta, gamma, 0.0, lambda};
+    UtilityParams delta_1{alpha, beta, gamma, 1.0, lambda};
+    delta_0.shock_scale = shock_scale;
+    delta_1.shock_scale = shock_scale;
+    delta_0.shock_seed = kSeed;
+    delta_1.shock_seed = kSeed;
 
     double total = 0.0;
     int n_women = 0;
@@ -154,6 +174,84 @@ TEST_CASE("at the base weights delta moves at least 5% of the top-k shortlist",
     // The effect must be real, not a floating-point artifact: at least 5% of the
     // shortlist differs.
     CHECK(1.0 - overlap > 0.05);
+}
+
+TEST_CASE("the delta guardrail still holds at the base heterogeneity settings",
+          "[simulation][hypergamy][guardrail][heterogeneity]") {
+    // Noise erodes δ's power: the indicator has to out-shout a shock on every
+    // pair, so the shortlist moves less than it would in the noise-free market.
+    // That is not a bug, but it means the guardrail has to be checked at the real
+    // values rather than assumed to carry over — a retune of taste_sigma or
+    // shock_scale upward can quietly push δ back over the 0.95 floor and make
+    // every sweep over it measure nothing.
+    //
+    // Measured here on the built code, women only, at base.yaml's settings
+    // (taste_sigma 0.5, k=20, N=2000, seed 20261019), with shock_scale set to give
+    // each ratio: 0.779 at 0, 0.778 at 0.5, 0.830 at 1.0, 0.904 at 2.0.
+    //
+    // Noise does erode delta's power: 0.779 noise-free to 0.830 at the shipped
+    // ratio, and 0.904 by ratio 2.0. The last figure is close enough to the 0.95
+    // floor that a further retune of shock_scale upward would cross it — which is
+    // exactly why the guardrail is checked at the real values instead of assumed.
+    // The binding case at the shipped settings is 0.830.
+    constexpr double kAlpha = 1.0;
+    constexpr double kBeta = 2.0;
+    constexpr double kGamma = 0.3;
+    constexpr double kLambda = 1.5;
+    constexpr double kShockScale = 1.5;  // hypergamy.shock_scale in base.yaml
+
+    const std::vector<Agent> pop = sample_heterogeneous_population();
+    const TraitStats stats = compute_trait_stats(pop);
+
+    const double overlap =
+        mean_top_k_overlap(pop, stats, kAlpha, kBeta, kGamma, kLambda, kShockScale);
+
+    CAPTURE(overlap, kShockScale);
+    // The same floor the noise-free guardrail uses: the claim is that δ still has
+    // power, not that it has the same amount of it.
+    CHECK(overlap < 0.95);
+    // And it must still do something, not merely sit under a floor by luck.
+    CHECK(1.0 - overlap > 0.02);
+}
+
+TEST_CASE("noise erodes delta monotonically, so the knob has a ceiling",
+          "[simulation][hypergamy][guardrail][heterogeneity]") {
+    // δ's power falls as the chemistry grows: the indicator has to out-shout a
+    // shock on every pair, and a larger shock wins more often. This pins the
+    // direction and the rough size, and — more usefully — states in a test what
+    // the docs say: there is a shock_scale above which δ goes inert, and it is
+    // reachable from the shipped value.
+    //
+    // Measured, women only, N=2000, k=20: 0.779 at ratio 0, 0.778 at 0.5, 0.830
+    // at 1.0, 0.904 at 2.0. The sd used to convert a ratio to a scale is the
+    // base-config noise-free utility sd.
+    constexpr double kAlpha = 1.0;
+    constexpr double kBeta = 2.0;
+    constexpr double kGamma = 0.3;
+    constexpr double kLambda = 1.5;
+    constexpr double kSignalSd = 2.70;  // measured at taste_sigma 0.5
+
+    const std::vector<Agent> pop = sample_heterogeneous_population();
+    const TraitStats stats = compute_trait_stats(pop);
+
+    auto at_ratio = [&](double ratio) {
+        const double scale = ratio * kSignalSd / 1.8138;
+        return mean_top_k_overlap(pop, stats, kAlpha, kBeta, kGamma, kLambda, scale);
+    };
+
+    const double r0 = at_ratio(0.0);
+    const double r1 = at_ratio(1.0);
+    const double r2 = at_ratio(2.0);
+
+    CAPTURE(r0, r1, r2);
+    // Monotone in the noise ratio. Strict on the second step, which is where the
+    // effect is large enough to be well clear of sampling noise.
+    CHECK(r0 <= r1);
+    CHECK(r1 < r2);
+    // The shipped ratio is still under the floor; ratio 2.0 is not far from it.
+    CHECK(r1 < 0.95);
+    CHECK(r2 < 0.95);
+    CHECK(r2 > 0.88);
 }
 
 TEST_CASE("at beta well below alpha delta is inert, so the guardrail is not vacuous",

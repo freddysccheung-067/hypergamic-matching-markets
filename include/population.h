@@ -44,7 +44,23 @@ struct PopConfig {
     // means "not set" — the sampler then leaves θ neutral and calibration runs.
     // Any other value is used verbatim.
     double init_threshold = kUncalibratedThreshold;
+
+    // Spread of the per-agent taste multipliers (THEORY.md §2.3). Each of
+    // m_alpha, m_beta, m_gamma is drawn once from lognormal(-sigma^2/2, sigma), so
+    // the mean is 1 and sigma is a coefficient of variation. 0.0 is the default
+    // and draws no multiplier at all — the fields stay at exactly 1.0.
+    //
+    // There is no empirical anchor for this number. It is a modeling knob, and
+    // every headline result has to be reported as a function of it rather than at
+    // one setting.
+    double taste_sigma = 0.0;
 };
+
+// Column count of the flat state matrix (docs/INTERFACES.md §1). Named rather
+// than spelled 7 or 11 at each site because it changed once already, and a
+// mismatch between flatten_states and a shape guard is a silent data corruption
+// rather than an error.
+inline constexpr std::size_t kStateCols = 11;
 
 // Draws n agents. The first n/2 are M with ids 0..n/2-1 and the remainder are W
 // with ids n/2..n-1, matching states[:, 1] in docs/INTERFACES.md §1.
@@ -73,22 +89,32 @@ struct PopConfig {
 //
 // Attractiveness and sociability are clamped to [0, 1] after sampling; status and
 // age are left unbounded, per §3 of the interface contract.
+//
+// The taste multipliers and the chemistry key come from a SEPARATE engine with a
+// different seed_seq, in a fixed order (key, three normals) that does not depend
+// on taste_sigma. Two consequences: the four trait draws are bit-identical to
+// what they were before heterogeneity existed, even when taste_sigma > 0; and
+// every agent's key is the same whether sigma is 0 or 0.5, so a run at sigma = 0
+// and a run at sigma = 0.5 share chemistry wherever the multipliers are ignored.
 std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t seed);
 
 // ── Flat state matrix ─────────────────────────────────────────────────────────
-// The (N, 7) bridge required by docs/INTERFACES.md §1 and §2. Row layout, exactly
-// as the contract states it:
+// The (N, kStateCols) bridge required by docs/INTERFACES.md §1 and §2. Row
+// layout, exactly as the contract states it:
 //
-//   col 0 id | 1 type | 2 status | 3 attractiveness | 4 sociability | 5 age | 6 threshold
+//   col 0 id | 1 type | 2 status | 3 attractiveness | 4 sociability | 5 age
+//   col 6 threshold
+//   col 7 taste_alpha | 8 taste_beta | 9 taste_gamma | 10 key
 //
-// Row-major, 7 columns, no padding: flatten_states() returns n*7 doubles and
-// unflatten_states() reads the same layout back. The two are exact inverses, and
-// the conversion is lossless because every field is stored in a double that can
-// represent it exactly (ids are small integers; type is 0.0 or 1.0).
+// Row-major, kStateCols columns, no padding: flatten_states() returns
+// n*kStateCols doubles and unflatten_states() reads the same layout back. The
+// two are exact inverses, and the conversion is lossless because every field is
+// stored in a double that can represent it exactly — ids are small integers, type
+// is 0.0 or 1.0, and key is drawn below 2^53 (see Agent::key).
 std::vector<double> flatten_states(const std::vector<Agent>& pop);
 
-// Reads n rows of 7 doubles. The caller keeps ownership of `data`; the returned
-// vector owns its own copy.
+// Reads n rows of kStateCols doubles. The caller keeps ownership of `data`; the
+// returned vector owns its own copy.
 std::vector<Agent> unflatten_states(const double* data, int n);
 
 // ── Threshold calibration ────────────────────────────────────────────────────

@@ -5,6 +5,12 @@ population:
   # agent as the (1 - admissible_fraction) quantile of that agent's own utilities,
   # so this is a target, not a cutoff — see docs/INTERFACES.md §2 and THEORY.md §3.
   admissible_fraction: 0.2
+  # Spread of the per-agent taste multipliers (THEORY.md §2.3). Each of
+  # m_alpha, m_beta, m_gamma is lognormal(-sigma^2/2, sigma) with mean 1, so this
+  # is a coefficient of variation. 0 disables heterogeneity and reproduces the
+  # homogeneous population bit for bit. There is no empirical anchor for this
+  # number: results are reported as a function of it, never at one setting.
+  taste_sigma: 0.5
   traits:
     status:
       dist: lognormal
@@ -40,6 +46,16 @@ hypergamy:
   beta: 2.0        # attractiveness weight
   gamma: 0.3       # distance penalty weight
   lambda: 1.5      # indicator bonus for status surplus
+  # Persistent pairwise "chemistry" (THEORY.md §2.3): a logistic shock with this
+  # standard deviation added to every ordered pair's utility. In ABSOLUTE utility
+  # units, not a ratio — the orchestrator logs the implied noise-to-signal ratio
+  # (shock_scale * 1.8138 / utility_sd) at construction, because retuning alpha or
+  # beta changes what a fixed shock_scale means. 0 skips the term entirely.
+  #
+  # 1.5 against the noise-free utility sd measured at these weights (~2.75 with
+  # taste_sigma 0.5, ~2.40 without) is a ratio near 1.0, but that figure is
+  # measured at runtime rather than asserted here.
+  shock_scale: 1.5
 
 ncf:
   embed_dim: 64

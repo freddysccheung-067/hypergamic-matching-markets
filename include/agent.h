@@ -7,12 +7,15 @@
 #include <utility>
 #include <vector>
 
+#include "utilities.h"
+
 // ── Agent ─────────────────────────────────────────────────────────────────────
 // The in-memory mirror of one row of the state matrix in docs/INTERFACES.md §1:
-// id, type, status, attractiveness, sociability, age, threshold. The matrix is
-// flat because the hot loop touches 10^5 rows per epoch; this struct exists so
-// the matching and simulation code can work with named fields instead of column
-// indices.
+// id, type, status, attractiveness, sociability, age, threshold, and the four
+// preference-heterogeneity columns (taste multipliers and the chemistry key).
+// The matrix is flat because the hot loop touches 10^5 rows per epoch; this
+// struct exists so the matching and simulation code can work with named fields
+// instead of column indices.
 
 // Same encoding as states[:, 1]: 0.0 = M (proposer side), 1.0 = W (acceptor side).
 enum class AgentType : std::uint8_t { M = 0, W = 1 };
@@ -20,12 +23,25 @@ enum class AgentType : std::uint8_t { M = 0, W = 1 };
 // Weights for the utility functions in docs/THEORY.md §2. generate_swipes and
 // compute_welfare must use the *same* five values — if they disagree, every
 // welfare number in the project is meaningless (docs/INTERFACES.md §2.2).
+//
+// The last two members are trailing so every existing five-field aggregate
+// initializer in the tests still compiles, and they default to "off": scale 0.0
+// skips the chemistry term entirely and seed 0 is only ever consulted when the
+// scale is non-zero.
 struct UtilityParams {
-    double alpha;   // weight on the candidate's status
-    double beta;    // weight on the candidate's attractiveness
-    double gamma;   // weight on the feature-space distance penalty
-    double delta;   // status surplus W requires before the indicator fires
-    double lambda;  // size of W's indicator bonus
+    double alpha;        // weight on the candidate's status
+    double beta;         // weight on the candidate's attractiveness
+    double gamma;        // weight on the feature-space distance penalty
+    double delta;        // status surplus W requires before the indicator fires
+    double lambda;       // size of W's indicator bonus
+
+    // Persistent pairwise chemistry (THEORY.md §2.3). Absolute utility units, not
+    // a ratio — the orchestrator logs the implied noise-to-signal ratio so a
+    // retune of alpha/beta cannot silently change what a given scale means.
+    double shock_scale = 0.0;
+    // Seeds the shock hash. Lives here rather than on the Agent because it is a
+    // property of the run, not of the individual; the per-agent part is key_i.
+    std::uint64_t shock_seed = 0;
 };
 
 // ── Trait standardization ─────────────────────────────────────────────────────
@@ -121,10 +137,30 @@ struct Agent {
     // Mutated in place each epoch by update_threshold().
     double threshold = kUncalibratedThreshold;
 
-    // U_i(j) from docs/THEORY.md §2:
-    //   W evaluating a man : alpha*z(s_j) + beta*z(a_j) - gamma*d + lambda*1[z(s_j) >= z(s_i) + delta]
-    //   M evaluating a woman: alpha*z(s_j) + beta*z(a_j) - gamma*d
+    // ── Preference heterogeneity ─────────────────────────────────────────────
+    // Per-agent taste multipliers (THEORY.md §2.3). Drawn once at sampling from
+    // lognormal(-sigma^2/2, sigma), so the mean is 1 for every sigma: turning the
+    // knob on rescales the *spread* of preferences, not their average strength.
+    // Both defaults are exactly 1.0, and 1.0 * x is bit-identical to x, so a
+    // population sampled at taste_sigma = 0 produces the same utilities — and the
+    // same swipe log — as one sampled before these fields existed.
+    double taste_alpha = 1.0;  // multiplies alpha: how much i weights status
+    double taste_beta = 1.0;   // multiplies beta: how much i weights attractiveness
+    double taste_gamma = 1.0;  // multiplies gamma: how much i penalises distance
+
+    // Per-agent identifier for the chemistry hash. Drawn as the top 52 bits of an
+    // engine output, so it is below 2^53 and round-trips exactly through the
+    // float64 state matrix. 0 is a legal key but is never drawn deliberately.
+    std::uint64_t key = 0;
+
+    // U_i(j) from docs/THEORY.md §2.3:
+    //   W evaluating a man : m_a*alpha*z(s_j) + m_b*beta*z(a_j) - m_g*gamma*d
+    //                        + lambda*1[z(s_j) >= z(s_i) + delta] + s*L(i,j)
+    //   M evaluating a woman: m_a*alpha*z(s_j) + m_b*beta*z(a_j) - m_g*gamma*d
+    //                        + s*L(i,j)
     // The asymmetry is exactly the indicator term; nothing else differs by type.
+    // The multipliers are per-agent, so the same candidate is worth different
+    // things to different agents even before the shock.
     //
     // `stats` is required, not defaulted. A default would let a call site forget
     // to standardize and silently fall back to raw units — which is the exact bug
@@ -136,8 +172,12 @@ struct Agent {
         const double zs_other = standardize(other.status, stats.status_mean, stats.status_sd);
         const double za_other = standardize(other.attractiveness, stats.attractiveness_mean,
                                             stats.attractiveness_sd);
-        double u = p.alpha * zs_other + p.beta * za_other -
-                   p.gamma * weighted_distance(*this, other, stats);
+        // The multiplier multiplies the weight, and the product is then applied to
+        // the trait. At the default 1.0 this is exactly the old expression: IEEE
+        // multiplication by 1.0 is exact, so no test that pins a utility value can
+        // see the difference.
+        double u = (taste_alpha * p.alpha) * zs_other + (taste_beta * p.beta) * za_other -
+                   (taste_gamma * p.gamma) * weighted_distance(*this, other, stats);
         if (type == AgentType::W) {
             // δ is in standard deviations of log-status: the cutoff is "her own
             // standardized status, plus δ sd". On the raw scale δ was in raw
@@ -146,6 +186,12 @@ struct Agent {
             const double zs_self = standardize(status, stats.status_mean, stats.status_sd);
             const double cutoff = zs_self + p.delta;
             u += p.lambda * (zs_other >= cutoff ? 1.0 : 0.0);
+        }
+        // Skip rather than multiply by zero: a hash and a log per pair is real
+        // work, and at shock_scale = 0 the term must cost nothing at all
+        // (THEORY.md §2.3, and the before/after timing in the session report).
+        if (p.shock_scale != 0.0) {
+            u += p.shock_scale * pairwise_shock(p.shock_seed, key, other.key);
         }
         return u;
     }

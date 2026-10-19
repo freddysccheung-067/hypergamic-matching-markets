@@ -251,16 +251,22 @@ TEST_CASE("flatten and unflatten round-trip bit for bit", "[population][states]"
         a.sociability = 0.05 * k + 0.001;
         a.age = 18.0 + 3.5 * k;
         a.threshold = -0.25 * k;
+        a.taste_alpha = 0.9 + 0.07 * k;
+        a.taste_beta = 1.1 - 0.03 * k;
+        a.taste_gamma = 0.8 + 0.11 * k;
+        // Below 2^53 and distinct from every other field, so a key written to the
+        // wrong column or narrowed to a float32 shows up here.
+        a.key = 0x000F'FFFF'FFFF'0000ULL + static_cast<std::uint64_t>(i) * 7919ULL;
     }
 
     const std::vector<double> flat = flatten_states(pop);
-    REQUIRE(flat.size() == pop.size() * 7);
+    REQUIRE(flat.size() == pop.size() * kStateCols);
 
     // Spot-check the column layout itself against docs/INTERFACES.md §1, so a
     // transposed row in flatten_states is caught even if unflatten_states
     // transposes it back.
     for (std::size_t i = 0; i < pop.size(); ++i) {
-        const double* row = &flat[i * 7];
+        const double* row = &flat[i * kStateCols];
         CHECK(row[0] == static_cast<double>(pop[i].id));
         CHECK(row[1] == ((pop[i].type == AgentType::W) ? 1.0 : 0.0));
         CHECK(row[2] == pop[i].status);
@@ -268,6 +274,10 @@ TEST_CASE("flatten and unflatten round-trip bit for bit", "[population][states]"
         CHECK(row[4] == pop[i].sociability);
         CHECK(row[5] == pop[i].age);
         CHECK(row[6] == pop[i].threshold);
+        CHECK(row[7] == pop[i].taste_alpha);
+        CHECK(row[8] == pop[i].taste_beta);
+        CHECK(row[9] == pop[i].taste_gamma);
+        CHECK(row[10] == static_cast<double>(pop[i].key));
     }
 
     const std::vector<Agent> back = unflatten_states(flat.data(), static_cast<int>(pop.size()));
@@ -282,6 +292,10 @@ TEST_CASE("flatten and unflatten round-trip bit for bit", "[population][states]"
         CHECK(back[i].sociability == pop[i].sociability);
         CHECK(back[i].age == pop[i].age);
         CHECK(back[i].threshold == pop[i].threshold);
+        CHECK(back[i].taste_alpha == pop[i].taste_alpha);
+        CHECK(back[i].taste_beta == pop[i].taste_beta);
+        CHECK(back[i].taste_gamma == pop[i].taste_gamma);
+        CHECK(back[i].key == pop[i].key);
     }
 }
 

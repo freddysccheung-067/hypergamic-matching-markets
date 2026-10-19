@@ -20,6 +20,7 @@ never change, whereas only θ evolves. INTERFACES.md §4 puts the cap at N=5000.
 
 from __future__ import annotations
 
+import logging
 import pathlib
 import sys
 from typing import Any
@@ -48,6 +49,7 @@ try:  # the extension lands in build/Release (README "Installation")
         generate_swipes,
         sample_population,
         update_thresholds,
+        utility_sd,
     )
 except ImportError:  # pragma: no cover - convenience for a fresh checkout
     _BUILD = pathlib.Path(__file__).resolve().parents[2] / "build" / "Release"
@@ -61,7 +63,14 @@ except ImportError:  # pragma: no cover - convenience for a fresh checkout
         generate_swipes,
         sample_population,
         update_thresholds,
+        utility_sd,
     )
+
+# sd of a standard logistic. Same constant as kLogisticSd in include/utilities.h;
+# repeated here so the orchestrator can log the ratio without a second binding.
+_LOGISTIC_SD = 1.8138
+
+log = logging.getLogger(__name__)
 
 # Exact column order of INTERFACES.md §6. visualization.py reads these by name,
 # but a stable order also makes a saved CSV diffable between runs.
@@ -117,6 +126,7 @@ class Simulation:
 
         self.states = sample_population(self.n, self.config_dict, self.rng_seed)
         self._split_sides()
+        self._log_noise_ratio()
 
         model = NCFModel(
             n_users=self.n,
@@ -146,6 +156,29 @@ class Simulation:
         self._benchmark_ready = False
 
     # ------------------------------------------------------------------ setup
+
+    def _log_noise_ratio(self) -> None:
+        """Log the implied chemistry noise-to-signal ratio once at construction.
+
+        ``shock_scale`` is in absolute utility units, so its meaning moves with
+        whatever alpha and beta happen to be: 1.5 is a large shock at one
+        weighting and a whisper at another. The ratio,
+
+            shock_scale * 1.8138 / utility_sd,
+
+        is the scale-free statement of the same thing, and logging it once per run
+        is what makes a sweep's ``shock_scale`` axis interpretable after a retune.
+        ``utility_signal_sd`` is exposed on the instance so a caller can record it
+        without parsing the log.
+        """
+        signal_sd = float(utility_sd(self.states, self.config_dict))
+        self.utility_signal_sd = signal_sd
+        scale = float(self.config.hypergamy.shock_scale)
+        self.noise_ratio = (scale * _LOGISTIC_SD / signal_sd) if signal_sd > 0.0 else float("nan")
+        log.info(
+            "utility noise-to-signal: shock_scale=%.4g, utility_sd=%.4f, ratio=%.3f",
+            scale, signal_sd, self.noise_ratio,
+        )
 
     def _split_sides(self) -> None:
         """Dense per-side indexes, per INTERFACES.md §2.3.
