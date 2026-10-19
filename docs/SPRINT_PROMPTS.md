@@ -171,6 +171,85 @@ Build and run ctest as in 1-B. All tests must pass.
 
 ---
 
+## DAY 1.5 — Corrections to Sessions 1-B and 1-C
+
+Run this before Day 2. It closes a gap that would otherwise make the whole closed loop open,
+and fixes three accuracy problems in the existing code.
+
+```
+Read docs/INTERFACES.md and docs/THEORY.md §2–3 first.
+
+Session 1-B and 1-C are built and green, but review found five issues. Fix them in order.
+
+1. THRESHOLD IS INERT — the most important fix.
+   Agent::threshold is updated every epoch by update_threshold(), but utility_toward() never
+   reads it and generate_swipes() never reads it. Consequences:
+     - the adaptive-expectation mechanism in THEORY.md §3 has no effect on behaviour;
+     - positives are top-k by utility, which depends only on traits, so the SAME positives are
+       produced on every epoch regardless of seed;
+     - the "closed loop" is therefore open, and the NCF trains on a static target.
+   Fix: make theta gate acceptance. In generate_swipes, after ranking, drop candidates whose
+   utility falls below the user's theta before taking the top-k, i.e. a candidate is only
+   swipeable if utility_toward(...) >= user.threshold. Calibrate theta's initial value so that
+   at epoch 0 roughly the intended fraction of candidates is admissible — otherwise every agent
+   either accepts all or accepts none.
+   Add a test: with theta = -infinity and theta = +infinity the positive sets differ, and the
+   number of positives shrinks as theta rises.
+   Document the calibration in THEORY.md §3 in one sentence.
+
+2. generate_swipes signature diverges from the contract.
+   INTERFACES.md §2 specifies generate_swipes(states, config, epoch); the implementation is
+   generate_swipes(pop, p, k, rng_seed). Reconcile them: keep the C++ signature but ensure the
+   bound Python function accepts and uses `epoch`, deriving the per-agent seed from
+   (base_seed, epoch, agent_id) so that negatives differ per epoch while remaining
+   reproducible. Update INTERFACES.md §2 to state the seeding rule explicitly.
+
+3. No flat-matrix conversion exists.
+   INTERFACES.md §1 and §2 require sample_population -> float64 (n, 7). The C++ side returns
+   std::vector<Agent>. Add:
+     std::vector<double> flatten_states(const std::vector<Agent>&)   // row-major, 7 cols
+     std::vector<Agent> unflatten_states(const double* data, int n)
+   Row layout exactly as §1: id, type, status, attractiveness, sociability, age, threshold.
+   Add a round-trip test: flip every field, convert both ways, require bit equality.
+
+4. generate_canonical is not portable.
+   population.cpp claims (n, cfg, seed) reproduces the population "bit for bit" across
+   compilers, but std::generate_canonical is implementation-defined — the number of engine
+   calls and the rounding differ between MSVC and libstdc++. Either derive uniforms manually
+   from engine() output (e.g. (engine() >> 11) * 0x1.0p-53) so the claim holds, or delete the
+   cross-compiler claim and scope reproducibility to a single toolchain. Prefer the former;
+   the project's results are meant to survive a compiler change.
+
+5. Remove the dead per-epoch counters.
+   Agent::epoch_proposals and Agent::epoch_matches are written by sample_population and never
+   read; update_threshold takes both as arguments instead. Delete the fields, or use them —
+   do not leave two sources of truth for the same quantity.
+
+Also correct two test problems in tests/cpp/test_population.cpp:
+
+6. The lognormal mean test's "Mill's ratio" reasoning is wrong.
+   Box–Muller returns two iid standard normals (cos and sine halves), so BOTH have the same
+   expectation; there is no truncated normal and no Mill's-ratio correction. Worse, the test
+   as written is non-discriminating: the claimed correction is ~0.003 while the tolerance is
+   0.05, so it passes regardless. Additionally, each agent consumes exactly four normal draws,
+   so `status` always receives the cos half and the odd/even split separates nothing.
+   Replace it with a test that actually has power: check the sample mean against
+   exp(mu + sigma^2/2) with a tolerance derived from the standard error of the lognormal
+   (sigma_X / sqrt(n), where sigma_X = exp(mu + sigma^2/2) * sqrt(exp(sigma^2) - 1)), at
+   roughly 4 standard errors. Delete the spurious half-sample assertion.
+
+7. Add the missing hypergamy test.
+   Nothing currently verifies that delta changes WHO gets swiped — the core hypothesis of the
+   project. Add: with the same population and seed, the mean status of W's positives rises
+   monotonically as delta increases over {0.0, 0.5, 1.0}.
+
+Build and run the full suite when done:
+   cmake --build build --config Release --parallel
+   ctest --test-dir build -C Release --output-on-failure
+```
+
+---
+
 ## DAY 2 — NCF Engine & Python Integration
 
 ### Session 2-A: Neural Collaborative Filtering

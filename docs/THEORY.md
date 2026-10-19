@@ -26,7 +26,25 @@ $$U_w(m) = \alpha \cdot s_m + \beta \cdot a_m - \gamma \cdot d(\mathbf{v}_w, \ma
 - $\alpha, \beta, \gamma$ — empirical preference weights
 - $\delta_w \geq 0$ — status surplus threshold (the hypergamy parameter; $\delta_w = 0$ is neutral)
 - $\mathbb{1}[\cdot]$ — indicator function that penalizes/rewards the status gap
-- $d(\cdot,\cdot)$ — weighted Euclidean distance in feature space
+- $d(\cdot,\cdot)$ — Euclidean distance, expanded below
+
+The distance term must be written out, because an unspecified $d$ hides two modelling decisions
+that change the results:
+
+$$d(\mathbf{v}_i, \mathbf{v}_j) = \sqrt{(s_i - s_j)^2 + (a_i - a_j)^2 + (c_i - c_j)^2 + \left(\frac{t_i - t_j}{10}\right)^2}$$
+
+**Age scaling.** Age is measured in years, with a population spread of roughly 20, while the other
+three traits live at unit scale. Without the divisor the age gap would dominate $d$ and the
+distance term would be almost purely an age penalty. The constant 10 is a modelling choice, not a
+derived quantity.
+
+**A collinearity that must be acknowledged.** $s$ enters twice: as the linear reward $\alpha s_m$
+and again inside $d$. The model therefore rewards high status *and* penalises status dissimilarity,
+so $\gamma$ carries part of the status weight with the opposite sign. At the defaults
+$\alpha = 1.0$, $\gamma = 0.3$ the two do not cancel, but any claim of the form "$\alpha$ is the
+weight on status" holds only up to this coupling. Two defensible resolutions: standardise the
+traits before computing $d$ and drop $s$ from it, or keep $s$ in $d$ and report $\alpha$ and
+$\gamma$ jointly rather than interpreting either in isolation.
 
 ### 2.2 Standard Utility (agents in $M$)
 
@@ -36,13 +54,21 @@ The status surplus constraint is absent ($\delta_m = 0$), operationalizing the a
 
 ---
 
-## 3. Bayesian Expectation Updates
+## 3. Adaptive Expectation Updates
 
-After epoch $t$, each agent updates their internal acceptance threshold $\theta_i^{(t)}$ via:
+After epoch $t$, each agent updates its acceptance threshold $\theta_i^{(t)}$:
 
-$$\theta_i^{(t+1)} = \theta_i^{(t)} + \eta \cdot \left( \frac{\text{matches}_i^{(t)}}{\text{proposals}_i^{(t)}} - \hat{p}_i^{(t)} \right)$$
+$$\theta_i^{(t+1)} = \theta_i^{(t)} + \eta \left( \frac{\text{matches}_i^{(t)}}{\text{proposals}_i^{(t)}} - \theta_i^{(t)} \right)$$
 
-where $\hat{p}_i^{(t)}$ is the agent's prior belief about their match probability and $\eta$ is the learning rate. Agents experiencing persistent rejection lower $\theta_i$ (reduced selectivity); those with high yield raise it.
+$\theta_i$ doubles as the agent's selectivity and its running estimate of its own match yield, so
+this is a Robbins–Monro stochastic approximation step with rate $\eta$. Agents experiencing
+persistent rejection lower $\theta_i$; those with high yield raise it.
+
+An earlier draft called this step *Bayesian* and wrote the target as a separate prior
+$\hat{p}_i$. That was wrong on two counts: no prior or likelihood is defined anywhere, and
+`include/agent.h` uses $\theta_i$ itself as the estimate. The formula above is what the code
+computes. A genuine Bayesian treatment would need an explicit Beta prior over match probability —
+a different model, not a rename.
 
 ---
 
