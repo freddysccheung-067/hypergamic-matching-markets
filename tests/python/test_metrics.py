@@ -213,5 +213,11 @@ def test_metrics_frame_matches_the_documented_schema():
     df = Simulation(config=cfg).run(2)
 
     documented = _schema_columns_from_doc()
-    assert len(documented) == 15, "the §6 table should list 15 columns"
+    # The count is deliberately not pinned to a literal: the column list has
+    # grown once already (Session 3-C added arm, reach and top1_share), and a
+    # hard-coded length makes every addition fail a test that is supposed to be
+    # checking agreement between the doc and the frame, not the size of either.
+    # A floor catches the table being emptied or truncated; agreement is the
+    # assertion below.
+    assert len(documented) >= 15, f"the §6 table lists only {len(documented)} columns"
     assert list(df.columns) == documented

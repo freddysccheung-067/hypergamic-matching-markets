@@ -265,7 +265,10 @@ states the correct version.
 | `n_matched` | int | |
 | `n_blocking` | int | |
 | `pareto_alpha` | float | fitted on cumulative match counts; `NaN` except on generation-final rows |
-| `mean_swipes_per_agent` | float | |
+| `mean_swipes_per_agent` | float | share of `N` swipes generated; **0.0** for every arm that does not build a swipe log |
+| `arm` | str | which ablation arm produced the row (Session 3-C): `ncf`, `random`, `popularity` or `oracle` |
+| `reach` | float | share of agents with non-zero exposure |
+| `top1_share` | float | share of exposure held by the top `ceil(0.01 N)` agents |
 
 ## 7. Module layout
 

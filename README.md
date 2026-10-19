@@ -115,9 +115,20 @@ influence selection, not as an estimate of how much it does.
 
 **The Matthew effect needs its control.** A rising Gini under the recommender proves nothing on
 its own — preferences alone concentrate attention on high-status agents. The claim this project
-supports is `Gini(NCF) − Gini(random)`, measured against a random-exposure arm sharing the same
-population, seed and utilities. Gini(NCF) reported alone is not evidence of algorithmic
-amplification.
+supports is a difference between arms sharing the same population, seed and utilities, never
+`Gini(NCF)` reported alone. The quantity that carries the argument is `Gini(NCF) − Gini(oracle)`:
+what estimation error costs relative to a ranker that solves the same task perfectly. It is *not*
+`Gini(NCF) − Gini(random)`, which mostly measures distance from uniform exposure — the random arm
+has the lowest Gini of the four by construction, not because uniform exposure is the goal. Measured
+over five seeds: NCF 0.9393 ± 0.0065, oracle 0.6544 ± 0.0109, random 0.3780 ± 0.0058, popularity
+0.9600 ± 0.0000 (a closed form, `1 − 2k/N`, with no variance).
+
+**Preferences do not respond to exposure; selectivity does.** This is an exposure-mediated model in
+one direction only. `generate_swipes` takes no shown-set argument, so what the recommender surfaced
+never shapes what anyone wants and the Matthew effect is not compounded by a feedback loop through
+preferences. A separate loop does exist — the matching outcome moves the acceptance threshold θ,
+which gates the next epoch's swipe set — but at the shipped `admissible_fraction` (0.2) θ never
+truncates, so that loop is inert and the runs are effectively repeated static experiments.
 
 **Correlation among matched pairs is a selection artifact.** Traits are drawn independently, so no
 trait causes another. The market sorts on several at once, which makes the survivors correlate —

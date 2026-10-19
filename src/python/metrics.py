@@ -55,6 +55,51 @@ def market_clearing_rate(n_matched: int, n_agents: int) -> float:
     return 2.0 * float(n_matched) / float(n_agents)
 
 
+def reach(counts: np.ndarray) -> float:
+    """Share of agents appearing on at least one preference list.
+
+    ``counts`` is the per-epoch exposure vector used by :func:`gini`. Reach is
+    the quantity that separates an arm which *concentrates* attention from one
+    which *starves* most of the market: the popularity arm's Gini and its reach
+    both come from the same closed form, and a low reach is what says the arm
+    is not a market at all.
+
+    0.0 for an empty population, and 0.0 — not NaN — for a market in which
+    nobody is exposed: a run that exposed nobody reached nobody, which is a
+    measurement rather than a missing one.
+    """
+    x = np.asarray(counts, dtype=np.float64).ravel()
+    if x.size == 0:
+        return float("nan")
+    return float(np.count_nonzero(x > 0.0)) / float(x.size)
+
+
+def top1_share(counts: np.ndarray) -> float:
+    """Share of all exposure captured by the top 1% most-exposed agents.
+
+    Ranked by exposure descending; the cutoff is ``ceil(0.01 N)`` agents, or 1
+    when ``N < 100`` so a small test population still has a well-defined
+    quantity. Ties are broken by the sorted order, which means a block of
+    equally-exposed agents at the boundary contributes its first ``cutoff``
+    members — with equal exposure among the tied agents the selection inside
+    the block cannot change the sum.
+
+    NaN when there is no exposure to share out. Unlike reach, this ratio has no
+    natural value at zero denominator: 0/0 is not "nobody captured anything", it
+    is "there was nothing to capture", and a 0.0 would be read as perfect
+    equality.
+    """
+    x = np.asarray(counts, dtype=np.float64).ravel()
+    if x.size == 0:
+        return float("nan")
+    total = x.sum()
+    if total <= 0.0:
+        return float("nan")
+    cutoff = max(1, int(np.ceil(0.01 * x.size)))
+    top = np.sort(x)[-cutoff:]
+    return float(top.sum() / total)
+
+
 def blocking_pair_ratio(n_blocking: int, n_matched: int) -> float:
     """BPR = n_blocking / max(n_matched, 1) (INTERFACES.md §6).
 

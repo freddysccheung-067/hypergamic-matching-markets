@@ -2,9 +2,9 @@
 
 The loop each epoch:
 
-    1. generate_swipes            -> the implicit-feedback log
-    2. NCFTrainer.train_epoch     -> train the recommender on it
-    3. top_k_recommendations      -> truncated preference lists
+    1. generate_swipes            -> the implicit-feedback log          (ncf arm)
+    2. NCFTrainer.train_epoch     -> train the recommender on it         (ncf arm)
+    3. top_k_recommendations      -> truncated preference lists          (all arms)
     4. deferred_acceptance        -> matching under those lists
     5. compute_welfare + metrics  -> one row of the metrics frame
     6. update_thresholds          -> θ moves, next epoch's swipe log changes
@@ -12,6 +12,12 @@ The loop each epoch:
 Stage 6 is what makes this a simulation rather than a repeated experiment: the
 matching result feeds back into the swipe gate, so the market's history changes
 the market's behaviour.
+
+Steps 1-2 belong to the ``"ncf"`` arm only. The ablation arms of
+docs/SPRINT_PROMPTS.md Session 3-C replace *only* the rule that produces the
+preference lists in step 3; the population, seed, θ, utility parameters and the
+deferred-acceptance call are held fixed across arms, because an arm-to-arm
+comparison in which any of those moved would be measuring the wrong thing.
 
 The full-information benchmark (THEORY.md §6.1) is O(N²) in memory and is run
 *once per population*, not once per epoch — it depends only on traits, which
@@ -23,7 +29,7 @@ from __future__ import annotations
 import logging
 import pathlib
 import sys
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -37,11 +43,14 @@ from src.python.metrics import (
     market_clearing_rate,
     pareto_alpha,
     rank_satisfaction_index,
+    reach,
+    top1_share,
 )
 from src.python.ncf import NCFModel, NCFTrainer
 
 try:  # the extension lands in build/Release (README "Installation")
     from _hypergamic import (
+        admissible_prefs,
         build_full_info_pref_lists,
         compute_welfare,
         count_blocking_pairs,
@@ -56,6 +65,7 @@ except ImportError:  # pragma: no cover - convenience for a fresh checkout
     if _BUILD.is_dir():
         sys.path.insert(0, str(_BUILD))
     from _hypergamic import (  # noqa: F401
+        admissible_prefs,
         build_full_info_pref_lists,
         compute_welfare,
         count_blocking_pairs,
@@ -90,7 +100,18 @@ COLUMNS = [
     "n_blocking",
     "pareto_alpha",
     "mean_swipes_per_agent",
+    # Session 3-C. Appended rather than inserted: §6 says adding a column is
+    # free and renaming one breaks the plots, and appending keeps every saved
+    # CSV readable by column name.
+    "arm",
+    "reach",
+    "top1_share",
 ]
+
+# The four ablation arms of docs/SPRINT_PROMPTS.md Session 3-C. Only the rule
+# that produces the preference lists differs; everything upstream is shared.
+RecommendArm = Literal["ncf", "random", "popularity", "oracle"]
+ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle")
 
 # INTERFACES.md §4: the full-information benchmark is O(N²) in memory, about
 # 100 MB per side at N=5000.
@@ -104,10 +125,41 @@ class Simulation:
     ``None`` to read ``config_path``. The dict form exists so a sweep can mutate
     one block (``scripts/run_sweep.py`` changes ``hypergamy.delta``) without
     rebuilding the object.
+
+    ``recommender`` selects the ablation arm (docs/SPRINT_PROMPTS.md 3-C):
+
+    ``"ncf"``         swipe log -> NCF training -> top-k. The historical path; the
+                      only arm in which anything is learned, and the only one that
+                      calls ``generate_swipes``.
+    ``"random"``      k drawn uniformly *without replacement* from each chooser's
+                      θ-admissible set, reseeded per (seed, epoch).
+    ``"popularity"``  every chooser on a side gets the same list: the top-k of the
+                      other side by in-degree. One rule per side, no history.
+    ``"oracle"``      the first k θ-admissible candidates by true utility.
+
+    All four run on the same population, seed, θ, utility params and
+    ``deferred_acceptance`` call. Only the rule producing the preference lists
+    differs — that is what makes the comparison an ablation rather than four
+    experiments.
+
+    ``freeze_theta`` stops stage 6 from mutating θ. It exists for tests that need
+    all arms to see identical states at *every* epoch rather than only at epoch 0:
+    with the loop live the arms legitimately diverge, because each arm's matching
+    outcome moves θ differently, and that divergence is the feedback the model is
+    supposed to have. Freezing it is a diagnostic, never a headline setting.
     """
 
     def __init__(self, config: SimConfig | dict[str, Any] | None = None,
-                 config_path: str = "experiments/base.yaml") -> None:
+                 config_path: str = "experiments/base.yaml",
+                 recommender: RecommendArm = "ncf",
+                 freeze_theta: bool = False) -> None:
+        if recommender not in ARMS:
+            raise ValueError(
+                f"recommender must be one of {ARMS}; got {recommender!r}"
+            )
+        self.recommender: str = recommender
+        self.freeze_theta = bool(freeze_theta)
+
         if isinstance(config, SimConfig):
             self.config = config
         elif config is None:
@@ -154,6 +206,19 @@ class Simulation:
         self._full_prefs: tuple[list[list[int]], list[list[int]]] | None = None
         self._welfare_full: float = float("nan")
         self._benchmark_ready = False
+
+        # (T, N) exposure series, set by run(). The Lorenz plot needs the
+        # trajectory, not only the final state, and a caller that wants it should
+        # not have to re-read the frame column by column.
+        self.exposure_series: np.ndarray = np.zeros((0, self.n), dtype=np.int64)
+
+        # The state matrix each epoch was handed, recorded only when asked for.
+        # The ablation test asserts these are identical across arms, and an
+        # assertion that reads a live attribute from four objects cannot be
+        # faked by an arm that quietly resampled: it would have to equal the
+        # others' matrices to pass.
+        self.record_states = False
+        self.states_seen: list[np.ndarray] = []
 
     # ------------------------------------------------------------------ setup
 
@@ -261,6 +326,172 @@ class Simulation:
             exposure[np.asarray(ids, dtype=np.int64)] += 1
         return prop_prefs, acc_prefs, exposure
 
+    # ------------------------------------------------------- ablation arms
+
+    def _exposure_from_dense(
+        self,
+        prop_prefs: list[list[int]],
+        acc_prefs: list[list[int]],
+    ) -> np.ndarray:
+        """Row-indexed exposure counts from dense per-side preference lists.
+
+        The same quantity ``_truncated_prefs`` computes, but from the lists
+        themselves rather than from the global-id recommendations they were built
+        from. The three non-NCF arms never hold global ids, so this is the only
+        conversion path they can share — and sharing it is what guarantees the
+        exposure column means the same thing in all four arms.
+
+        A proposer appearing in many acceptors' lists is exposed many times, which
+        is exactly THEORY.md §7.1's "profile exposures received across an epoch".
+
+        The mapping matters and is easy to get backwards: ``prop_prefs[p]`` holds
+        *acceptor* slots, so its entries are exposures *received* by acceptors. The
+        two loops below therefore index ``prop_prefs`` through ``acc_rows`` and
+        ``acc_prefs`` through ``prop_rows``. Swapping them would still give the
+        right Gini — a permutation within a side leaves the distribution alone —
+        while attributing every agent's exposure to the wrong agent, which is the
+        silent version of this bug.
+        """
+        exposure = np.zeros(self.n, dtype=np.int64)
+        for lst in prop_prefs:
+            if lst:
+                exposure[self.acc_rows[np.asarray(lst, dtype=np.int64)]] += 1
+        for lst in acc_prefs:
+            if lst:
+                exposure[self.prop_rows[np.asarray(lst, dtype=np.int64)]] += 1
+        return exposure
+
+    def _oracle_prefs(self, top_k: int) -> tuple[list[list[int]], list[list[int]]]:
+        """Top-k θ-admissible candidates by true utility, per side.
+
+        Reads the ranked admissible sets straight from C++, so the first ``k``
+        entries are exactly the positives ``generate_swipes`` would report — the
+        same utilities, the same θ gate, the same tie-break. The arm is therefore
+        a genuine upper bound on *ranking*, differing from the NCF arm only in
+        that nothing was estimated.
+        """
+        prop_adm, acc_adm = admissible_prefs(self.states, self.config_dict)
+        return (
+            [list(lst[:top_k]) for lst in prop_adm],
+            [list(lst[:top_k]) for lst in acc_adm],
+        )
+
+    def _random_prefs(
+        self, top_k: int, epoch: int
+    ) -> tuple[list[list[int]], list[list[int]]]:
+        """k drawn uniformly WITHOUT replacement from each chooser's admissible set.
+
+        Two specification points, both load-bearing:
+
+        * From the *admissible* set, not the whole market. Sampling the market
+          would let this arm reach candidates the other arms' θ gate excludes,
+          which makes it differ in two ways at once (the rule and the gate) and
+          turns the control into a comparison against a different market.
+        * Without replacement. With replacement an agent could appear twice in one
+          list, which the matching rejects (a repeated id makes a rank lookup
+          ambiguous) and which would also distort the exposure count.
+
+        ``min(k, len(set))`` so a chooser with fewer than k admissible candidates
+        gets a shorter list rather than an error, matching how ``generate_swipes``
+        truncates at the admissible bound.
+
+        Seeded from (run seed, epoch) so the same (arm, seed) reproduces the
+        exposure matrix exactly; the generator is rebuilt each epoch so epoch t
+        does not depend on how many draws epoch t-1 happened to make.
+        """
+        prop_adm, acc_adm = admissible_prefs(self.states, self.config_dict)
+        rng = np.random.default_rng([self.rng_seed, epoch])
+
+        def draw(lists: list[list[int]]) -> list[list[int]]:
+            out: list[list[int]] = []
+            for lst in lists:
+                if not lst:
+                    out.append([])
+                    continue
+                take = min(top_k, len(lst))
+                # choice(size=take, replace=False) is a uniform draw of a
+                # take-subset, which is what "uniformly without replacement" means
+                # and is not the same as taking the first k of a shuffle.
+                picked = rng.choice(len(lst), size=take, replace=False)
+                out.append([lst[int(i)] for i in picked])
+            return out
+
+        return draw(prop_adm), draw(acc_adm)
+
+    def _popularity_prefs(
+        self,
+        top_k: int,
+        prev_prop: list[list[int]] | None,
+        prev_acc: list[list[int]] | None,
+    ) -> tuple[list[list[int]], list[list[int]]]:
+        """One shared list per side: the top-k of the other side by in-degree.
+
+        Once every chooser on a side holds the same list, exactly ``2k`` agents
+        carry all the exposure in equal amounts — which is where the closed forms
+        of THEORY.md §7.1/§7.2 come from:
+
+            Gini = 1 - 2k/N,   MCR = 2k/N.
+
+        In-degree is counted over the *previous* epoch's exposure (`prev_*`), so
+        the first epoch has no history.
+
+        **Epoch 0 falls back to the oracle ranking.** Starting from all-zero
+        in-degrees would rank the market by id, which is a different and accidental
+        baseline: it would hand exposure to ids 0..k-1, i.e. the first k agents of
+        the population, with no claim attached to them. Using the oracle ranking
+        instead gives the arm the best possible information on its first step and
+        makes the arm's subsequent concentration attributable to the popularity
+        rule rather than to sampling order. It also means epoch 0 is identical to
+        the oracle arm by construction, which is asserted in the tests rather than
+        left implicit.
+
+        Ties are broken by ascending dense index, matching the tie-break used
+        everywhere else in the matching layer.
+        """
+        if prev_prop is None or prev_acc is None:
+            # No history: rank by true utility, and say so (see docstring).
+            return self._oracle_prefs(top_k)
+
+        # In-degree of each *proposer* = how many acceptor lists named him;
+        # in-degree of each acceptor = how many proposer lists named her.
+        prop_indeg = np.zeros(self.n_prop, dtype=np.int64)
+        acc_indeg = np.zeros(self.n_acc, dtype=np.int64)
+        for lst in prev_acc:
+            if lst:
+                prop_indeg[np.asarray(lst, dtype=np.int64)] += 1
+        for lst in prev_prop:
+            if lst:
+                acc_indeg[np.asarray(lst, dtype=np.int64)] += 1
+
+        # lexsort's last key is primary: descending degree, then ascending index.
+        prop_order = np.lexsort((np.arange(self.n_prop), -prop_indeg))
+        acc_order = np.lexsort((np.arange(self.n_acc), -acc_indeg))
+
+        shared_prop = [int(i) for i in acc_order[:top_k]]
+        shared_acc = [int(i) for i in prop_order[:top_k]]
+
+        return ([list(shared_acc)] * self.n_prop, [list(shared_prop)] * self.n_acc)
+
+    def _arm_prefs(
+        self, epoch: int, top_k: int, prev: tuple[list[list[int]], list[list[int]]] | None
+    ) -> tuple[list[list[int]], list[list[int]], np.ndarray]:
+        """Preference lists for this (arm, epoch), plus exposure.
+
+        The NCF arm is handled by the caller, which needs the swipe log as well;
+        this covers the three learning-free arms.
+        """
+        if self.recommender == "oracle":
+            prop_prefs, acc_prefs = self._oracle_prefs(top_k)
+        elif self.recommender == "random":
+            prop_prefs, acc_prefs = self._random_prefs(top_k, epoch)
+        elif self.recommender == "popularity":
+            prev_prop, prev_acc = prev if prev is not None else (None, None)
+            prop_prefs, acc_prefs = self._popularity_prefs(top_k, prev_prop, prev_acc)
+        else:  # pragma: no cover - guarded in __init__
+            raise ValueError(f"unhandled arm {self.recommender!r}")
+
+        return prop_prefs, acc_prefs, self._exposure_from_dense(prop_prefs, acc_prefs)
+
     def _proposals_by_row(self, proposals: np.ndarray) -> np.ndarray:
         """Map DA's dense proposal counts to row-indexed counts.
 
@@ -294,27 +525,49 @@ class Simulation:
                              int(self.config.simulation.n_generations))
 
         rows: list[dict[str, Any]] = []
-        for epoch in range(n_epochs):
-            log = generate_swipes(self.states, self.config_dict, epoch)
-            self.trainer.train_epoch(log)
+        series: list[np.ndarray] = []
+        self.states_seen = []
+        prev_prefs: tuple[list[list[int]], list[list[int]]] | None = None
 
-            # Score each side against the *other* side only. The model has no
-            # notion of sides — an agent is a user and a candidate in one id
-            # space — so asking for a global top-k would spend half of every list
-            # on same-side agents and inflate the exposure counts with visibility
-            # nobody could act on. Splitting here is what makes the lists mean
-            # what the matching expects.
-            prop_recs = self.trainer.top_k_recommendations(
-                user_ids=self.prop_rows.astype(np.int64),
-                candidate_ids=self.acc_rows.astype(np.int64),
-                k=top_k,
-            )
-            acc_recs = self.trainer.top_k_recommendations(
-                user_ids=self.acc_rows.astype(np.int64),
-                candidate_ids=self.prop_rows.astype(np.int64),
-                k=top_k,
-            )
-            prop_prefs, acc_prefs, exposure = self._truncated_prefs(prop_recs, acc_recs)
+        for epoch in range(n_epochs):
+            # Recorded before anything touches the states, so this is the matrix
+            # the epoch's preference rule actually saw. All four arms must agree
+            # at epoch 0; with freeze_theta they must agree at every epoch.
+            if self.record_states:
+                self.states_seen.append(self.states.copy())
+
+            n_swipes = 0
+            if self.recommender == "ncf":
+                log = generate_swipes(self.states, self.config_dict, epoch)
+                self.trainer.train_epoch(log)
+                n_swipes = len(log)
+
+                # Score each side against the *other* side only. The model has no
+                # notion of sides — an agent is a user and a candidate in one id
+                # space — so asking for a global top-k would spend half of every
+                # list on same-side agents and inflate the exposure counts with
+                # visibility nobody could act on. Splitting here is what makes the
+                # lists mean what the matching expects.
+                prop_recs = self.trainer.top_k_recommendations(
+                    user_ids=self.prop_rows.astype(np.int64),
+                    candidate_ids=self.acc_rows.astype(np.int64),
+                    k=top_k,
+                )
+                acc_recs = self.trainer.top_k_recommendations(
+                    user_ids=self.acc_rows.astype(np.int64),
+                    candidate_ids=self.prop_rows.astype(np.int64),
+                    k=top_k,
+                )
+                prop_prefs, acc_prefs, exposure = self._truncated_prefs(prop_recs, acc_recs)
+            else:
+                # No swipe log and no training: these arms never learn, which is
+                # the point of them. Everything downstream of the preference
+                # lists — the DA call, welfare, the metrics, the θ step — is the
+                # same code the NCF arm runs.
+                prop_prefs, acc_prefs, exposure = self._arm_prefs(epoch, top_k, prev_prefs)
+            prev_prefs = (prop_prefs, acc_prefs)
+            series.append(exposure)
+
 
             da = deferred_acceptance(prop_prefs, acc_prefs, True)
             matches = da["matches"]
@@ -365,16 +618,29 @@ class Simulation:
                 "n_matched": n_matched,
                 "n_blocking": n_blocking,
                 "pareto_alpha": alpha,
-                "mean_swipes_per_agent": float(len(log)) / float(self.n),
+                # Zero for every arm that never builds a swipe log, which is the
+                # honest value: those arms do not train, so they have no swipes.
+                "mean_swipes_per_agent": float(n_swipes) / float(self.n),
+                "arm": self.recommender,
+                "reach": reach(exposure),
+                "top1_share": top1_share(exposure),
             })
 
             # θ ← θ + η·(matches/proposals − θ), in place on states[:, 6].
-            update_thresholds(
-                self.states,
-                self._proposals_by_row(da["proposals"]),
-                self._matches_by_row(matches),
-                eta,
-            )
+            # Skipped under freeze_theta, which is a diagnostic that holds the
+            # market still so the arms can be compared at identical states rather
+            # than only at identical epoch-0 states.
+            if not self.freeze_theta:
+                update_thresholds(
+                    self.states,
+                    self._proposals_by_row(da["proposals"]),
+                    self._matches_by_row(matches),
+                    eta,
+                )
+
+        self.exposure_series = (
+            np.stack(series) if series else np.zeros((0, self.n), dtype=np.int64)
+        )
 
         frame = pd.DataFrame(rows, columns=COLUMNS)
         if not frame.empty:

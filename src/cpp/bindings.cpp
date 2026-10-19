@@ -250,6 +250,40 @@ PYBIND11_MODULE(_hypergamic, m) {
         "(seed, agent_id, k, epoch).");
 
     m.def(
+        "admissible_prefs",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            const RankedAdmissible lists = build_admissible_prefs(
+                pop, params_from(config), compute_trait_stats(pop));
+
+            // Ragged list[list[int]], the same convention as
+            // build_full_info_pref_lists (INTERFACES.md §3).
+            py::list proposers(lists.proposers.size());
+            for (std::size_t i = 0; i < lists.proposers.size(); ++i) {
+                proposers[static_cast<py::ssize_t>(i)] = py::cast(lists.proposers[i]);
+            }
+            py::list acceptors(lists.acceptors.size());
+            for (std::size_t i = 0; i < lists.acceptors.size(); ++i) {
+                acceptors[static_cast<py::ssize_t>(i)] = py::cast(lists.acceptors[i]);
+            }
+            return py::make_tuple(proposers, acceptors);
+        },
+        py::arg("states"), py::arg("config"),
+        "Every θ-admissible candidate per agent, ranked by descending utility "
+        "(ties by ascending dense index), NOT truncated at k. Returns "
+        "(proposer_lists, acceptor_lists) of dense per-side indexes (INTERFACES.md "
+        "§2.3). The ablation arms differ only in what they draw from this: oracle "
+        "takes the first k, random samples k without replacement from the whole "
+        "admissible set, popularity ignores it. Truncating it here would collapse "
+        "random into oracle.");
+
+    m.def(
         "flatten_states",
         [](const py::array_t<double, py::array::c_style | py::array::forcecast>& states) {
             const auto arr = require_states(states);

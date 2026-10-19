@@ -339,6 +339,21 @@ is wrong even though its *direction* is right. Standardization changed the numer
 $\theta$ but not this mismatch; it is recorded here rather than repaired because repairing
 it means redefining the update, which changes every result the project reports.
 
+**When the gate binds, and when it is inert.** $\theta$ can only affect behaviour when it
+truncates the admissible set below $k$: an agent with at least $k$ admissible candidates
+takes the top $k$ of them regardless of where the cutoff sits. The condition is
+
+$$\phi < \frac{k}{N/2},$$
+
+i.e. `admissible_fraction` below $2k/N$. At the shipped $\phi = 0.2$ and $k=20$, $N=1000$
+that is $0.2 < 0.04$ — false, so every agent has roughly 100 admissible candidates against a
+shortlist of 20 and $\theta$ never acts. Measured: at $\phi = 0.02$ (about 10 admissible at
+$k=20$) every one of 1000 agents is truncated and 6709 positives move under a one-unit shift
+in $\theta$; at $\phi = 0.2$, none do. The feedback loop of §3 is therefore *live only above
+this threshold*, which is a genuine property of the model rather than a defect to hide: it
+says the market only responds to its own outcomes when selectivity is tight relative to list
+length. Every ablation result below reports the regime it was run in.
+
 ---
 
 ## 4. NCF Recommendation Engine
@@ -492,6 +507,116 @@ where $\text{SW}(\mu) = \sum_{(m,w) \in \mu} [U_m(w) + U_w(m)]$ is total social 
 $$\text{BPR} = \frac{|\text{blocking pairs in } \mu_{\text{alg}}|}{|\mu_{\text{alg}}|}$$
 
 Measures instability introduced by incomplete information.
+
+### 7.6 Reach and top-1% share
+
+Two companions to the Gini, because a Gini alone cannot distinguish *concentration*
+from *starvation* — both show as a high number.
+
+$$\text{reach} = \frac{|\{i : x_i > 0\}|}{N}
+\qquad
+\text{top1} = \frac{\sum_{i \in \text{top } \lceil 0.01N \rceil} x_{(i)}}{\sum_i x_i}$$
+
+A market that shows everybody once and a market that shows twenty people five hundred
+times each can have similar reach and wildly different Gini. Reported together they cannot
+be read as one thing: the popularity arm below has $G = 0.96$ *and* reach $4\%$, which is
+the signature of a non-market rather than of an unequal one.
+
+### 7.7 The ablation arms
+
+Four rules produce the preference lists. All four share the population, seed, $\theta$,
+utility parameters and `deferred_acceptance` call; only the list-construction rule differs,
+which is what makes the comparison an ablation rather than four experiments.
+
+| arm | rule |
+|---|---|
+| `oracle` | top-$k$ of the $\theta$-admissible set by true utility |
+| `random` | $k$ uniform draws **without replacement** from the $\theta$-admissible set |
+| `popularity` | one shared list per side: top-$k$ of the other side by in-degree; epoch 0 falls back to the oracle ranking |
+| `ncf` | swipe log → NCF → top-$k$ |
+
+**The popularity identity is a closed form, not a tendency.** Giving every chooser on a
+side the same $k$-element list means exactly $2k$ agents appear on every list and the other
+$N - 2k$ appear on none, each of the $2k$ receiving exactly $N/2$ exposures. That vector's
+Gini is algebraically
+
+$$G_{\text{pop}} = 1 - \frac{2k}{N}, \qquad \text{MCR}_{\text{pop}} = \frac{2k}{N},$$
+
+with **zero seed variance**. Both are asserted to $10^{-9}$ in
+`tests/python/test_ablation.py` at several $k$, because an implementation that gave agents
+*different* lists while calling itself a popularity baseline would pass a loose ordering
+check and fail this one. The epoch-0 fallback is excluded from the identity and tested
+separately: with no in-degree history the arm ranks by true utility, so epoch 0 equals the
+oracle arm. Starting from all-zero in-degrees instead would rank the market by id — a
+different and accidental baseline that hands exposure to whoever was sampled first.
+
+**Measured, seed-replicated.** $N = 1000$, $k = 20$, base config
+($\sigma_{\text{taste}} = 0.5$, $\sigma_{\text{shock}} = 1.5$, NSR $\approx 1.00$,
+`admissible_fraction` 0.2), final epoch of a 20-epoch run, five seeds (42–46):
+
+| arm | Gini (mean ± sd) | reach | top-1% share |
+|---|---|---|---|
+| `random` | 0.3780 ± 0.0058 | 99.4% | 2.8% |
+| `oracle` | 0.6544 ± 0.0109 | 95.8% | 12.2% |
+| `ncf` | 0.9393 ± 0.0065 | 18.1% | 23.8% |
+| `popularity` | 0.9600 ± 0.0000 | 4.0% | 25.0% |
+
+Per-seed gaps, paired by seed (both arms in a difference run on the same population, so the
+difference at one seed is one observation):
+
+| gap | mean ± sd |
+|---|---|
+| `gini(ncf) − gini(oracle)` | **+0.2849 ± 0.0074** |
+| `gini(oracle) − gini(random)` | +0.2764 ± 0.0117 |
+| `gini(popularity) − gini(random)` | +0.5820 ± 0.0058 |
+
+**The NCF lands above the oracle, and that is the finding.** A rank-8 replica in the session
+preamble landed at 0.925 against an oracle of 0.653 — an earlier measurement of the same
+sign. Estimation error pushes agents the model is uncertain about out of every shortlist, so
+a *lossy personalisation concentrates more than perfect ranking does*. The mechanism is not
+"the algorithm favours status" but "the algorithm cannot represent everyone, so it drops the
+uncertain ones". The NCF's 0.9393 also sits within 0.02 of the popularity ceiling of 0.96:
+at these settings the learned arm is close to degenerate — reach 18% against the shared-list
+arm's 4% is what separates them, not the Gini.
+
+That proximity is not a coincidence and is worth recording, because it shows up on epoch 0
+exactly. After a single training epoch on 1000 agents the NCF's exposure Gini is 0.96000 —
+the popularity identity to seven digits — with 38 agents on all 500 lists. One epoch is not
+enough for the user embeddings to separate, so the score is still dominated by the item side
+and every user receives nearly the same global ranking. The model does learn its way out of
+that: reach climbs from 4% to 18% over 20 epochs while the Gini falls from 0.960 to 0.939.
+An arm that never left 0.96 would be a bug wearing an ablation's clothes; this one leaves it,
+slowly, and the slow exit is itself a statement about how little one epoch of implicit
+feedback buys.
+
+**$G_{\text{ncf}} - G_{\text{random}}$ is not the headline.** The random arm has the lowest
+Gini of the four because uniform exposure is near-equal by construction, so that difference
+mostly measures distance from uniformity. The quantity that carries the argument is
+$G_{\text{ncf}} - G_{\text{oracle}}$: what the recommender's estimation error costs relative
+to a ranker that solves the same task perfectly. It is reported that way, and no
+`gini_excess_over_random` headline exists in the output.
+
+**These numbers are a function of the heterogeneity setting, not of the model alone.** NSR
+runs 0.99–1.03 across the five seeds and is recorded on every row of the ablation CSVs. The
+oracle arm's utility includes unlearnable pairwise chemistry (§2.3), so it is a bound that
+no learner can reach even in principle, and the size of the gap to it is set by NSR. A
+result at one NSR is one point on a curve.
+
+**A correction to this session's own premise.** The four arms above were measured with
+`admissible_fraction = 0.2`, where §3's gate is inert: no agent is truncated by $\theta$, so
+the outcomes cannot feed back into the swipe set and the run is a repeated static experiment
+rather than a simulation. The arms still separate, because they separate on ranking rather
+than on feedback — but the regime is stated rather than left implicit, and the live-gate
+regime ($\phi < 2k/N$, §3) is a separate measurement.
+
+**What this model does and does not contain.** It is exposure-mediated *in one direction
+only*. `generate_swipes` takes no shown-set argument: an agent's preferences are a pure
+function of (states, params, seed, epoch), so what the recommender surfaced never shapes what
+anyone wants. The Matthew effect here is therefore **not compounded by a feedback loop
+through preferences** — the recommender's concentration is a property of who it can rank
+confidently, iterated over a market whose tastes do not move in response to it. What *does*
+feed back is selectivity: the matching outcome moves $\theta$ (§3), and $\theta$ gates the
+next epoch's positives. That loop is real but, at the shipped calibration, inert.
 
 ---
 

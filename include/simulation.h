@@ -51,3 +51,32 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
                                                          std::uint64_t rng_seed,
                                                          std::uint64_t epoch = 0,
                                                          int n_negatives = 4);
+
+// ── Ranked admissible sets ────────────────────────────────────────────────────
+// Every θ-admissible candidate of the other side, per agent, in descending
+// utility (ties by ascending dense index). Not truncated at k.
+//
+// This exists for the ablation arms (docs/SPRINT_PROMPTS.md Session 3-C). Three
+// of the four arms need the same underlying object and differ only in what they
+// draw from it:
+//
+//   oracle      the first k entries — identical to the positive set that
+//               generate_swipes already reports.
+//   random      k drawn uniformly without replacement from the whole admissible
+//               set. Truncating here first would collapse this arm into oracle,
+//               which is why the untruncated list is what crosses the boundary.
+//   popularity  ignores it entirely.
+//
+// The truncated-at-k form would have been cheaper to pass, and it would have
+// silently made two of the four arms the same experiment.
+//
+// Dense per-side indexes, per docs/INTERFACES.md §2.3: entry i of `proposers` is
+// the i-th M agent's list of W *slots*, and vice versa. An agent with no
+// admissible candidate gets an empty list.
+struct RankedAdmissible {
+    std::vector<std::vector<std::int32_t>> proposers;  // indexed by proposer slot
+    std::vector<std::vector<std::int32_t>> acceptors;  // indexed by acceptor slot
+};
+
+RankedAdmissible build_admissible_prefs(const std::vector<Agent>& pop, const UtilityParams& p,
+                                        const TraitStats& stats);

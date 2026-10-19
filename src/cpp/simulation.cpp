@@ -164,3 +164,68 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
     }
     return out;
 }
+
+RankedAdmissible build_admissible_prefs(const std::vector<Agent>& pop, const UtilityParams& p,
+                                        const TraitStats& stats) {
+    RankedAdmissible out;
+    if (pop.empty()) {
+        return out;
+    }
+
+    // Dense per-side slots, the same convention as build_full_info_pref_lists and
+    // docs/INTERFACES.md §2.3. Built from the rows rather than from ids: id and
+    // slot coincide only when the population happens to be grouped by type.
+    std::vector<std::int32_t> prop_rows;
+    std::vector<std::int32_t> acc_rows;
+    for (const Agent& a : pop) {
+        (a.type == AgentType::M ? prop_rows : acc_rows).push_back(a.id);
+    }
+    std::vector<std::int32_t> prop_slot(pop.size(), -1);
+    std::vector<std::int32_t> acc_slot(pop.size(), -1);
+    for (std::size_t i = 0; i < prop_rows.size(); ++i) {
+        prop_slot[static_cast<std::size_t>(prop_rows[i])] = static_cast<std::int32_t>(i);
+    }
+    for (std::size_t i = 0; i < acc_rows.size(); ++i) {
+        acc_slot[static_cast<std::size_t>(acc_rows[i])] = static_cast<std::int32_t>(i);
+    }
+
+    out.proposers.assign(prop_rows.size(), {});
+    out.acceptors.assign(acc_rows.size(), {});
+
+    auto rank_side = [&pop, &p, &stats](const std::vector<std::int32_t>& self_rows,
+                                        const std::vector<std::int32_t>& other_rows,
+                                        const std::vector<std::int32_t>& other_slot,
+                                        std::vector<std::vector<std::int32_t>>& out_lists) {
+        for (std::size_t s = 0; s < self_rows.size(); ++s) {
+            const Agent& self = pop[static_cast<std::size_t>(self_rows[s])];
+            const double theta = self.threshold;
+
+            // Same gate as generate_swipes, written the same way: `!(u >= theta)`
+            // so a NaN utility is inadmissible rather than slipping through.
+            std::vector<Scored> admissible;
+            admissible.reserve(other_rows.size());
+            for (const std::int32_t row : other_rows) {
+                const Agent& cand = pop[static_cast<std::size_t>(row)];
+                const double u = self.utility_toward(cand, p, stats);
+                if (u >= theta) {
+                    admissible.push_back(
+                        Scored{u, other_slot[static_cast<std::size_t>(row)]});
+                }
+            }
+            // Descending utility, ties by ascending slot — the same partial order
+            // generate_swipes applies, so the oracle arm's first k entries are
+            // exactly the positives it would have reported.
+            std::sort(admissible.begin(), admissible.end(), ranks_above);
+
+            std::vector<std::int32_t>& list = out_lists[s];
+            list.reserve(admissible.size());
+            for (const Scored& sc : admissible) {
+                list.push_back(sc.id);
+            }
+        }
+    };
+
+    rank_side(prop_rows, acc_rows, acc_slot, out.proposers);
+    rank_side(acc_rows, prop_rows, prop_slot, out.acceptors);
+    return out;
+}
