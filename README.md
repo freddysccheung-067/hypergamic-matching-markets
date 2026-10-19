@@ -13,11 +13,11 @@ The simulation fuses three layers: an Agent-Based Model of heterogeneous agents 
 
 ## The Model
 
-Each agent $a_i$ carries a state vector $\mathbf{v}_i = [s_i, a_i, c_i, t_i]^\top$ — socio-economic status, attractiveness, sociability, and age. Hypergamy enters through the utility function agents in $W$ use when evaluating candidates in $M$:
+Each agent $a_i$ carries a state vector $\mathbf{v}_i = [s_i, a_i, c_i, t_i]^\top$ — socio-economic status, attractiveness, sociability, and age. Every trait is z-scored against population statistics before it enters a utility, so the weights below are measured against unit-variance traits and are directly comparable to one another. Hypergamy enters through the utility function agents in $W$ use when evaluating candidates in $M$:
 
-$$U_w(m) = \alpha \cdot s_m + \beta \cdot a_m - \gamma \cdot d(\mathbf{v}_w, \mathbf{v}_m) + \lambda \cdot \mathbb{1}[s_m \geq s_w + \delta]$$
+$$U_w(m) = \alpha \cdot \tilde{s}_m + \beta \cdot \tilde{a}_m - \gamma \cdot d(\mathbf{\tilde v}_w, \mathbf{\tilde v}_m) + \lambda \cdot \mathbb{1}[\tilde{s}_m \geq \tilde{s}_w + \delta]$$
 
-The indicator term rewards status surplus $\delta > 0$, encoding the preference asymmetry. Agents in $M$ use a symmetric utility with no status threshold. Each epoch, a Neural Collaborative Filtering engine (GMF + MLP) trains on swipe logs and generates truncated preference lists, which are passed to a modified Gale-Shapley algorithm to clear the market.
+The indicator term rewards status surplus $\delta > 0$, encoding the preference asymmetry, and $\delta$ is measured in standard deviations of log-status. The indicator only has force when $\beta/\alpha \geq 2$ — otherwise status dominates and the term is constant across every shortlist — so the base config ships $\alpha = 1.0$, $\beta = 2.0$. See [THEORY.md §2.2](docs/THEORY.md) for the measurements. Agents in $M$ use a symmetric utility with no status threshold. Each epoch, a Neural Collaborative Filtering engine (GMF + MLP) trains on swipe logs and generates truncated preference lists, which are passed to a modified Gale-Shapley algorithm to clear the market.
 
 See [docs/THEORY.md](docs/THEORY.md) for full mathematical formulation and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system architecture.
 

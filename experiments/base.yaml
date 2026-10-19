@@ -1,6 +1,10 @@
 population:
   n: 1000
   seed: 42
+  # Share of candidates an agent finds admissible at epoch 0. θ is calibrated per
+  # agent as the (1 - admissible_fraction) quantile of that agent's own utilities,
+  # so this is a target, not a cutoff — see docs/INTERFACES.md §2 and THEORY.md §3.
+  admissible_fraction: 0.2
   traits:
     status:
       dist: lognormal
@@ -19,10 +23,21 @@ population:
       mean: 30.0
       std: 6.0
 
+# Traits are z-scored before entering the utility (docs/THEORY.md §2), so every
+# weight below is expressed against a unit-variance trait and delta is measured in
+# standard deviations of log-status. delta=1.0 means "one population sd above her
+# own status", not "one raw log-status unit".
 hypergamy:
-  delta: 0.5       # status surplus threshold δ
-  alpha: 1.0       # status weight in female utility
-  beta: 0.8        # attractiveness weight
+  delta: 0.5       # status surplus threshold delta, in standardized-status sd
+  alpha: 1.0       # status weight — the dominant linear term (Matthew effect)
+  # beta=2.0 rather than 0.8. Measured top-1000 overlap between delta=0.0 and
+  # delta=1.0 at the old weights (alpha=1.0, beta=0.8) was 0.9661: delta barely
+  # moved the shortlist, because a status-dominated utility makes the indicator a
+  # constant across almost all of it. At alpha=1.0, beta=2.0 the overlap is
+  # 0.7615, so delta reorders about a quarter of a 20-item shortlist while status
+  # stays the dominant linear term. Rule of thumb: delta has real power when
+  # beta/alpha >= 2. Guarded by tests/cpp/test_delta_power.cpp.
+  beta: 2.0        # attractiveness weight
   gamma: 0.3       # distance penalty weight
   lambda: 1.5      # indicator bonus for status surplus
 
@@ -33,6 +48,9 @@ ncf:
   l2_reg: 0.00001
   pos_weight: 4.0
   top_k: 20
+  # Negatives per positive in the swipe log. Threaded through generate_swipes via
+  # config["ncf"]["n_negatives"]; defaults to 4 when absent. Changing it changes
+  # NCF training hardness, which is the point — it is a sweep knob.
   n_negatives: 4
 
 simulation:

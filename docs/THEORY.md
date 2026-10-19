@@ -64,36 +64,115 @@ calibration as a separate exercise requiring data this project does not have.
 
 ## 2. Utility Functions
 
+### 2.0 Traits are standardized first
+
+Every trait is z-scored before it enters a utility:
+
+$$\tilde{x}_j = \frac{x_j - \mu_x}{\sigma_x}$$
+
+with $(\mu_x, \sigma_x)$ computed once across the whole population after sampling. Raw
+values stay on the agent, in the state matrix and in every plot; the standardization is
+only the lens the utility looks through.
+
+The reason is that the raw traits are not comparable. At the base config, status is
+$\text{LogNormal}(0, 0.8)$ — sample sd $1.31$, max near $44$ — while attractiveness is
+$\mathcal{N}(0.5, 0.15)$ clipped to $[0,1]$, sd $0.15$. Weights of $\alpha = 1.0$ and
+$\beta = 0.8$ therefore weight status $11.2\times$, not $1.25\times$, and the stated
+preference ordering is not the one the code computes. After standardization every trait
+has unit variance, so a weight means what it says.
+
+Two consequences worth stating:
+
+- **$\delta$ is in standard deviations of log-status.** A $\delta$ of $1.0$ means "one
+  population sd above her own status". On the raw scale it meant one raw log-status unit,
+  which is why the same $\delta$ behaved completely differently across configs.
+- **The distance term is scale-free**, which softens the collinearity in §2.1: $s$ no
+  longer enters $d$ on a scale $11\times$ that of $a$, so $\gamma$ carries a comparable
+  share of each trait instead of being almost purely a status penalty.
+
+A degenerate trait ($\sigma_x = 0$) is left unstandardized rather than divided by zero.
+Its contribution is then constant across agents, which is the correct behavior for a
+trait that carries no information.
+
 ### 2.1 Hypergamous Utility (agents in $W$)
 
-$$U_w(m) = \alpha \cdot s_m + \beta \cdot a_m - \gamma \cdot d(\mathbf{v}_w, \mathbf{v}_m) + \lambda \cdot \mathbb{1}[s_m \geq s_w + \delta_w]$$
+$$U_w(m) = \alpha \cdot \tilde{s}_m + \beta \cdot \tilde{a}_m - \gamma \cdot d(\mathbf{\tilde v}_w, \mathbf{\tilde v}_m) + \lambda \cdot \mathbb{1}[\tilde{s}_m \geq \tilde{s}_w + \delta_w]$$
 
-- $\alpha, \beta, \gamma$ — empirical preference weights
-- $\delta_w \geq 0$ — status surplus threshold (the hypergamy parameter; $\delta_w = 0$ is neutral)
-- $\mathbb{1}[\cdot]$ — indicator function that penalizes/rewards the status gap
-- $d(\cdot,\cdot)$ — Euclidean distance, expanded below
+- $\alpha, \beta, \gamma$ — preference weights, now against unit-variance traits
+- $\delta_w \geq 0$ — status surplus threshold, in standard deviations of log-status ($\delta_w = 0$ is neutral)
+- $\mathbb{1}[\cdot]$ — indicator function that penalises/rewards the status gap
+- $d(\cdot,\cdot)$ — Euclidean distance over standardized traits, expanded below
 
 The distance term must be written out, because an unspecified $d$ hides two modeling decisions
 that change the results:
 
-$$d(\mathbf{v}_i, \mathbf{v}_j) = \sqrt{(s_i - s_j)^2 + (a_i - a_j)^2 + (c_i - c_j)^2 + \left(\frac{t_i - t_j}{10}\right)^2}$$
+$$d(\mathbf{\tilde v}_i, \mathbf{\tilde v}_j) = \sqrt{(\tilde{s}_i - \tilde{s}_j)^2 + (\tilde{a}_i - \tilde{a}_j)^2 + (\tilde{c}_i - \tilde{c}_j)^2 + (\tilde{t}_i - \tilde{t}_j)^2}$$
 
-**Age scaling.** Age is measured in years, with a population spread of roughly 20, while the other
-three traits live at unit scale. Without the divisor the age gap would dominate $d$ and the
-distance term would be almost purely an age penalty. The constant 10 is a modeling choice, not a
-derived quantity.
+**Age scaling is gone.** The former divisor of 10 existed because age was measured in
+years (sd $\approx 6$) while the other traits lived near unit scale (sd $\approx 0.15$).
+Once all four traits are z-scored the gap is already dimensionless and any divisor would
+be a second, undocumented weighting. Note that this *changes the relative weight of age*:
+at the old settings a one-sd age gap contributed $6/10 = 0.6$ against a one-sd
+attractiveness gap of $0.15$, so age was actually the heavier term; now both contribute 1.
 
-**A collinearity that must be acknowledged.** $s$ enters twice: as the linear reward $\alpha s_m$
-and again inside $d$. The model therefore rewards high status *and* penalises status dissimilarity,
-so $\gamma$ carries part of the status weight with the opposite sign. At the defaults
-$\alpha = 1.0$, $\gamma = 0.3$ the two do not cancel, but any claim of the form "$\alpha$ is the
-weight on status" holds only up to this coupling. Two defensible resolutions: standardize the
-traits before computing $d$ and drop $s$ from it, or keep $s$ in $d$ and report $\alpha$ and
-$\gamma$ jointly rather than interpreting either in isolation.
+**A collinearity that must be acknowledged.** $s$ enters twice: as the linear reward
+$\alpha \tilde{s}_m$ and again inside $d$. The model therefore rewards high status *and*
+penalises status dissimilarity, so $\gamma$ carries part of the status weight with the
+opposite sign. Standardization does not remove this coupling, but it makes the two terms
+comparable, so "$\alpha$ is the weight on status" now holds up to a distance penalty
+measured on the same scale rather than a much smaller one. Two defensible resolutions,
+unchanged: drop $s$ from $d$, or report $\alpha$ and $\gamma$ jointly rather than
+interpreting either in isolation.
 
-### 2.2 Standard Utility (agents in $M$)
+### 2.2 $\delta$ has power only when $\beta/\alpha \geq 2$
 
-$$U_m(w) = \alpha' \cdot s_w + \beta' \cdot a_w - \gamma' \cdot d(\mathbf{v}_m, \mathbf{v}_w)$$
+The indicator $\mathbb{1}[\tilde{s}_m \geq \tilde{s}_w + \delta]$ does nothing unless the
+cutoff **bisects the competitive set** — the handful of men who could plausibly enter
+$w$'s top-$k$. If status dominates the linear terms, the top-$k$ is a status prefix, every
+man in it is above the cutoff (or every one is below), and the indicator is a *constant* on
+the shortlist. Adding $\lambda$ to a constant reorders nothing, so $\delta$ is inert no
+matter what value it takes. For the cutoff to bite, non-status traits have to be able to
+compensate for a status deficit — an attractive man below the cutoff must be able to beat a
+plain one above it — and that requires $\beta$ to be a substantial fraction of $\alpha$.
+
+Measured top-1000 overlap between the top-$k$ computed at $\delta = 0$ and at $\delta = 1$,
+on the base trait distributions, with $k = 20$, $\gamma = 0.3$, $\lambda = 1.5$:
+
+| $\alpha$ | $\beta$ | overlap | reading |
+|---|---|---|---|
+| 1.0 | 0.1 | 0.9978 | inert |
+| 1.0 | 0.8 | 0.9661 | nearly inert — the old pre-standardization default |
+| 1.0 | 1.0 | 0.9374 | |
+| 1.0 | 1.5 | 0.8301 | |
+| 1.0 | 2.0 | 0.7615 | some power — **base config** |
+| 1.0 | 3.0 | 0.7366 | |
+| 0.6 | 1.5 | 0.6278 | |
+| 0.3 | 1.5 | 0.4994 | strong |
+
+Overlap falls monotonically in $\beta/\alpha$, slowly at first and then steeply between
+$\beta/\alpha = 1$ and $2$ — the region where non-status traits begin to compensate for a
+status deficit across the whole shortlist rather than only in its tail.
+
+Rule of thumb: $\delta$ has real power when $\beta/\alpha \geq 2$. `experiments/base.yaml`
+ships $\alpha = 1.0$, $\beta = 2.0$: status stays the dominant linear term, which preserves
+the Matthew-effect story, while $\delta$ is no longer structurally dead. This is guarded by
+`tests/cpp/test_delta_power.cpp`, which fails if a retune drives the overlap back above 0.95,
+and by its inverse, which asserts near-inertness at $\beta \ll \alpha$ and exact inertness
+when status is the only signal, so the guardrail cannot pass vacuously.
+
+**Why this note exists, and why the numbers above were re-measured.** An earlier version of
+the model ran on raw traits, where status sd was $1.31$. At the then-default $\alpha = 1.0$,
+$\beta = 0.8$ the effective status weight was $11.2\times$ attractiveness, and raising
+$\delta$ from $0.0$ to $1.0$ moved **0 of 199** women's positive sets — every sweep over
+$\delta$ in that configuration measured nothing. Standardization removed the scale bug.
+The overlap figures published before standardization are not comparable to these and should
+not be quoted alongside them; the values in the table were computed by the hidden
+`[.measure]` case in `test_delta_power.cpp` against the current code, and that case
+regenerates them after any retune.
+
+### 2.3 Standard Utility (agents in $M$)
+
+$$U_m(w) = \alpha' \cdot \tilde{s}_w + \beta' \cdot \tilde{a}_w - \gamma' \cdot d(\mathbf{\tilde v}_m, \mathbf{\tilde v}_w)$$
 
 The status surplus constraint is absent ($\delta_m = 0$), operationalizing the asymmetry.
 
@@ -118,11 +197,19 @@ a different model, not a rename.
 **$\theta_i$ is a utility cutoff, and it gates swipes.** A candidate $j$ is swipeable by $i$ only
 when $U_i(j) \geq \theta_i$, and the top-$k$ is then taken among the admissible candidates; this is
 what closes the loop, because a $\theta_i$ pushed upward by a high match yield shrinks the positive
+set the positive
 set the NCF trains on. Because the update target is a *yield* in $[0,1]$ while $\theta_i$ is
-compared against utilities on the scale of $\alpha s + \beta a - \gamma d$, $\theta_i$ is
+compared against utilities on the scale of $\alpha\tilde{s} + \beta\tilde{a} - \gamma d +
+\lambda\mathbb{1}[\cdot]$ (standardized units, §2.0), $\theta_i$ is
 calibrated at $t=0$ as the $(1-\phi)$ quantile of each agent's own utility distribution, with
 $\phi$ = `population.admissible_fraction` (default 0.2), so that roughly $\phi N/2$ candidates per
 agent are admissible at the start rather than all or none.
+
+**A known inconsistency, not fixed here.** The update target is a yield in $[0,1]$ and
+$\theta_i$ is a utility, so the recursion drives $\theta_i$ toward a number whose *scale*
+is wrong even though its *direction* is right. Standardization changed the numeric range of
+$\theta$ but not this mismatch; it is recorded here rather than repaired because repairing
+it means redefining the update, which changes every result the project reports.
 
 ---
 

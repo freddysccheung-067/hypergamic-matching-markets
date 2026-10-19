@@ -20,6 +20,13 @@ states: np.float64, C-contiguous, shape (N, 7)
 | 5 | `age` | years |
 | 6 | `threshold` | selectivity θ, in **standardized utility units** after calibration, **mutated in place** by `update_thresholds` |
 
+Column 6 is a raw number on the utility scale, and that scale is now the standardized one:
+a utility of $\alpha\tilde{s} + \beta\tilde{a} - \gamma d + \lambda\mathbb{1}[\cdot]$ where
+every trait has been z-scored against population statistics. θ is **not** a probability
+and must not be read as one, even though `update_thresholds` drives it toward a yield in
+$[0,1]$ — see THEORY.md §3 for why those two quantities share a column. Consumers that
+print θ should label it as a utility cutoff, never as a swipe rate.
+
 One flat array rather than a list of structs: the hot loop touches 10⁵ rows per epoch and the cost of marshalling per-agent dicts through pybind11 dwarfs the arithmetic.
 
 ### 1.1 Columns 2–5 are modeling constructs
@@ -57,7 +64,16 @@ sample_population(n: int, config: dict, seed: int) -> np.ndarray[float64, (n, 7)
 
 generate_swipes(states, config: dict, epoch: int) -> np.ndarray[int32, (S, 3)]
 #   columns: [user_id, item_id, label]; label 1 = right swipe
-#   S is not fixed: up to k positives per agent plus sampled negatives
+#   S is not fixed: up to k positives per agent plus n_negatives * k sampled
+#   negatives, where n_negatives = config["ncf"]["n_negatives"] (default 4 when
+#   the key or the ncf block is absent). S is also bounded by the candidate pool:
+#   an agent contributes min(k, |admissible|) positives and at most
+#   min(n_negatives * k, |candidates| - n_positives) negatives.
+#
+#   Traits are standardized before the utility is computed (THEORY.md §2.0), using
+#   population statistics recomputed from `states` on entry. Both this call and
+#   sample_population's calibration therefore see the same utility scale, which is
+#   what makes θ comparable across the two.
 #
 #   Seeding rule. Each agent gets its own engine, seeded from the 5-tuple
 #       (config["population"]["seed"], agent_id, config["ncf"]["top_k"], epoch)
@@ -68,6 +84,9 @@ generate_swipes(states, config: dict, epoch: int) -> np.ndarray[int32, (S, 3)]
 #     * the same (seed, epoch) reproduces exactly;
 #     * a new epoch produces a different *negative* sample while the positives —
 #       a function of traits and θ only — are unchanged.
+#   n_negatives is deliberately NOT in the seed, so changing it leaves each
+#   agent's negative draw sequence a prefix of what it was and a run at
+#   n_negatives = 4 reproduces the pre-parameter output exactly.
 #
 #   θ enters here: a candidate is swipeable only if
 #       utility_toward(user, candidate, config["hypergamy"]) >= states[user, 6]
