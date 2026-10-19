@@ -85,15 +85,18 @@ class NCFTrainer:
         device: str | torch.device | None = None,
         batch_size: int = 4096,
         seed: int | None = None,
+        pos_weight: float = POS_WEIGHT,
+        n_negatives: int = NEGATIVES_PER_POSITIVE,
     ) -> None:
         if device is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         self.device = torch.device(device)
         self.model = model.to(self.device)
         self.batch_size = batch_size
+        self.n_negatives = n_negatives
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=l2_reg)
         self.loss_fn = nn.BCEWithLogitsLoss(
-            pos_weight=torch.tensor(POS_WEIGHT, device=self.device)
+            pos_weight=torch.tensor(pos_weight, device=self.device)
         )
         self._rng = np.random.default_rng(seed)
 
@@ -134,14 +137,20 @@ class NCFTrainer:
         return arr
 
     def _top_up_negatives(self, data: np.ndarray) -> np.ndarray:
-        """Add sampled negatives only if the log has fewer than 4 per positive.
+        """Bring the log up to ``n_negatives`` per positive, if it is short.
+
+        ``generate_swipes`` already emits that ratio, so on a healthy epoch this
+        is a no-op. It matters when the candidate pool is small enough that an
+        agent could not supply the full quota (small test populations), and it
+        must use the configured ratio rather than a constant — otherwise a sweep
+        over ``ncf.n_negatives`` would be silently undone here.
 
         Extra pairs reuse the positives' users, avoid every pair already in the
         log and avoid user == item. If the pair space is nearly exhausted the
         top-up stops short rather than looping.
         """
         positives = data[data[:, 2] == 1]
-        need = NEGATIVES_PER_POSITIVE * len(positives) - int((data[:, 2] == 0).sum())
+        need = self.n_negatives * len(positives) - int((data[:, 2] == 0).sum())
         if need <= 0:
             return data
 
