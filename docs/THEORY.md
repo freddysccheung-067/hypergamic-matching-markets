@@ -170,7 +170,135 @@ not be quoted alongside them; the values in the table were computed by the hidde
 `[.measure]` case in `test_delta_power.cpp` against the current code, and that case
 regenerates them after any retune.
 
-### 2.3 Standard Utility (agents in $M$)
+### 2.3 Preference heterogeneity
+
+The utilities above make every agent a rescaling of one preference ordering: two women with
+the same traits rank the whole market identically. That costs the model two things it cannot
+buy back by tuning weights.
+
+First, **there is nothing to concentrate**. If every shortlist is the same shortlist, the
+visibility Gini follows from the trait distribution alone and no algorithm can move it.
+Second, **the control arm has nothing to control**: with homogeneous preferences a
+recommender and an oracle select the same people, so "algorithmic loss" would measure the
+NCF's approximation error and never the market effect the project is about.
+
+Two independent sources of heterogeneity fix this. Both are **off by default** and, with
+both off, every number the project published before this section is reproduced bit for bit.
+
+#### Taste multipliers
+
+Each agent carries three multipliers, drawn once at sampling:
+
+$$m^{(\alpha)}_i,\ m^{(\beta)}_i,\ m^{(\gamma)}_i
+\sim \text{LogNormal}\!\left(-\frac{\sigma^2}{2},\ \sigma\right),
+\qquad \sigma = \texttt{population.taste\_sigma}$$
+
+The $-\sigma^2/2$ drift term makes $\mathbb{E}[m] = 1$ for every $\sigma$, so the knob moves
+the *dispersion* of preferences rather than their average strength. The utility becomes
+
+$$U_i(j) = m^{(\alpha)}_i \alpha \tilde{s}_j + m^{(\beta)}_i \beta \tilde{a}_j
+- m^{(\gamma)}_i \gamma\, d(\tilde{\mathbf v}_i, \tilde{\mathbf v}_j)
++ \lambda\,\mathbb{1}[\tilde{s}_j \geq \tilde{s}_i + \delta] + \text{shock}(i,j)$$
+
+with the indicator present only for $i \in W$.
+
+$\lambda$ and $\delta$ stay homogeneous. A per-agent $\lambda$ is a defensible extension but
+is out of scope here, because it would make $\delta$'s population-level effect
+uninterpretable: a sweep over $\delta$ would then mix "the cutoff moved" with "the reward for
+clearing it differs by agent", and no single number would describe either.
+
+The multipliers multiply the *weights*, so agent $i$'s preference vector is
+$(\alpha m^{(\alpha)}_i,\ \beta m^{(\beta)}_i,\ \gamma m^{(\gamma)}_i)$ — three numbers per
+agent. That is the low-rank part of the heterogeneity.
+
+#### Persistent pairwise chemistry
+
+Every utility gains
+
+$$\text{shock}(i,j) = \sigma_{\text{shock}} \cdot L(i,j), \qquad L(i,j) = \operatorname{logit}(u)$$
+
+where $u \in (0,1)$ is the top 53 bits of a splitmix64 chain over the **ordered** triple
+$(\text{seed}, \text{key}_i, \text{key}_j)$, offset by half an ulp so $u$ never reaches $0$
+or $1$. $L$ is therefore standard logistic, with $\operatorname{sd} = \pi/\sqrt{3} \approx
+1.8138$. The heavier-than-normal tail is deliberate: a small minority of pairs are strongly
+drawn to each other, and a normal shock understates that.
+
+Four properties are load-bearing, and each has a test:
+
+- **Deterministic and persistent.** $L$ is a pure function of the pair, so
+  `generate_swipes`, `calibrate_thresholds`, `build_full_info_pref_lists` and
+  `compute_welfare` all see the same value. If any two disagreed, the swipe log and the
+  welfare number would describe different markets and neither would be a result.
+- **Asymmetric.** $L(i,j) \neq L(j,i)$ — the hash covers the ordered pair, so $i$'s
+  chemistry with $j$ is not $j$'s with $i$. Symmetric noise would be a pair effect, a much
+  more tractable object and not the one being modeled.
+- **Computed, not stored.** $O(1)$ memory per pair; no $N \times N$ matrix exists anywhere.
+- **Skipped at zero.** At $\sigma_{\text{shock}} = 0$ the branch is not taken at all. A hash
+  and a log per pair is real work, and the no-heterogeneity path keeps its old cost.
+
+$\sigma_{\text{shock}}$ is in **absolute utility units**, not a ratio, and $\alpha$ and
+$\beta$ get retuned — the same value is a large shock at one weighting and a whisper at
+another. So the orchestrator computes the noise-to-signal ratio once at construction:
+
+$$\text{NSR} = \frac{\sigma_{\text{shock}} \cdot 1.8138}{\operatorname{sd}(u_{\text{noise-free}})}$$
+
+`utility_sd(states, config)` supplies the denominator as the standard deviation of the
+noise-free utility over at most 4000 ordered pairs, sampling **both** orientations: the $M$
+and $W$ utilities differ by the indicator, and $M{\to}W$ alone understates the spread
+(measured 2.19 against 2.39 pooled). At the base weights the denominator is $\approx 2.39$
+with no tastes and $\approx 2.70$ at $\sigma_{\text{taste}} = 0.5$, so
+$\sigma_{\text{shock}} = 1.5$ is a ratio near 1.0 — measured at runtime and logged, never
+asserted in the config.
+
+#### What a recommender can and cannot learn
+
+| | structure | learnable |
+|---|---|---|
+| taste multipliers | 3 numbers per agent (low-rank) | yes, from enough swipes |
+| pairwise chemistry | one number per ordered pair (full-rank) | no |
+
+A collaborative filter estimates a user embedding from observed swipes. The multipliers live
+in that embedding and are recoverable. The chemistry does not: it is an independent draw for
+every pair, so nothing learned about $(i,j)$ transfers to $(i,j')$.
+
+Two consequences that change how a result is read:
+
+- **The oracle arm of §6.1 is an upper bound that includes unlearnable chemistry.** It ranks
+  by $U = \text{learnable} + \text{shock}$, and the second term is invisible to any learner.
+  Algorithmic loss therefore carries an **irreducible component even for a perfect
+  recommender**. It is not a clean measure of the NCF's quality and must not be reported as
+  one.
+- **That component is determined by NSR, not fit.** Reporting $\Delta$ at one NSR reports one
+  point on a curve.
+
+#### Neither knob has an empirical anchor
+
+$\sigma_{\text{taste}}$ and $\sigma_{\text{shock}}$ are **modeling knobs, not estimates**.
+Nothing here measures how much real preference weights vary, and no reference population is
+named. They were set to be visible at the base weights and nothing more. Therefore:
+
+- every headline result is reported **as a function of** them, never at a single setting;
+- the concentration-versus-heterogeneity curve — reach and Gini against
+  $(\sigma_{\text{taste}}, \sigma_{\text{shock}})$ — is itself a result worth showing,
+  because it is what says how much of the Matthew effect is preference heterogeneity rather
+  than algorithm;
+- a claim that holds at one setting only is a hypothesis, not a finding.
+
+Measured endpoints, $N = 1000$, $k = 20$, oracle shortlists (top-$k$ among θ-admissible
+candidates), seed 42:
+
+| setting | reach | Gini |
+|---|---|---|
+| both off | 0.069 | 0.958 |
+| base ($\sigma_{\text{taste}} = 0.5$, $\sigma_{\text{shock}} = 1.5$) | 0.955 | 0.664 |
+
+With both off, 93% of the market appears on nobody's shortlist and the most-exposed agent is
+shortlisted by all 500 members of the opposite side — every shortlist holds the same ~20
+people. At the base settings 95.5% of agents appear on someone's shortlist. The distance
+between those two rows is the quantity the project is about, and it is a function of two free
+parameters, which is why the sweep matters more than either endpoint.
+
+### 2.4 Standard Utility (agents in $M$)
 
 $$U_m(w) = \alpha' \cdot \tilde{s}_w + \beta' \cdot \tilde{a}_w - \gamma' \cdot d(\mathbf{\tilde v}_m, \mathbf{\tilde v}_w)$$
 
@@ -276,6 +404,76 @@ where $x_i$ = total profile exposures received by agent $i$ across an epoch.
 $$\text{MCR} = \frac{|\mu_{\text{alg}}|}{N/2}$$
 
 Fraction of agents who receive a match. A value of 1.0 = full market clearance.
+
+#### The scaling law, and why MCR is not comparable across $N$
+
+Two regimes, and the boundary between them is where the market stops being sparse.
+
+**Sparse regime: $\text{MCR} \sim k^2/N$.** A proposer is matched when some acceptor both
+received his proposal and ranked him highly enough to keep him. With lists of length $k$
+spread out over a pool of $N/2$, a given pair is mutually visible with probability of order
+$k/(N/2)$ on each side, and there are $N/2$ proposers, so the expected number of mutually
+visible pairs scales like $N \cdot (k/N)^2 \cdot N = k^2$ — an expected matched count of
+order $k^2$, hence a rate of order $k^2/N$. Measured at $N = 2000$, base heterogeneity:
+
+| $k$ | MCR | $k^2/N$ | ratio |
+|---|---|---|---|
+| 2 | 0.0040 | 0.0020 | 2.00 |
+| 5 | 0.0160 | 0.0125 | 1.28 |
+| 10 | 0.0580 | 0.0500 | 1.16 |
+| 15 | 0.1280 | 0.1125 | 1.14 |
+| 20 | 0.1760 | 0.2000 | 0.88 |
+| 30 | 0.2770 | 0.4500 | 0.62 |
+| 40 | 0.3520 | 0.8000 | 0.44 |
+| 80 | 0.5840 | 3.2000 | 0.18 |
+
+The law is accurate to within about 15% for $k \leq 15$, i.e. while $k^2/N < 0.12$, and then
+saturates: once lists are long enough that most agents are mutually visible, the ceiling is no
+longer how many pairs exist but how many agents there are, and MCR approaches 1. The constant
+is also not 1 but near 1.2, which is the part a thumb-suck derivation would miss.
+
+**The $2k/N$ figure is wrong in general.** It is the ceiling only in the fully concentrated
+market, where every list holds the same $\sim k$ people: there, each acceptor keeps the best
+of the $k$ who proposed, roughly $k$ proposers match out of $N/2$, giving $\text{MCR} \approx
+k/(N/2) = 2k/N$. Spread-out lists destroy that identity, and the ceiling grows to $k^2/N$.
+Since heterogeneity is what spreads the lists, $\sigma_{\text{taste}}$ and
+$\sigma_{\text{shock}}$ move the *scaling law*, not just its constant — a second reason
+every result has to be reported as a function of them.
+
+**Consequence for comparability.** MCR falls roughly as $1/N$ at fixed $k$. Measured at
+$k = 20$: 0.368 at $N = 500$, 0.270 at 1000, 0.176 at 2000, 0.101 at 4000. So an MCR reported
+at one $N$ says nothing about another, and comparing a small population to a large one
+without matching the list length is comparing two different markets. The fix is to scale
+$k$ with $\sqrt{N}$: at $k \approx 0.9\sqrt{N/2}$ the rate is roughly flat — 0.268, 0.270,
+0.255, 0.238 at $N$ = 500, 1000, 2000, 4000 — with the mild downward drift coming from the
+saturation regime and from ties.
+
+The cost of that scaling: $k \propto \sqrt{N}$ means the swipe log, which has
+$N \cdot k \cdot (1 + n_{\text{negatives}})$ rows, grows as $N^{1.5}$ rather than $N$. At
+$k \approx 0.9\sqrt{N/2}$ and $n_{\text{negatives}} = 4$, $N = 1000$ produces 100,000 rows and
+$N = 4000$ produces 800,000 — a factor of 8 for a 4× population, exactly $N^{1.5}$, against
+4× if $k$ were held fixed. The NCF's per-epoch cost follows the row count. This is a Day 5
+budget constraint, not a modelling one.
+
+Do not read a lower MCR as a worse market without fixing $N$ and $k$: it is mostly an
+arithmetic consequence of longer candidate pools, and the substantive metric at fixed
+exposure is the welfare gap and the concentration, not the clearing rate.
+
+**A caveat on these measurements.** They use oracle shortlists — top-$k$ by true utility —
+which is the right object for a statement about the matching ceiling, but it is not quite
+the object an experiment produces: `generate_swipes` also applies the θ gate, so the lists a
+run hands to Gale-Shapley are truncated by admissibility as well.
+
+The gate is not simply a discount, though, and the direction is worth stating because the
+obvious guess is wrong. θ is calibrated as a *quantile* of each agent's own utility, so a
+tighter gate keeps the **top** candidates — precisely the ones every agent already ranks
+highly. Measured at $N = 2000$, $k = 20$: `admissible_fraction` 0.2 gives MCR 0.176, and
+0.02 — ten admissible candidates per agent, half of $k$ — still gives 0.176, because
+truncating to the top ten removes only candidates nobody was going to match with anyway.
+The rate collapses only when the gate cuts below the mutual-visibility core: 0.005 (two or
+three admissible) gives 0.016. So the ceiling above is the right order of magnitude for a
+realistic gate, and a result that changes when θ is tightened is describing the gate, not
+the ranking.
 
 ### 7.3 Rank Satisfaction Index
 

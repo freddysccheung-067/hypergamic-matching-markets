@@ -123,6 +123,31 @@ amplification.
 trait causes another. The market sorts on several at once, which makes the survivors correlate —
 strongly at the top of the distribution. That is a collider, not a finding about individuals.
 
+**Algorithmic loss cannot cleanly measure the recommender.** Agents carry two kinds of preference
+heterogeneity: per-agent taste multipliers, which a collaborative filter can in principle learn, and
+persistent pairwise "chemistry" — an independent logistic draw for every ordered pair, which no
+learner can. The full-information benchmark ranks by true utility and therefore includes the
+chemistry; the NCF only ever sees the learnable part. So the gap between them carries an irreducible
+component even for a perfect recommender. Read algorithmic loss as an upper bound on what a
+recommender costs the market, never as a score of the NCF, and report it with the noise-to-signal
+ratio it was measured at (computed once per run and logged from `utility_sd`).
+
+**Two knobs have no empirical anchor.** `population.taste_sigma` (the spread of the taste
+multipliers) and `hypergamy.shock_scale` (the scale of the pairwise chemistry, in absolute utility
+units) are modeling choices, not estimates; nothing here measures how much real preferences vary.
+They are set to be visible at the base weights and nothing more. Every headline result is therefore
+reported as a function of them, never at one setting, and the concentration-versus-heterogeneity
+curve is part of the result: with both at zero only 6.9% of agents appear on anyone's shortlist and
+the visibility Gini is 0.958; at the base values those become 95.5% and 0.664.
+
+**Market clearing rate is not comparable across population sizes.** At fixed $k$, MCR falls roughly
+as $1/N$ — 0.37 at $N=500$ against 0.10 at $N=4000$ with $k=20$. The ceiling is of order $k^2/N$
+once shortlists spread out, and of order $2k/N$ only in the fully concentrated market where every
+shortlist holds the same people, so the scaling law itself depends on the heterogeneity knobs.
+Comparing across $N$ requires scaling $k$ with $\sqrt{N}$, at which point the rate is close to flat
+(0.27, 0.27, 0.26, 0.24 across the same four sizes). That choice makes the swipe log grow as
+$N^{1.5}$ rather than $N$, which the training budget has to absorb.
+
 **Other limits.** The full-information benchmark is capped near N=5000 for memory reasons.
 M-proposing Gale-Shapley returns the proposer-optimal matching, which is the *worst* stable
 outcome for the acceptor side. Reported W-side rank satisfaction is therefore a lower bound across

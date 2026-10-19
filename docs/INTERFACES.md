@@ -7,7 +7,7 @@ The C++ core and the Python layer are built in **separate Claude Code tabs that 
 Every agent lives in one contiguous array.
 
 ```
-states: np.float64, C-contiguous, shape (N, 7)
+states: np.float64, C-contiguous, shape (N, 11)
 ```
 
 | col | field | semantics |
@@ -19,10 +19,27 @@ states: np.float64, C-contiguous, shape (N, 7)
 | 4 | `sociability` | clipped to `[0, 1]` at sampling |
 | 5 | `age` | years |
 | 6 | `threshold` | selectivity θ, in **standardized utility units** after calibration, **mutated in place** by `update_thresholds` |
+| 7 | `taste_alpha` | per-agent multiplier on α; lognormal, mean 1, spread `population.taste_sigma` |
+| 8 | `taste_beta` | per-agent multiplier on β; same distribution |
+| 9 | `taste_gamma` | per-agent multiplier on γ; same distribution |
+| 10 | `key` | per-agent chemistry key: integer below 2^53, exact in float64 |
+
+Columns 7–10 were appended when preference heterogeneity was added (THEORY.md §2.3). They are
+trailing so every consumer that indexes 0–6 keeps working, and they are drawn by
+`sample_population`, not chosen by a caller: editing them means overriding the model. With
+`population.taste_sigma = 0` the three multipliers are exactly 1.0 and the utility is
+bit-identical to the pre-heterogeneity one.
+
+`key` is re-drawn whenever an agent is re-sampled (generational turnover), which gives a
+replaced agent fresh chemistry without disturbing any other pair — every other pair is a
+function of two keys that did not move. It is below 2^53 by construction, which is what makes
+the float64 round trip lossless; a hand-built matrix with a larger value in this column would
+round silently.
 
 Column 6 is a raw number on the utility scale, and that scale is now the standardized one:
-a utility of $\alpha\tilde{s} + \beta\tilde{a} - \gamma d + \lambda\mathbb{1}[\cdot]$ where
-every trait has been z-scored against population statistics. θ is **not** a probability
+a utility of $m_\alpha\alpha\tilde{s} + m_\beta\beta\tilde{a} - m_\gamma\gamma d
++ \lambda\mathbb{1}[\cdot] + \sigma_{\text{shock}}L(i,j)$ where every trait has been z-scored
+against population statistics. θ is **not** a probability
 and must not be read as one, even though `update_thresholds` drives it toward a yield in
 $[0,1]$ — see THEORY.md §3 for why those two quantities share a column. Consumers that
 print θ should label it as a utility cutoff, never as a swipe rate.
@@ -55,7 +72,7 @@ a README sentence.
 All are exposed as `_hypergamic.<name>`.
 
 ```python
-sample_population(n: int, config: dict, seed: int) -> np.ndarray[float64, (n, 7)]
+sample_population(n: int, config: dict, seed: int) -> np.ndarray[float64, (n, 11)]
 #   θ in column 6 is calibrated, not a config constant: by default each agent's
 #   θ is set to the (1 - population.admissible_fraction) quantile of its own
 #   utilities toward the opposite side, so that roughly that share of candidates
@@ -106,6 +123,14 @@ deferred_acceptance(prop_prefs: list[list[int]],
                     truncated: bool) -> dict
 
 compute_welfare(states, matches: np.ndarray[int32, (P, 2)], config: dict) -> dict
+
+utility_sd(states, config: dict) -> float
+#   Standard deviation of the *noise-free* utility over a deterministic sample of
+#   at most 4000 ordered cross-side pairs, both orientations included. shock_scale
+#   is in absolute utility units and alpha/beta get retuned, so the orchestrator
+#   logs the implied ratio  shock_scale * 1.8138 / utility_sd  once at
+#   construction; this binding is its denominator. Deterministic: the same states
+#   and config always give the same number, whatever shock_scale says.
 
 update_thresholds(states, n_proposals: np.ndarray[int32, (N,)],
                   n_matches: np.ndarray[int32, (N,)], eta: float) -> None
