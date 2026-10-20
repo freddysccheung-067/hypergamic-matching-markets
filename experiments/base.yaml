@@ -79,6 +79,30 @@ hypergamy:
   # with p = 0.5. See THEORY.md §10.2 for the table.
   signal_cost: 0.0
 
+# Environment B: the constrained subgraph (THEORY.md §10.3, §10.5). Read only by the
+# "complete" recommender arm and by environment_b.py; Environment A ignores it, so
+# every A-side number is unchanged by this block being present.
+environment_b:
+  # Share of each side drawn into the pool, before the values_min filter and before
+  # side-balancing — so |B| is at most size_fraction * N and is reported, not assumed.
+  size_fraction: 0.5
+  # Entry filter on values g. Beta(2,2) puts 78% of agents at or above 0.3.
+  values_min: 0.3
+  # c_B, which must exceed Environment A's hypergamy.signal_cost (0.0). 0.25 is in the
+  # partially-separating range of THEORY.md §10.2: it removes ~1% of proposals, so
+  # B's clearance is not dominated by the cost.
+  signal_cost: 0.25
+  # d: welfare charged to the defector. Prices defection; does not change survival.
+  defection_penalty: 0.5
+  # sigma_ij = sigma_0 * (tau_i tau_j)^sigma_alpha * g_ij^sigma_beta, with g_ij the
+  # pairwise alignment 1 - |g_i - g_j|. No empirical anchor for any of these four:
+  # modeling knobs, reported as such.
+  sigma_0: 1.0
+  sigma_alpha: 0.5
+  sigma_beta: 0.5
+  # L in the partner's loss L * (1 - tau_defector).
+  partner_loss: 1.0
+
 ncf:
   embed_dim: 64
   mlp_layers: [128, 64, 32]

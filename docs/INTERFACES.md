@@ -297,7 +297,7 @@ states the correct version.
 | `n_blocking` | int | |
 | `pareto_alpha` | float | fitted on cumulative match counts; `NaN` except on generation-final rows |
 | `mean_swipes_per_agent` | float | share of `N` swipes generated; **0.0** for every arm that does not build a swipe log |
-| `arm` | str | which ablation arm produced the row (Session 3-C): `ncf`, `random`, `popularity` or `oracle` |
+| `arm` | str | which ablation arm produced the row (Session 3-C): `ncf`, `random`, `popularity`, `oracle` or `complete` (Environment B, THEORY.md §10.3; needs the `environment_b` config block, and agents outside the subgraph have empty lists) |
 | `reach` | float | share of agents with non-zero exposure |
 | `top1_share` | float | share of exposure held by the top `ceil(0.01 N)` agents |
 | `mean_proposal_intent` | float | E[τ \| proposal]: mean `intent` (col 11) over the proposers of this epoch's label-1 rows; `NaN` for an arm with no swipe log |

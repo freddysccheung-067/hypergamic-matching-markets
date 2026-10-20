@@ -174,6 +174,71 @@ class HypergamyConfig:
 
 
 @dataclass
+class EnvironmentBConfig:
+    """The ``environment_b`` block: the constrained subgraph (THEORY.md §10.3).
+
+    The first four fields are the parameter vector (N_sub, c_B, g_min, d) of §10.3,
+    with N_sub expressed as a share of the population so the subgraph scales with N.
+    The rest parameterise the defection survival
+    ``sigma_ij = sigma_0 * (tau_i tau_j)^sigma_alpha * g_ij^sigma_beta`` and the loss
+    it imposes. Both environments run the same formula; Environment A is the same
+    parameters with ``defection_penalty = 0`` (``environment_b.environment_a``).
+    """
+
+    # Share of each side drawn into the candidate pool, before the g_min filter and
+    # before side-balancing. |B| is therefore at most size_fraction * N and is
+    # *measured*, never assumed: the filter and the balance step both remove agents.
+    size_fraction: float
+    # Entry filter: an agent with values < values_min is ineligible.
+    values_min: float
+    # c_B. Must exceed Environment A's cost (hypergamy.signal_cost); enforced in
+    # SimConfig, which is the only place both numbers are visible.
+    signal_cost: float
+    # d: welfare charged to the defector of a dissolved match. Does not enter the
+    # survival probability — it prices defection, it does not deter it.
+    defection_penalty: float
+    # Ceiling on survival. 1.0 adds no discount beyond the two alignment factors.
+    sigma_0: float = 1.0
+    sigma_alpha: float = 0.5
+    sigma_beta: float = 0.5
+    # L: scale of the loss a dissolved match imposes on the partner, L (1 - tau_defector).
+    partner_loss: float = 1.0
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.size_fraction <= 1.0:
+            raise ValueError(
+                f"environment_b.size_fraction must be in (0, 1]; got {self.size_fraction}"
+            )
+        if not 0.0 <= self.values_min <= 1.0:
+            raise ValueError(
+                f"environment_b.values_min must be in [0, 1]; got {self.values_min}"
+            )
+        if self.signal_cost < 0.0:
+            raise ValueError(f"environment_b.signal_cost must be >= 0; got {self.signal_cost}")
+        if self.defection_penalty < 0.0:
+            raise ValueError(
+                f"environment_b.defection_penalty must be >= 0; got {self.defection_penalty}"
+            )
+        if not 0.0 < self.sigma_0 <= 1.0:
+            # sigma is a probability. Both alignment factors are in [0, 1], so a
+            # sigma_0 above 1 would push sigma past 1 for aligned, high-intent pairs.
+            raise ValueError(f"environment_b.sigma_0 must be in (0, 1]; got {self.sigma_0}")
+        if self.sigma_alpha < 0.0 or self.sigma_beta < 0.0:
+            raise ValueError(
+                "environment_b.sigma_alpha and sigma_beta must be >= 0; "
+                f"got {self.sigma_alpha}, {self.sigma_beta}"
+            )
+        if self.partner_loss < 0.0:
+            raise ValueError(f"environment_b.partner_loss must be >= 0; got {self.partner_loss}")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
+
+
+_ENV_B_REQUIRED = ("size_fraction", "values_min", "signal_cost", "defection_penalty")
+
+
+@dataclass
 class NCFConfig:
     embed_dim: int = 64
     mlp_layers: list[int] = field(default_factory=lambda: [128, 64, 32])
@@ -285,6 +350,9 @@ class SimConfig:
     ncf: NCFConfig
     simulation: SimulationConfig
     output: OutputConfig
+    # Absent means no Environment B is defined; the "complete" arm then refuses to
+    # run rather than inventing a subgraph.
+    environment_b: EnvironmentBConfig | None = None
 
     def __post_init__(self) -> None:
         # top_k must be smaller than the pool an agent chooses from. The pool is
@@ -296,6 +364,28 @@ class SimConfig:
                 f"ncf.top_k ({self.ncf.top_k}) must be < n/2 ({pool}), the size of the "
                 "candidate pool"
             )
+
+    def require_environment_b(self) -> EnvironmentBConfig:
+        """The B block, checked against A. Called wherever B is actually run.
+
+        Deliberately not in ``__post_init__``: ``hypergamy.signal_cost`` is a sweep
+        axis for Environment A (the H1 grid runs it to 1.0 and beyond), and a
+        cross-check there would reject every A-side sweep value at or above B's cost
+        merely because an ``environment_b`` block sits in the same file. The contrast
+        only has to hold for a run that uses B.
+        """
+        env = self.environment_b
+        if env is None:
+            raise ValueError("config has no environment_b block")
+        if env.signal_cost <= self.hypergamy.signal_cost:
+            # B's defining contrast is a *costlier* signal. Equal or lower would make
+            # the two environments differ in size and visibility only, which is a
+            # different experiment from the one THEORY.md §10.3 specifies.
+            raise ValueError(
+                f"environment_b.signal_cost ({env.signal_cost}) must exceed "
+                f"Environment A's hypergamy.signal_cost ({self.hypergamy.signal_cost})"
+            )
+        return env
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SimConfig:
@@ -328,10 +418,20 @@ class SimConfig:
             community_prob=pop_raw.get("community_prob", 0.5),
         )
 
+        env_raw = raw.get("environment_b")
+        environment_b = None
+        if env_raw is not None:
+            if not isinstance(env_raw, dict):
+                raise ValueError("environment_b must be a mapping")
+            for key in _ENV_B_REQUIRED:
+                _require(env_raw, key, "environment_b")
+            environment_b = _build(EnvironmentBConfig, env_raw, "environment_b")
+
         # The strict unknown-key check lives in _build; these two blocks are built
         # through it, so a misspelled "shock_scal" fails here rather than silently
         # leaving the knob at its default.
         return cls(
+            environment_b=environment_b,
             population=population,
             hypergamy=_build(
                 HypergamyConfig,
@@ -361,13 +461,16 @@ class SimConfig:
 
     def to_dict(self) -> dict[str, Any]:
         """The plain dict shape ``_hypergamic`` expects."""
-        return {
+        out: dict[str, Any] = {
             "population": self.population.to_dict(),
             "hypergamy": self.hypergamy.to_dict(),
             "ncf": self.ncf.to_dict(),
             "simulation": self.simulation.to_dict(),
             "output": self.output.to_dict(),
         }
+        if self.environment_b is not None:
+            out["environment_b"] = self.environment_b.to_dict()
+        return out
 
     # ``Simulation`` accepts a raw dict as well as a SimConfig so a sweep can
     # mutate one block without rebuilding the whole object (scripts/run_sweep.py).

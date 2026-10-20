@@ -49,6 +49,12 @@ from src.python.metrics import (
     separating_threshold,
     top1_share,
 )
+from src.python.environment_b import (
+    Subgraph,
+    build_subgraph,
+    complete_prefs,
+    utility_table,
+)
 from src.python.ncf import NCFModel, NCFTrainer
 
 try:  # the extension lands in build/Release (README "Installation")
@@ -122,8 +128,12 @@ COLUMNS = [
 
 # The four ablation arms of docs/SPRINT_PROMPTS.md Session 3-C. Only the rule
 # that produces the preference lists differs; everything upstream is shared.
-RecommendArm = Literal["ncf", "random", "popularity", "oracle"]
-ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle")
+RecommendArm = Literal["ncf", "random", "popularity", "oracle", "complete"]
+ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle", "complete")
+# The four arms Environment A is ablated over. "complete" is Environment B's list
+# rule (THEORY.md §10.3) and is not one of them. scripts/run_ablation.py keeps its own
+# four-arm tuple, so the published A-side ablation does not grow a fifth arm.
+ABLATION_ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle")
 
 # INTERFACES.md §4: the full-information benchmark is O(N²) in memory, about
 # 100 MB per side at N=5000.
@@ -148,8 +158,14 @@ class Simulation:
     ``"popularity"``  every chooser on a side gets the same list: the top-k of the
                       other side by in-degree. One rule per side, no history.
     ``"oracle"``      the first k θ-admissible candidates by true utility.
+    ``"complete"``    Environment B (THEORY.md §10.3): the oracle rule restricted to
+                      the ``environment_b`` subgraph, with that block's signal cost
+                      c_B applied to the proposers. Agents outside the subgraph get
+                      empty lists, so ``mcr`` is over the whole population and an
+                      excluded agent counts as unmatched — the A outcome they would
+                      have had is added back by the welfare layer, not here.
 
-    All four run on the same population, seed, θ, utility params and
+    All run on the same population, seed, θ, utility params and
     ``deferred_acceptance`` call. Only the rule producing the preference lists
     differs — that is what makes the comparison an ablation rather than four
     experiments.
@@ -218,6 +234,25 @@ class Simulation:
         self._full_prefs: tuple[list[list[int]], list[list[int]]] | None = None
         self._welfare_full: float = float("nan")
         self._benchmark_ready = False
+
+        # Environment B state, built only for the "complete" arm. The subgraph is a
+        # property of the population and the filter, both fixed, so it is built once;
+        # the utility table is O(N²) and reused by every epoch.
+        self.subgraph: Subgraph | None = None
+        self._utility_table: tuple[np.ndarray, np.ndarray] | None = None
+        self._complete_proposals = np.zeros((0, 2), dtype=np.int64)
+        if recommender == "complete":
+            try:
+                env = self.config.require_environment_b()
+            except ValueError as exc:
+                raise ValueError(f'recommender="complete": {exc}') from exc
+            if self.n > FULL_INFO_MAX_N:
+                raise ValueError(
+                    f"recommender=\"complete\" is O(N²) and capped at N={FULL_INFO_MAX_N}; "
+                    f"got N={self.n}"
+                )
+            self.subgraph = build_subgraph(self.states, env, self.rng_seed)
+            self._utility_table = utility_table(self.states, self.config_dict)
 
         # (T, N) exposure series, set by run(). The Lorenz plot needs the
         # trajectory, not only the final state, and a caller that wants it should
@@ -494,6 +529,14 @@ class Simulation:
         """
         if self.recommender == "oracle":
             prop_prefs, acc_prefs = self._oracle_prefs(top_k)
+        elif self.recommender == "complete":
+            env = self.config.environment_b
+            assert env is not None and self.subgraph is not None
+            assert self._utility_table is not None
+            built = complete_prefs(self.states, self._utility_table, self.subgraph,
+                                   top_k, env.signal_cost)
+            prop_prefs, acc_prefs = built.prop_prefs, built.acc_prefs
+            self._complete_proposals = built.proposals
         elif self.recommender == "random":
             prop_prefs, acc_prefs = self._random_prefs(top_k, epoch)
         elif self.recommender == "popularity":
@@ -724,9 +767,15 @@ class Simulation:
             # what says which pairs were proposed — at c = 0 it is not built for
             # the non-NCF arms and nothing is restricted, so those arms are
             # bit-identical to before.
-            cost = float(self.config.hypergamy.signal_cost)
+            is_complete = self.recommender == "complete"
+            # The complete arm pays c_B, not A's cost, and has already applied it
+            # inside complete_prefs: the cost is the proposer's act, so the lists it
+            # built are the proposal set. Running A's restriction on top would apply
+            # a second cost, from a different parameter, to the same pairs.
+            cost = (float(self.config.environment_b.signal_cost) if is_complete
+                    else float(self.config.hypergamy.signal_cost))
             proposal_log = swipe_log
-            if cost > 0.0 and proposal_log is None:
+            if cost > 0.0 and proposal_log is None and not is_complete:
                 # Every arm needs the same proposal set, so it comes from the same
                 # function the NCF arm uses, on the same states and epoch. This is
                 # the only extra O(N²) call the non-NCF arms pay, and only when a
@@ -734,7 +783,10 @@ class Simulation:
                 proposal_log = generate_swipes(self.states, epoch_config, epoch)
 
             n_proposals = 0
-            if proposal_log is not None and proposal_log.shape[0]:
+            if is_complete:
+                proposals = self._complete_proposals
+                n_proposals = int(proposals.shape[0])
+            elif proposal_log is not None and proposal_log.shape[0]:
                 positive = proposal_log[:, 2] == 1
                 prop_rows = proposal_log[positive, 0]
                 acc_rows = proposal_log[positive, 1]
@@ -744,7 +796,7 @@ class Simulation:
             else:
                 proposals = np.zeros((0, 2), dtype=np.int64)
 
-            if cost > 0.0:
+            if cost > 0.0 and not is_complete:
                 prop_prefs, acc_prefs = self._restrict_to_proposals(
                     prop_prefs, acc_prefs, proposals
                 )

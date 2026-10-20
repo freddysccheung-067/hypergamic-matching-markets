@@ -954,6 +954,40 @@ $L\cdot(1-\tau_{\text{defector}})$ on the partner. In Environment A, $d = 0$ so 
 and $\sigma$ is applied without penalty; in B, $d > 0$ is subtracted from the defector's welfare.
 This is the "cost of casual defection" of the proposal, made explicit rather than asserted.
 
+**The shipped parameters.** `environment_b` in `experiments/base.yaml`, validated in
+`EnvironmentBConfig`:
+
+| key | shipped | role |
+|---|---|---|
+| `size_fraction` | 0.5 | share of each side drawn into the pool, before the filter |
+| `values_min` | 0.3 | $g_{\min}$; Beta(2,2) puts ~78% of agents above it |
+| `signal_cost` | 0.25 | $c_B$; must exceed `hypergamy.signal_cost` (0.0), checked where B runs |
+| `defection_penalty` | 0.5 | $d$ |
+| `sigma_0`, `sigma_alpha`, `sigma_beta` | 1.0, 0.5, 0.5 | $\sigma_{ij}$ |
+| `partner_loss` | 1.0 | $L$ |
+
+None of the last five has an empirical anchor; they are modeling knobs, and results are reported
+as functions of them rather than at a point. $c_B = 0.25$ sits in the partially separating range
+of §10.2 (it removes about 1% of proposals), so B's clearance is not dominated by the cost.
+
+**Construction.** Each side's pool is a seeded permutation prefix of that side, then filtered on
+$g \geq g_{\min}$. The filter does not preserve the sex ratio, so the pool is balanced by dropping
+the excess from the larger side, **highest ids first**. That rule depends on the ids alone, so one
+population gives one subgraph. The drop is returned in a `SubgraphReport` and logged at WARNING. At
+seed 42, N = 1000, the shipped config passes 194 M and 200 W and drops 6 W to leave |B| = 388. Across
+the thin-market sweep a pool loses between 1 and 7 agents on average (column `n_dropped`).
+
+**One code path.** Survival is $\sigma_{ij} = \sigma_0(\tau_i\tau_j)^{0.5}g_{ij}^{0.5}$ with
+$g_{ij} = 1 - |g_i - g_j|$ (values live on $[0,1]$, so the gap already does). $d$ is not an input to
+$\sigma$: it prices a dissolution and does not change its probability, which is what lets A run the
+same function with $d = 0$ and no penalty term. The survival draw is a hash of
+$(\text{seed}, \text{epoch}, \min(i,j), \max(i,j))$, so it is reproducible, independent of
+iteration order, and symmetric in the pair. The defector of a dissolved pair is the lower-intent
+member (ties to the lower row id); §10.3 does not say who defects, so that is a stated modeling
+choice. `resolve_defection` is implemented and tested, but **it is not yet wired into the
+orchestrator's welfare columns**: the metrics frame reports clearance, not $W$ net of defection
+loss, so no `welfare_common` number exists yet.
+
 ### 10.4 Welfare accounting, and the comparability rule
 
 Per epoch, over the whole population:
@@ -1003,6 +1037,74 @@ Note that $F(u)$ is not free: it is the CDF of the compatibility distribution *c
 entry filter*. A stricter $g_{\min}$ raises mean alignment and therefore raises $F$ at any fixed
 bar — B gets denser in quality as it gets thinner in count. The two knobs interact, and a sweep
 must vary them jointly rather than one at a time.
+
+**Measured.** `scripts/run_thin_market.py`, N = 1000, five seeds (42–46), 100 pools per size,
+epoch 0, k = 20, shipped $g_{\min}$ and $c_B$. $|B|$ is the mean eligible count after filtering and
+balancing; the bar $u$ for the acceptability columns is each agent's own θ.
+
+| size_fraction | $\lvert B\rvert$ | clearance | clearance sd (seeds) | $p_{\text{acc}}$ measured | binomial | exact |
+|---|---|---|---|---|---|---|
+| 0.01 | 7.0 | 0.121 | 0.008 | 0.577 | 0.556 | 0.558 |
+| 0.02 | 14.6 | 0.186 | 0.013 | 0.813 | 0.804 | 0.807 |
+| 0.04 | 29.9 | 0.284 | 0.009 | 0.966 | 0.963 | 0.965 |
+| 0.08 | 60.9 | 0.391 | 0.008 | 0.999 | 0.999 | 0.999 |
+| 0.15 | 115.9 | 0.489 | 0.008 | 1.000 | 1.000 | 1.000 |
+| 0.25 | 193.9 | 0.547 | 0.007 | 1.000 | 1.000 | 1.000 |
+| 0.35 | 272.7 | 0.504 | 0.006 | 1.000 | 1.000 | 1.000 |
+| 0.50 | 391.8 | 0.425 | 0.005 | 1.000 | 1.000 | 1.000 |
+| 1.00 | 790.0 | 0.303 | 0.017 | 1.000 | 1.000 | 1.000 |
+
+Clearance is not monotone in size: it **rises through 0.5 at $|B| \approx 126$ (size_fraction 0.163),
+peaks near 0.55 at $|B| \approx 194$, and falls back through 0.5 at $|B| \approx 278$ (0.357)**. The
+seed-to-seed crossings run 0.148–0.174 and 0.341–0.368. Clearance is below 0.5 for $|B| < 126$ and
+for $|B| > 278$.
+
+**The two halves of that curve have different causes, and only one is the thin-market penalty.**
+The rise is acceptability: below $|B| \approx 60$ the probability of having any acceptable partner
+is below 1. The fall is not. $p_{\text{acc}}$ is 1.000 from $|B| \approx 100$ on, and clearance
+declines anyway, because the lists are truncated at $k = 20$: as the pool grows, each agent's top 20
+is a thinner slice of it, and proposals concentrate on the same few agents. Raising k to 60 at
+seed 42 (no filter, negligible cost) moves the peak from size_fraction 0.15 to 0.6 and the peak
+value from 0.56 to 0.74; at size_fraction = 1 clearance equals the oracle arm's exactly (0.270 at
+k = 20, 0.622 at k = 60). So the interior optimum H4 predicts exists in B's clearance, but its
+right-hand slope is set by $k$ and the proposal structure rather than by the two effects H4 names.
+That is a result about this model's truncation, not support for H4 as stated, and it should not be
+quoted as such.
+
+**Measured against analytic acceptability.** At θ as the bar the two agree within 0.03 everywhere
+(worst gap 0.021 at size_fraction 0.01). That check is nearly vacuous: θ is calibrated at the 0.8
+quantile, so $F = 0.8$, $N^* = 3.1$, and any pool of a few dozen clears it. To make pool size
+matter, `thin_market_curve` takes `bar_quantile`, which replaces θ with each agent's own
+$q$-quantile of utility over the filtered reference set. There the formula of this section and the
+measurement come apart:
+
+| bar | $N^*$ ($\rho = 0.5$) | worst gap, binomial $1-F^n$ | worst gap, exact |
+|---|---|---|---|
+| θ | 3.1 | 0.021 (at $\lvert B\rvert$ = 7) | 0.019 (at 7) |
+| q = 0.95 | 13.3 | 0.026 (at 7) | 0.025 (at 7) |
+| q = 0.99 | 65.6 | **0.071** (at 312) | 0.009 (at 7) |
+
+Two different things are in that table. At $|B| \approx 7$ every bar shows a gap of about 0.02–0.03
+under *both* forms: that is the smallest pool, where the formula is evaluated at the mean pool size
+while the measurement averages over pools of varying size (and 0.2% of them are empty), so it is
+sampling and Jensen's-inequality error, not a distributional one, and it sits close to the 0.03
+tolerance. The 0.071 at q = 0.99 is the other thing, and is the one that matters.
+
+The cause of that is **not** an evaluation on the wrong distribution (F is computed per agent over
+the agent's own filtered reference set, and the exact form uses the same numbers). It is that
+$1-F^n$ is the with-replacement law, and a pool is a subset of a finite reference set of ~230
+candidates per side. The exact law is hypergeometric, $1 - \binom{B}{n}/\binom{K}{n}$, which is
+exactly 1 at $n = K$ where the binomial gives 0.984 (measured 1.000). The binomial is the large-$K$
+limit and is adequate while $n \ll K$. The stated 0.03 criterion therefore holds for the binomial
+only while $n/K$ is small, and fails (0.071) at the strict bar. `tests/python/test_environment_b.py`
+asserts 0.03 against the exact form and reports the binomial column alongside. $N^*$ itself is
+computed from the binomial formula as specified, so at q = 0.99 it is an approximation whose error
+grows with $N^*/K$.
+
+`F` at a quantile bar sits slightly below $q$ (0.987 rather than 0.99 at ~230 candidates, since
+"strictly below the $q$-quantile" covers slightly less than $q$ of a finite set), which moves $N^*$
+from 229 to 181 at $q = 0.99$, $\rho = 0.9$. The test recomputes $F$ independently rather than
+assuming it equals $q$.
 
 ### 10.6 The factorial decomposition
 
