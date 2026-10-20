@@ -771,3 +771,185 @@ statement about a simulation with declared inputs. The moment a selected-set cor
 reported as a finding about individuals, the project has made a claim it did not measure and
 cannot measure — and the reviewers most likely to catch it are the ones most likely to be reading
 the README first.
+
+---
+
+## 10. The institutional model: signalling, intent, and two environments
+
+This section formalizes the pivot described in [THESIS.md](THESIS.md). Everything above describes
+Environment A — a large, algorithmically mediated market with no signalling cost. Section 10 adds
+the parameters that make an *institution* a variable rather than a constant, and defines the
+welfare accounting that lets two institutions be compared.
+
+Nothing in §1–§9 changes. The new state is appended, the new parameters default to values that
+reproduce current behaviour exactly, and every existing test must keep passing. That is a hard
+requirement, not a preference: §9.4's argument about what the project can claim depends on the
+current results staying reproducible.
+
+### 10.1 New state: intent, value alignment, network membership
+
+Three fields are appended to the agent state. They are **not** traits in the §2 sense — none
+enters `utility_toward`, so none changes any existing number.
+
+| field | symbol | range | role |
+|---|---|---|---|
+| `intent` | $\tau_i$ | $(0, 1]$ | private willingness to commit; never observable |
+| `values` | $g_i$ | $[0, 1]$ | value alignment; observable only inside Environment B |
+| `community` | $k_i$ | $\{0,1\}$ | which subgraph the agent belongs to; 1 = eligible for B |
+
+The state matrix grows from 11 to 14 columns, appended in that order. `kStateCols` is the single
+constant every shape guard derives from, so the change is mechanical — but four hard-coded
+`shape[1] != 7` guards have already been converted to `kStateCols` once, and the same discipline
+applies here.
+
+`intent` is drawn from a Beta distribution with configurable `(a, b)`, rescaled to $(0,1]$ so no
+agent has exactly zero intent. `values` from a Beta on $[0,1]$. `community` is assigned by
+membership probability, not uniformly: a subgraph is defined by an entry filter (§10.3), and
+`community` marks agents who *would* pass it.
+
+**Why intent must be a declared latent rather than inferred.** There is no instrument for it, in
+this model or in the world. The model's claim is conditional: *if* intent is distributed as
+specified, *then* the welfare consequences follow. §9.1 already makes the analogous point about
+traits and it applies with more force here.
+
+### 10.2 The proposal decision, and the separating threshold
+
+An agent proposes to $j$ when
+
+$$\tau_i\, V_{ij}\, p \;>\; c$$
+
+where $V_{ij}$ is the compatibility value of the pair, $p$ the probability that a proposal is
+accepted, and $c$ the signalling cost. Rearranged, the set of proposers is
+$\{i : \tau_i > c/(V_{ij}p)\}$, giving the separating threshold
+
+$$\tau^*(c) \;=\; \frac{c}{\bar V p}$$
+
+with $\bar V$ the expected compatibility over the candidate pool.
+
+Three regimes, and they are the spine of the whole comparison:
+
+| condition | equilibrium | what an acceptor learns |
+|---|---|---|
+| $c = 0$ | pooling | nothing: $\mathbb{E}[\tau \mid \text{proposal}] = \mathbb{E}[\tau]$ |
+| $0 < c < \tau_{\max}\bar V p$ | partial separation | $\tau \geq \tau^*(c)$ |
+| $c \geq \tau_{\max}\bar V p$ | no proposals | the market is closed |
+
+The middle regime is Spence's; the first is Akerlof's result reached through a cost channel rather
+than through unobservable quality alone. **The earlier framing cited Akerlof for both** and that
+was imprecise: Akerlof's mechanism is that quality cannot be certified at any price, so the market
+pools and unravels. Here the certification device — cost — exists, and the question is what
+setting of it suffices. That distinction is what makes an interior optimum possible.
+
+**Implementation note.** `c` is subtracted from the *proposer's* utility at the proposal decision
+and is **not** part of `utility_toward`, which stays the pair's value. Putting `c` inside the
+utility function would silently change every welfare number, since `compute_welfare` reads the
+same function. The cost is spent, not disliked.
+
+### 10.3 Environment B: the constrained subgraph
+
+Environment B is a subgraph of the same population, characterized by four parameters:
+
+$$\mathcal{B} = \big(N_{\text{sub}},\; c_B,\; g_{\min},\; d\big)$$
+
+- $N_{\text{sub}}$ — subgraph size
+- $c_B$ — signalling cost inside the subgraph, $c_B > c_A \approx 0$
+- $g_{\min}$ — entry filter on value alignment; agents with $g_i < g_{\min}$ are ineligible
+- $d$ — defection penalty
+
+Inside B, visibility is complete among eligible agents: every eligible agent ranks every other
+eligible agent of the opposite side, truncated only at $k$. That is the information advantage, and
+it is bought with size.
+
+**Defection.** A match $(i,j)$ survives with probability
+
+$$\sigma_{ij} \;=\; \sigma_0 \cdot \big(\tau_i \tau_j\big)^{\alpha_\sigma} \cdot g_{ij}^{\beta_\sigma}$$
+
+where $g_{ij}$ is pairwise alignment, not individual. A dissolved match imposes loss
+$L\cdot(1-\tau_{\text{defector}})$ on the partner. In Environment A, $d = 0$ so defection is free
+and $\sigma$ is applied without penalty; in B, $d > 0$ is subtracted from the defector's welfare.
+This is the "cost of casual defection" of the proposal, made explicit rather than asserted.
+
+### 10.4 Welfare accounting, and the comparability rule
+
+Per epoch, over the whole population:
+
+$$W \;=\; \underbrace{\sum_{(i,j)\in\mu} \big(\tau_i V_{ij} + \tau_j V_{ji}\big)}_{\text{value created}}
+\;-\; \underbrace{\sum_{\text{proposals}} c}_{\text{signal cost}}
+\;-\; \underbrace{\sum_{\text{dissolved}} \big(L(1-\tau_{\text{defector}}) + d\big)}_{\text{defection loss}}$$
+
+**The rule that makes A and B comparable.** Environment B is a subgraph: some agents are excluded
+by $g_{\min}$ and some fail to match inside it. Neither group is deleted from the population. Every
+agent appears in $W$ exactly once, and an agent that B excludes or fails to match is scored at the
+outcome Environment A would have given them.
+
+Two numbers are reported and they answer different questions:
+
+- **`welfare_common`** — all $N$ agents, excluded ones scored at their A outcome. This is the
+  number the thesis rests on, because it is the only one that is not contaminated by selection.
+- **`welfare_selected`** — entrants only. Reported for completeness and as a warning: it is
+  systematically higher than `welfare_common` by exactly the value of the agents B removed, and
+  quoting it as a headline is the single easiest way to produce a spurious result in this design.
+
+The difference between them,
+
+$$W_{\text{selection artifact}} \;=\; W_{\text{selected}} - W_{\text{common}} \;\geq\; 0$$
+
+is itself a diagnostic. If it is large, Environment B's apparent advantage is mostly the agents it
+declined to serve.
+
+### 10.5 The thin-market penalty
+
+An agent accepts only candidates whose compatibility exceeds a personal bar $u$. In a pool of $n$
+eligible candidates the number acceptable is $\text{Binomial}(n, 1-F(u))$, so
+
+$$P(\text{at least one acceptable partner}) \;=\; 1 - F(u)^{n}$$
+
+and the critical mass at which the pool clears with probability $\rho$ is
+
+$$N^* \;=\; \frac{\ln(1-\rho)}{\ln F(u)}$$
+
+This is why Environment B cannot be declared superior a priori. It has better information per
+candidate and fewer candidates, and the two effects oppose each other. **H4 in THESIS.md is the
+claim that an interior optimum exists**; the model's job is to test it, and the kill condition is
+that the ordering is monotone in $N_{\text{sub}}$, which would mean one of the two effects is not
+operating.
+
+Note that $F(u)$ is not free: it is the CDF of the compatibility distribution *conditional on the
+entry filter*. A stricter $g_{\min}$ raises mean alignment and therefore raises $F$ at any fixed
+bar — B gets denser in quality as it gets thinner in count. The two knobs interact, and a sweep
+must vary them jointly rather than one at a time.
+
+### 10.6 The factorial decomposition
+
+Median status drifts exogenously, $s_w(t) = s_w(0) + \gamma t$. Under the hypergamous indicator
+this mechanically shrinks the eligible male pool with no algorithm involved — a **compositional**
+effect that must be separated from the algorithmic one or the project would attribute to the app
+what belongs to the labor market.
+
+Four cells, each a full run:
+
+| cell | exogenous drift | algorithmic mediation |
+|---|---|---|
+| (1) baseline | off | off |
+| (2) drift only | on | off |
+| (3) NCF only | off | on |
+| (4) both | on | on |
+
+$$\Delta W_{\text{exog}} = W_2 - W_1,\quad
+\Delta W_{\text{alg}} = W_3 - W_1,\quad
+\Delta W_{\text{interaction}} = W_4 - W_3 - W_2 + W_1$$
+
+The interaction term is the only one that supports "the algorithm amplifies the demographic
+shift". It is also the one most likely to be near zero, because in the current architecture the two
+enter through separate channels — drift moves traits, the NCF moves visibility. Reporting it
+whatever its sign is the difference between a measurement and a story. **A decomposition that can
+only report amplification has assumed its own conclusion.**
+
+### 10.7 What §10 does not change
+
+- `utility_toward` is untouched. Intent, values and community never enter it.
+- `compute_welfare` gains terms, but the existing per-match welfare is unchanged when $c = 0$ and
+  $d = 0$, which is the default.
+- The four ablation arms of §7.7 keep their definitions and their measured values.
+- Every number in §7 and §9 was produced under Environment A and stays valid as such. They are
+  A-side results, and the README must say so rather than presenting them as general.

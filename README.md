@@ -5,13 +5,47 @@
 ![C++](https://img.shields.io/badge/C%2B%2B-17-orange?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
 
-A computational simulation of how hypergamous mate-selection preferences interact with algorithmic recommendation systems to produce macro-level market failure in dating ecosystems.
+A computational study of **matching-market institution design**. It asks a question that is well
+defined inside a specified model: when a matching market has a signalling cost, an information
+asymmetry over intent, a limited network size, and an enforcement penalty, how does total welfare
+depend on those four parameters?
 
-The simulation fuses three layers: an Agent-Based Model of heterogeneous agents with asymmetric utility functions, a Neural Collaborative Filtering engine that mediates visibility, and a Gale-Shapley market-clearing algorithm. Together they expose how small preference asymmetries are non-linearly amplified into severe exposure inequality, declining match rates, and structural demographic imbalance.
+It does not prove anything about any real population. A simulation of a specified utility model
+shows what follows from its assumptions; it cannot establish that the assumptions hold. Every claim
+below is a comparative static — what moves when one institutional parameter changes with the rest
+held fixed — and [docs/THESIS.md](docs/THESIS.md) states the limits explicitly, including six
+hypotheses each with a stated condition that would refute it.
+
+The simulation fuses three layers: an Agent-Based Model of heterogeneous agents with asymmetric
+utility functions, a Neural Collaborative Filtering engine that mediates visibility, and a
+Gale-Shapley market-clearing algorithm.
 
 ---
 
-## The Model
+## The two environments
+
+The object of study is the **comparison**, not either market on its own.
+
+| | Environment A | Environment B |
+|---|---|---|
+| signalling cost $c$ | $\approx 0$ | positive |
+| visibility | global, algorithmically mediated | complete within a local subgraph |
+| intent inferable from a proposal | no | yes, above a separating threshold |
+| defection penalty | 0 | positive |
+| population | large | small |
+
+Neither is the good one. **A** has liquidity and no information; **B** has information and no
+liquidity. The thesis is that welfare is maximized at an interior point, and locating it is the
+work.
+
+The mechanism, in one line: an agent proposes only when $\tau_i V_{ij} p > c$, so the pool of
+proposers is $\{\tau_i > c/(\bar V p)\}$. At $c = 0$ every type proposes and a proposal carries no
+information about intent — Akerlof's pooling outcome, reached through a cost channel. At $c > 0$
+low-intent agents filter themselves out — Spence's separating equilibrium. The model's job is to
+find the boundary between them and price the liquidity that B gives up.
+
+
+## The utility model
 
 Each agent $a_i$ carries a state vector $\mathbf{v}_i = [s_i, a_i, c_i, t_i]^\top$ — socio-economic status, attractiveness, sociability, and age. Every trait is z-scored against population statistics before it enters a utility, so the weights below are measured against unit-variance traits and are directly comparable to one another. Hypergamy enters through the utility function agents in $W$ use when evaluating candidates in $M$:
 
@@ -27,11 +61,18 @@ See [docs/THEORY.md](docs/THEORY.md) for full mathematical formulation and [docs
 
 | Metric | What it measures |
 |--------|-----------------|
+| `welfare_common` | **The headline.** Total welfare over all agents, with Environment B's excluded agents scored at their A outcome |
+| `welfare_selected` | Entrants only — reports the selection artifact rather than hiding it, and is never quotable as the headline |
 | Gini coefficient $G$ | Exposure inequality across the agent population |
 | Market clearing rate | Fraction of agents who receive a match |
 | Rank satisfaction index $R$ | How highly agents rank their actual partner |
 | Algorithmic loss $\Delta$ | Welfare gap between full-information and NCF-mediated matching |
 | Pareto $\alpha$ (per generation) | Tail concentration in cumulative match distribution |
+| $\mathbb{E}[\tau \mid \text{proposal}]$ | Mean intent of received proposals — the signal-quality measure (H1) |
+
+The two welfare figures answer different questions and the difference between them,
+`welfare_selected − welfare_common`, is itself a diagnostic: when it is large, Environment B's
+apparent advantage is mostly the agents it declined to serve.
 
 ---
 
@@ -84,6 +125,13 @@ tests/          C++ (Catch2) and Python (pytest) test suites
 notebooks/      Full-pipeline demo notebook
 docs/           Mathematical formulation and architecture diagrams
 ```
+
+**Status: Environment A is built and measured; Environment B and the comparison are specified but
+not yet implemented.** Everything currently quantified — the four ablation arms, the attribution
+analysis, every Gini and welfare figure — is an **A-side result**. THESIS.md and THEORY.md §10
+define what B adds and what the comparison requires. Until those sessions land, the numbers below
+describe one institution only, and presenting them as a finding about institutional design would
+be reading ahead of the evidence.
 
 ## Limitations
 

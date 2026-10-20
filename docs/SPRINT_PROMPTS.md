@@ -1149,6 +1149,255 @@ Run python -m pytest tests/ -v. All tests must pass before Day 5.
 
 ---
 
+## PHASE II — The institutional comparison
+
+Everything in Days 1–7 builds and measures **Environment A**: one market, one institution, no
+signalling cost. Phase II adds the second institution and makes the comparison the object of study.
+The plan is in [THESIS.md](THESIS.md); the formalism is in [THEORY.md](docs/THEORY.md) §10.
+
+**Read THESIS.md before any session in this phase.** It states what the method can and cannot
+establish, and each session below assumes that framing. In particular: the deliverable is a
+comparative static inside a specified model, never a proof about a real population.
+
+Sequencing constraint, and it is strict: **5-C → 5-D → 5-E → 5-F**. Each depends on the one before
+it. 5-D cannot be run without the `τ` machinery of 5-C, and 5-E is a comparison between two
+environments, one of which does not exist until 5-D.
+
+Day 5 proper (visualization, profiling) should be finished first. Phase II changes the state
+matrix, and doing the plots before the schema settles means doing them twice.
+
+---
+
+### Session 5-C: Intent, value alignment, and the signalling cost
+
+Read THESIS.md, THEORY.md §10.1–10.2, docs/INTERFACES.md §1, and include/agent.h first.
+
+WHAT THIS ADDS AND WHAT IT MUST NOT CHANGE. Three latent fields (`intent`, `values`, `community`),
+a signalling cost parameter, and a proposal decision. None of them enters `utility_toward` — a
+pair's value is what it is; the cost is *spent*, not disliked. That separation is load-bearing:
+`compute_welfare` reads `utility_toward`, so putting `c` inside it would silently move every
+welfare number in the project.
+
+Hard constraint: with `c = 0`, every existing number must reproduce bit for bit. Same discipline
+as Session 3-H — record the swipe-output hash before you start and assert it after.
+
+```
+Read THESIS.md and THEORY.md §10.1-10.2 first. Read docs/INTERFACES.md §1 for the state matrix.
+
+1. AGENT STATE. Append three fields to Agent and to the flat matrix, in this order:
+     col 11  intent       tau_i, in (0, 1]
+     col 12  values       g_i, in [0, 1]
+     col 13  community    k_i, in {0, 1}
+   kStateCols goes 11 -> 14. Every shape guard already derives from it; confirm rather than
+   assume, since four of them were once hard-coded to 7.
+   Sampling: intent from Beta(a, b) rescaled to (0, 1] so no agent has exactly zero; values
+   from Beta on [0, 1]; community from a membership probability. Draw them from a SEPARATE
+   engine stream, like the taste multipliers in 3-H, so the four trait columns stay bit
+   identical at any setting of the new knobs.
+
+2. THE PROPOSAL DECISION. An agent proposes to j when tau_i * V_ij * p > c, equivalently
+   tau_i > c / (V_bar * p), where V_ij = utility_toward(i, j).
+   - Add SignalParams { double cost; double accept_prob; } to UtilityParams' neighbourhood —
+     a separate struct, NOT extra members of UtilityParams, so the existing five-field
+     aggregate initialisers in the tests keep compiling.
+   - Compute V_bar per chooser as the mean utility over its theta-admissible candidates, not
+     over the whole market: a cost compared against the whole-market mean would almost never
+     bite.
+   - Apply the decision in generate_swipes: among the top-k admissible candidates, drop those
+     with tau_i * V * p <= c. Report the dropped pair with label 0 (a pass), not by omitting
+     the row, so the NCF still learns from the refusal.
+   - p, the acceptance probability, must come from the PREVIOUS epoch's empirical accept rate
+     per side, not a constant. Epoch 0 has no history: use 0.5 and say so. A hard-coded p
+     makes the cost non-responsive and the whole mechanism decorative.
+
+3. CONFIG. hypergamy.signal_cost (default 0.0), population.intent_beta_a / intent_beta_b
+   (default 2.0 / 2.0), population.values_beta_a / values_beta_b (default 2.0 / 2.0).
+   Validated, with the strict unknown-key check. Defaults must reproduce current behaviour.
+
+4. NEW METRICS, in metrics.py:
+   - mean_proposal_intent: mean tau over reported proposals. This is E[tau | proposal], the
+     quantity H1 in THESIS.md is stated in terms of.
+   - separating_threshold: the analytic tau* = c / (V_bar * p), reported per side.
+   - proposal_cost_total: sum of c over proposals, the signal-cost term of the welfare sum.
+   Add the first two to the §6 DataFrame schema, updating INTERFACES.md in the same commit.
+
+5. TESTS, tests/python/test_signal.py:
+   - c = 0 reproduces the pre-session swipe hash exactly, at several seeds.
+   - mean tau among proposals is monotonically increasing in c over {0.0, 0.05, 0.25, 1.0}
+     at fixed everything else. This is H1; if it fails, say so rather than tuning the test.
+   - At c above tau_max * V_bar * p, no proposals are made and mcr is 0.
+   - The proposal count falls monotonically in c.
+   - Intent does NOT enter utility_toward: assert utility_toward is bit-identical before and
+     after perturbing every intent value. This is the guard against the failure mode above.
+
+6. THEORY.md §10.1-10.2: replace the placeholder parameters with the shipped values and the
+   measured separating thresholds.
+
+Build and run both suites. Report the swipe-hash check, the H1 monotonicity table, and the
+measured tau* at each c.
+```
+
+---
+
+### Session 5-D: Environment B — the constrained subgraph
+
+Read THEORY.md §10.3, §10.5 and THESIS.md § "Thin markets" first.
+
+WHAT THIS ADDS. A second market that shares the population but not the institution. Entry is
+filtered on `values`, visibility is complete within the subgraph, the signalling cost is higher,
+and defection carries a penalty. The point is not that B is better; it is that B's advantage is
+purchased with liquidity, and the model has to price that purchase.
+
+```
+Read THEORY.md §10.3 and §10.5 first.
+
+1. SUBGRAPH CONSTRUCTION. EnvironmentB config block:
+     size_fraction     share of the population eligible for the subgraph
+     values_min        g_min entry filter
+     signal_cost       c_B, must exceed Environment A's
+     defection_penalty d
+   Eligibility is g_i >= values_min AND side-balanced. If the filter leaves the subgraph
+   unbalanced, drop the excess from the larger side deterministically by id and REPORT it —
+   a silently unbalanced subgraph makes every clearing number in B uninterpretable.
+
+2. VISIBILITY. Inside B every eligible agent ranks every eligible agent of the opposite side,
+   truncated at k. No NCF. This is the information advantage: complete information within a
+   finite pool, bought with size. Implement as a `recommender="complete"` arm so the existing
+   ablation harness can run it unchanged — do not write a parallel code path.
+
+3. DEFECTION. A match survives with probability
+       sigma_ij = sigma_0 * (tau_i * tau_j)^0.5 * g_ij^0.5
+   where g_ij is PAIRWISE alignment |g_i - g_j| mapped to [0,1], not individual values. A
+   dissolved match imposes L * (1 - tau_defector) on the partner and d on the defector.
+   Crucially: d = 0 in A, so the same formula runs in both environments and A simply has no
+   penalty term. One code path, two parameter values.
+   Survival must be drawn from a seeded stream indexed by (seed, epoch, i, j) so it is
+   reproducible and independent of iteration order.
+
+4. THIN-MARKET CURVE. Add a function returning, for a sweep over size_fraction:
+     eligible_n          |B|
+     clearance_prob      fraction of eligible agents matched
+     p_acceptable        measured 1 - F(u)^n for the subgraph's own compatibility CDF
+     critical_mass       the analytic N* = ln(1-rho)/ln F(u) at rho = 0.5
+   The measured and analytic p_acceptable should agree; if they do not, the CDF is being
+   evaluated on the wrong distribution and that is worth catching here.
+
+5. TESTS, tests/python/test_environment_b.py:
+   - a deliberately unbalanced filter is dropped deterministically and reported, not silently used;
+   - defection with d = 0 produces the same survival as A's formula with d = 0;
+   - survival probability is monotone decreasing in |g_i - g_j|;
+   - at size_fraction -> 1 the B market's clearance approaches A's complete-information arm;
+   - the analytic and measured p_acceptable agree within 0.03 across the sweep.
+
+6. THEORY.md §10.3 and §10.5: record the shipped parameters and the measured thin-market curve.
+
+Report: the thin-market table, and where clearance probability drops below 0.5.
+```
+
+---
+
+### Session 5-E: The comparison, and the comparability rule
+
+Read THEORY.md §10.4 and §10.6 and THESIS.md § "Welfare" first.
+
+This is the session the thesis rests on. Everything before it builds instruments; this one takes
+the measurement.
+
+THE TRAP THIS SESSION EXISTS TO AVOID. Environment B is a subgraph. Some agents it excludes, and
+some it fails to match. If welfare is computed over entrants only, B looks better by exactly the
+value of the agents it removed — a selection artifact that will look like a result and will survive
+casual review. `welfare_common` scores every excluded agent at their Environment A outcome. That
+is the number; everything else is reported so this one can be checked.
+
+```
+Read THEORY.md §10.4 first. The comparability rule is the whole session.
+
+1. WELFARE ACCOUNTING. Extend compute_welfare to return the three terms of §10.4 separately:
+     value_created     sum over matched pairs of tau_i*V_ij + tau_j*V_ji
+     signal_cost       c summed over proposals
+     defection_loss    sum over dissolved matches of L(1-tau) + d
+   and the total. With c = 0 and d = 0 the total must equal the current welfare exactly; assert
+   that against the pre-session value rather than assuming it.
+
+2. THE TWO ACCOUNTINGS.
+   - welfare_common: run B, then for every agent NOT matched in B take that agent's outcome
+     from the paired A run on the same population and seed. Sum over all N. This requires A and
+     B runs to share the population — assert np.array_equal on the state matrices, as the
+     ablation tests already do.
+   - welfare_selected: entrants only.
+   - welfare_selection_artifact = welfare_selected - welfare_common, reported and asserted >= 0.
+   Add all three to the §6 schema and INTERFACES.md.
+
+3. THE COMPARISON SCRIPT. scripts/run_institutional.py sweeps (size_fraction, signal_cost) and
+   emits, per cell: welfare_common for A and B, the difference, clearance, gini, and the
+   selection artifact. At least five seeds; report mean ± sd, never a point estimate.
+   Do not sweep values_min in the same grid — it interacts with size_fraction through the
+   compatibility CDF (THEORY.md §10.5), so vary them in separate axes and note the interaction.
+
+4. TESTS, tests/python/test_comparison.py:
+   - welfare_common at size_fraction = 1 equals the A-side welfare, within 1e-9;
+   - welfare_selected >= welfare_common always, and the gap grows as values_min rises;
+   - both accountings are computed from the same state matrix (assert array equality);
+   - the A and B runs share population and seed;
+   - a deliberately mismatched-population pair raises rather than silently comparing.
+
+5. THE FACTORIAL DECOMPOSITION (THEORY.md §10.6). Add drift and NCF as independent switches and
+   run the four cells. Emit the three terms: exogenous, algorithmic, interaction.
+   Report the interaction WHATEVER ITS SIGN. A near-zero interaction is a legitimate and
+   publishable result: the two channels are separate by construction, and saying so is more
+   defensible than manufacturing amplification.
+   Assert only that the four cells share a population and seed. Do NOT assert a sign on any
+   term.
+
+6. THEORY.md and README: the measured optimum, the interaction term with its sign and spread,
+   and an explicit sentence that the interaction may be zero and that this was stated in
+   advance as H5 in THESIS.md.
+
+Report: the welfare_common curve over size_fraction, whether an interior optimum exists (H4),
+and the interaction term with its sign and spread (H5).
+```
+
+---
+
+### Session 5-F: The three headline figures
+
+Read THESIS.md § "Hypotheses" first. Each figure below exists to test one hypothesis and must be
+presentable with its control.
+
+```
+Read THESIS.md first. Three figures, each with the control that makes it interpretable.
+
+1. THE SEPARATING CURVE (H1). E[tau | proposal] as a function of signal_cost, with the analytic
+   tau*(c) overlaid as a line and the measured mean as points with seed error bars. The line and
+   the points should track; if they do not, the empirical accept rate p is not what the formula
+   assumes, which is a result about the mechanism rather than a plotting problem.
+
+2. THE THIN-MARKET CURVE (H4). welfare_common against size_fraction for Environment B, with
+   Environment A drawn as a horizontal line. The point is the crossing, if there is one.
+   Plot BOTH accountings — welfare_common solid and welfare_selected dashed — because the gap
+   between them is the selection artifact and hiding it would make the figure an advertisement.
+   Annotate the critical mass N* from §10.5.
+
+3. THE DECOMPOSITION (H5). A waterfall: baseline, +exogenous, +algorithmic, +interaction. The
+   bars must be readable whatever the sign of the interaction term. If the interaction is ~0,
+   the figure still has to work — a waterfall whose point is "the middle bar is missing" is a
+   legitimate chart and the design must not assume large effects.
+
+Style: matplotlib, colour-blind-safe, light-mode substrate so the figures embed correctly in a
+README rendered on a white page. Save to docs/figures/ at dpi 150 with bbox_inches='tight'.
+
+For each figure write a caption stating WHAT IT DOES NOT SHOW. The separating curve does not show
+that real proposers face this cost; the thin-market curve does not show that any real community is
+at the implied size; the decomposition does not show that algorithms amplify anything unless the
+interaction term is non-zero.
+
+Tests: tests/python/test_figures.py — each function returns a Figure, writes a PNG, and the PNG
+is non-trivial (more than one distinct colour). That last one catches a blank axis, which is the
+most common way a plotting test passes vacuously.
+```
+
+---
+
 ## DAY 5 — Visualization & Performance Profiling
 
 ### Session 5-A: Visualization Suite
