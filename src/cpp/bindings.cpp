@@ -729,7 +729,16 @@ PYBIND11_MODULE(_hypergamic, m) {
         "compute_welfare",
         [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
            py::array_t<std::int32_t, py::array::c_style | py::array::forcecast> matches,
-           const py::dict& config) {
+           const py::dict& config, double signal_cost, std::int64_t n_proposals,
+           double defection_loss) {
+            // Both terms are subtracted, so a negative value would add a cost as a
+            // gain. Refused rather than clamped.
+            if (!(signal_cost >= 0.0) || n_proposals < 0 || !(defection_loss >= 0.0) ||
+                !std::isfinite(signal_cost) || !std::isfinite(defection_loss)) {
+                throw std::invalid_argument(
+                    "compute_welfare: signal_cost, n_proposals and defection_loss must be "
+                    "finite and >= 0");
+            }
             const auto arr = require_states(states);
             const auto info = arr.request();
             const int n = static_cast<int>(info.shape[0]);
@@ -755,12 +764,26 @@ PYBIND11_MODULE(_hypergamic, m) {
             out["welfare_proposer"] = w.proposer;
             out["welfare_acceptor"] = w.acceptor;
             out["n_pairs"] = w.n_pairs;
+            // THEORY.md §10.4, term by term. The signal cost is c per proposal; the
+            // defection loss needs the survival draw, so it is resolved upstream and
+            // only subtracted here. One place forms the total.
+            const double cost = signal_cost * static_cast<double>(n_proposals);
+            out["value_created"] = w.value_created;
+            out["value_proposer"] = w.value_proposer;
+            out["value_acceptor"] = w.value_acceptor;
+            out["signal_cost"] = cost;
+            out["defection_loss"] = defection_loss;
+            out["welfare_total"] = w.value_created - cost - defection_loss;
             return out;
         },
         py::arg("states"), py::arg("matches"), py::arg("config"),
-        "Social welfare over a matching: sum of U_prop(acc) + U_acc(prop) "
-        "(docs/INTERFACES.md §2.2). Weights and standardization are the same as "
-        "generate_swipes.");
+        py::arg("signal_cost") = 0.0, py::arg("n_proposals") = 0,
+        py::arg("defection_loss") = 0.0,
+        "Social welfare over a matching (docs/INTERFACES.md §2.2). `welfare` is the "
+        "unweighted sum of U_prop(acc) + U_acc(prop), unchanged by §10.4. "
+        "`welfare_total` is §10.4's W = value_created - signal_cost - defection_loss "
+        "with value_created intent-weighted; at intent == 1, c = 0 and no dissolved "
+        "match it equals `welfare` exactly.");
 
     m.def(
         "update_thresholds",

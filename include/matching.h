@@ -86,12 +86,22 @@ struct Welfare {
     double proposer = 0.0;
     double acceptor = 0.0;
     std::int32_t n_pairs = 0;
+    // The value-created term of THEORY.md §10.4: each side's utility weighted by
+    // its own intent, Σ τ_m U_m(f) + τ_f U_f(m). Accumulated proposer-then-acceptor
+    // in the same order as `total`, so at τ ≡ 1 the two are bit-identical (1.0 * x
+    // is exact in IEEE arithmetic). That is the identity the tests pin.
+    double value_created = 0.0;
+    double value_proposer = 0.0;
+    double value_acceptor = 0.0;
 };
 
-// Σ over matched pairs of U_prop(acc) + U_acc(prop). Uses the same weights and
-// standardization as generate_swipes — docs/INTERFACES.md §2.2 calls a
-// disagreement between the two the most likely source of a silent bug in the
-// project, so it is worth stating that both go through Agent::utility_toward().
+// Σ over matched pairs of U_prop(acc) + U_acc(prop), plus the intent-weighted
+// value-created term. Uses the same weights and standardization as
+// generate_swipes — docs/INTERFACES.md §2.2 calls a disagreement between the two
+// the most likely source of a silent bug in the project, so it is worth stating
+// that both go through Agent::utility_toward(). The signal-cost and
+// defection-loss terms of §10.4 are not functions of the matching alone and are
+// added by the binding.
 Welfare compute_welfare(const std::vector<Agent>& pop,
                         const std::vector<std::array<std::int32_t, 2>>& matches,
                         const UtilityParams& p, const TraitStats& stats);

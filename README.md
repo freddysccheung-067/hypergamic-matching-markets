@@ -31,7 +31,7 @@ The object of study is the **comparison**, not either market on its own.
 | signalling cost $c$ | $\approx 0$ | positive |
 | visibility | global, algorithmically mediated | complete within a local subgraph |
 | intent inferable from a proposal | no | yes, above a separating threshold |
-| defection penalty | 0 | positive |
+| defection penalty | 0 | positive (a cost charged after defection, not a deterrent) |
 | population | large | small |
 
 Neither is the good one. **A** has liquidity and no information; **B** has information and no
@@ -72,7 +72,8 @@ See [docs/THEORY.md](docs/THEORY.md) for full mathematical formulation and [docs
 
 The two welfare figures answer different questions and the difference between them,
 `welfare_selected − welfare_common`, is itself a diagnostic: when it is large, Environment B's
-apparent advantage is mostly the agents it declined to serve.
+apparent advantage is mostly the agents it declined to serve. It can also be negative, when B's
+own entrants end up worse off than the population; see THEORY.md §10.4.
 
 ---
 
@@ -112,6 +113,13 @@ Run a parameter sweep over the hypergamy coefficient:
 python scripts/run_sweep.py --delta-values 0.0,0.5,1.0,1.5 --output-dir data/processed/
 ```
 
+Run the institutional comparison (the size × cost grid, the values_min axis and the factorial;
+about ten minutes at N = 1000 over five seeds):
+
+```powershell
+python scripts/run_institutional.py
+```
+
 ---
 
 ## Repository Structure
@@ -126,12 +134,40 @@ notebooks/      Full-pipeline demo notebook
 docs/           Mathematical formulation and architecture diagrams
 ```
 
-**Status: Environment A is built and measured; Environment B and the comparison are specified but
-not yet implemented.** Everything currently quantified — the four ablation arms, the attribution
-analysis, every Gini and welfare figure — is an **A-side result**. THESIS.md and THEORY.md §10
-define what B adds and what the comparison requires. Until those sessions land, the numbers below
-describe one institution only, and presenting them as a finding about institutional design would
-be reading ahead of the evidence.
+**Status: both environments and the comparison are built and measured.** The four ablation arms,
+the attribution analysis and every Gini figure in §7 of THEORY.md are **A-side results**, and they
+stay A-side results: they describe one institution. The comparison between institutions is in
+THEORY.md §10.4–§10.6, and its three findings are below.
+
+### What the comparison found
+
+Measured with `scripts/run_institutional.py`, N = 1000, five seeds (42–46), mean ± sd over seeds.
+Every welfare figure is `welfare_common` (every agent counted once, agents Environment B does not
+match scored at their Environment A outcome), never the entrant-only figure.
+
+- **H4, the interior optimum: survives, but only at low signalling cost and only against an
+  oracle A.** At $c_B = 0.01$, B's advantage over A is not monotone in B's size. It is negative
+  for small subgraphs and peaks at size_fraction 0.65 ($|B| \approx 512$): **+64.6 ± 9.9** under
+  the conservative (residual) accounting, +166.3 ± 15.9 under §10.4's literal rule, on a base of
+  973.7. At $c_B \geq 0.05$ B loses at every size, which is H4's kill condition on that slice. The
+  curve's left side is the thin-market penalty; its right side is the top-k truncation of
+  THEORY.md §10.5, not the mechanism H4 names. Against an NCF-mediated A, B wins at every size.
+- **H5, the factorial decomposition: the interaction is indistinguishable from zero.**
+  $\Delta W_{\text{interaction}} = +16.7 \pm 40.4$ (standard error 18.1; per seed −17.0 to +74.2,
+  three of five negative), against an algorithmic term of −717.6 ± 92.6 and an exogenous term of
+  −21.1 ± 25.3. **The interaction may be zero, and THESIS.md stated this in advance as H5**: drift
+  moves traits and the recommender moves visibility, so the two channels are separate by
+  construction. The model gives no support for "the algorithm amplifies the demographic shift."
+- **The entry filter is a selection trap.** At size_fraction 0.5, raising B's alignment filter from
+  0 to 0.5 raises the entrant-only figure relative to the population by 224 and lowers
+  welfare_common by 92 (84 under the residual accounting). A reader shown only the entrants would
+  see the filter working.
+
+Three corrections to the plan in THESIS.md came out of the measurement and are stated in THEORY.md
+§10.4: the §10.4 welfare equals the old welfare only when every intent is 1; the entrant-only figure
+is *not* always above welfare_common (it goes negative when B's cost or thinness makes entrants
+worse off); and the literal comparability rule can count an A match whose partner is busy in B, so
+a feasible "residual" version is reported beside it.
 
 ## Limitations
 

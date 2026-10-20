@@ -375,11 +375,16 @@ Welfare compute_welfare(const std::vector<Agent>& pop,
         }
         const Agent& m = pop[static_cast<std::size_t>(prop_rows[static_cast<std::size_t>(pi)])];
         const Agent& f = pop[static_cast<std::size_t>(acc_rows[static_cast<std::size_t>(ai)])];
-        w.proposer += m.utility_toward(f, p, stats);
-        w.acceptor += f.utility_toward(m, p, stats);
+        const double u_m = m.utility_toward(f, p, stats);
+        const double u_f = f.utility_toward(m, p, stats);
+        w.proposer += u_m;
+        w.acceptor += u_f;
+        w.value_proposer += m.intent * u_m;
+        w.value_acceptor += f.intent * u_f;
         ++w.n_pairs;
     }
     w.total = w.proposer + w.acceptor;
+    w.value_created = w.value_proposer + w.value_acceptor;
     return w;
 }
 

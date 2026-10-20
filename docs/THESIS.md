@@ -115,7 +115,7 @@ epoch, over the whole population `N`:
 
     W = Σ_{matched pairs (i,j)} [ τ_i·V_ij + τ_j·V_ji ]              (value created)
         − Σ_{proposals} c                                            (signalling cost spent)
-        − Σ_{dissolved matches} [ (1−τ_defector)·L_partner ]          (defection loss)
+        − Σ_{dissolved matches} [ (1−τ_defector)·L_partner + d ]      (defection loss)
 
 **The comparability rule.** Environment B is a subgraph of the same population: agents excluded by
 its entry filter are not deleted, and agents who fail to match in B are not dropped. Every agent
@@ -168,11 +168,18 @@ shared population and seed; already measured at 0.939 vs 0.664.
 `N_sub` above a critical size and falls below it for small `N_sub`, at fixed `c`.
 *Killed if:* the ordering is monotone in `N_sub` — either B always wins (the thin-market penalty
 is not doing work) or always loses (the information gain is not doing work).
+*Measured (THEORY.md §10.5):* survives at `c_B = 0.01` against an oracle A, with the optimum at
+size_fraction 0.65 (+64.6 ± 9.9 over five seeds, residual accounting). Killed on the
+`c_B ≥ 0.05` slice, where B always loses, and against an NCF-mediated A, where B always wins. The
+curve's right-hand slope comes from top-k truncation, not from the thin-market penalty.
 
 **H5 — Exogenous drift and algorithmic mediation are separable.** The interaction term is
 estimated, not assumed, and is reported whatever its sign.
 *Killed if:* the interaction cannot be estimated because the factorial cells are not comparable —
 which would itself be a finding about the model.
+*Measured (THEORY.md §10.6):* the cells are comparable (asserted per seed), so H5 survives, and the
+interaction is +16.7 ± 40.4 (standard error 18.1, three of five seeds negative): indistinguishable
+from zero, as this section anticipated.
 
 **H6 — High-intent agents exit the global market first.** Attrition in Environment A is negatively
 correlated with `τ`.
@@ -190,6 +197,13 @@ Stated here so that no downstream section has to hedge:
   reader who wants the feedback story will not get it here, and the README says so.
 - **No claim that one institution is ethically superior.** Environment B carries an entry filter
   that excludes agents; that is a cost, and the model prices it rather than endorsing it.
+- **The defection penalty deters nothing.** `d` is charged to a defector's welfare after a match
+  dissolves. No agent proposes differently, sets a different threshold, or stays in a match longer
+  because of it: survival depends on intent and alignment only, and the proposal decision does not
+  read `d`. So B's penalty lowers B's welfare when defection happens and never prevents defection.
+  The proposal's "social penalty for casual defection" is modelled as a cost, not as a deterrent.
+  Making it deter would mean feeding `d` into the proposal decision, so that an agent likely to
+  defect stops proposing — a different model, and one whose H4 result has not been measured.
 
 ## Structure of the work
 

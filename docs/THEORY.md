@@ -984,9 +984,9 @@ same function with $d = 0$ and no penalty term. The survival draw is a hash of
 $(\text{seed}, \text{epoch}, \min(i,j), \max(i,j))$, so it is reproducible, independent of
 iteration order, and symmetric in the pair. The defector of a dissolved pair is the lower-intent
 member (ties to the lower row id); §10.3 does not say who defects, so that is a stated modeling
-choice. `resolve_defection` is implemented and tested, but **it is not yet wired into the
-orchestrator's welfare columns**: the metrics frame reports clearance, not $W$ net of defection
-loss, so no `welfare_common` number exists yet.
+choice. `resolve_defection` is wired into the welfare columns through
+`comparison.agent_payoffs`: both environments draw survival every epoch, and B alone charges $d$
+(§10.4).
 
 ### 10.4 Welfare accounting, and the comparability rule
 
@@ -1015,6 +1015,57 @@ $$W_{\text{selection artifact}} \;=\; W_{\text{selected}} - W_{\text{common}} \;
 
 is itself a diagnostic. If it is large, Environment B's apparent advantage is mostly the agents it
 declined to serve.
+
+#### As implemented, and three corrections to the statement above
+
+`compute_welfare` returns the three terms separately (`value_created`, `signal_cost`,
+`defection_loss`) and their total `welfare_total`; INTERFACES.md §2.2. The accountings are built in
+`src/python/comparison.py` from one per-agent payoff vector, $\tau_i V_{i,\mu(i)}$ minus the
+agent's proposal spend minus whatever defection cost lands on them, whose sum is `welfare_total`.
+
+**1. $W$ equals the pre-§10.4 welfare only at $\tau \equiv 1$.** §10.7 said the per-match welfare
+is unchanged at $c = 0$, $d = 0$. That is true of the column `welfare` (and so of `welfare_alg`,
+`welfare_full` and every §7 number), which is still the unweighted $\sum U_{ij} + U_{ji}$. It is not
+true of $W$, whose value term is weighted by intent: at Beta(2, 2) intent, `value_created` is 0.516 ×
+`welfare` at seed 42 and 0.530 × at seed 43 (oracle arm, epoch 0). The identity that does hold, and
+is asserted bit for bit against values recorded before the change, is $W = $ `welfare` when every
+$\tau_i = 1$, $c = 0$ and nothing dissolves. With the shipped survival parameters something always
+dissolves, so even in A at $c = 0$, `welfare_total` carries a defection term (about 50–60 at
+N = 1000).
+
+**2. `welfare_selected` $\geq$ `welfare_common` is not a property of the design.** To be
+comparable, `welfare_selected` is reported as the per-entrant mean scaled to $N$ (a raw sum over
+fewer agents would be smaller for a trivial reason). The artifact is then
+$N(\bar w_{\text{entrants}} - \bar w_{\text{all}})$, which is positive only if entrants do better
+than the population under the common rule. Two things make them do worse: $c_B$, which every
+entrant pays per proposal and recovers at most once, and thinness, when the filter leaves B too
+small to match its own entrants. Measured at seed 42, N = 1000: the artifact is $-1308$ at
+size_fraction 0.5, $c_B = 0.25$, and $-804$ at size_fraction 0.25, $c_B \approx 0$, $g_{\min} = 0.8$.
+It is also not monotone in $g_{\min}$: at size_fraction 0.5 and $c_B \approx 0$ it runs
+11.5, 105.7, 241.8, 188.6, $-106.5$ at $g_{\min}$ = 0, 0.2, 0.4, 0.6, 0.8 — rising while the filter
+removes low-alignment agents and falling once B is thin. `tests/python/test_comparison.py` asserts
+the identity, the region where the sign holds, and these counterexamples. A negative artifact is
+still a warning: it means the entrant-only number *understates* B, and quoting it would be wrong in
+the other direction.
+
+**3. The literal rule double-books, so `welfare_common` is an upper bound for B.** An agent B does
+not match is scored at their full-A outcome. In full A that agent's partner may be someone B *did*
+match, and the rule then counts both: one at a B match, the other at an A match to a partner who is
+not available. At seed 42, $c_B = 0.01$, between 9 and 44 such agents per configuration. The
+feasible version, `welfare_common_residual`, re-runs A's matching with B's matched agents struck
+from every list and scores the agents B left behind there. Both are reported, and the residual one
+is the conservative headline.
+
+They usually bracket the comparison but are not guaranteed to. Striking B's matched agents removes
+competitors as well as partners, so A's re-run can match a left-behind agent *better* than full A
+did. Across the 200 grid cells the residual difference exceeds the literal one in exactly one
+($c_B = 0.25$, size_fraction 0.05, seed 45: −8.5 against −13.0), by 4.5 where the two typically
+differ by 13 at that size. So the residual figure is the feasible accounting, not a strict lower
+bound, and should be called conservative rather than a bound.
+
+An unmatched entrant is scored at their A outcome **minus what they spent proposing in B**. §10.4
+does not say this, but leaving it out would make a failed proposal in B free, and failed proposals
+are the thin-market penalty the comparison is meant to price.
 
 ### 10.5 The thin-market penalty
 
@@ -1070,6 +1121,73 @@ k = 20, 0.622 at k = 60). So the interior optimum H4 predicts exists in B's clea
 right-hand slope is set by $k$ and the proposal structure rather than by the two effects H4 names.
 That is a result about this model's truncation, not support for H4 as stated, and it should not be
 quoted as such.
+
+#### H4 measured on welfare_common
+
+`scripts/run_institutional.py`, N = 1000, seeds 42–46, $g_{\min} = 0.3$, each cell a paired A/B run
+of 5 epochs (the matching is static under both arms at these settings, so the epochs differ only in
+the defection draw). **A is the oracle arm**: the comparison is then between two institutions with
+nothing estimated, and B's advantage is not inflated by the NCF's estimation error. Mean ± sd over
+seeds of $W_B - W_A$, with $W_A$ = 973.7 ± 78.5 throughout:
+
+| size_fraction | $\lvert B\rvert$ | literal, $c_B$ = 0.01 | residual, $c_B$ = 0.01 | residual, $c_B$ = 0.05 | residual, $c_B$ = 0.25 |
+|---|---|---|---|---|---|
+| 0.02 | 15 | +3.9 ± 3.5 | +0.7 ± 5.7 | +0.2 ± 5.8 | −1.7 ± 5.7 |
+| 0.05 | 39 | −0.1 ± 4.2 | −10.8 ± 4.6 | −13.9 ± 4.5 | −24.2 ± 9.1 |
+| 0.10 | 74 | +13.7 ± 11.4 | −9.4 ± 15.9 | −21.7 ± 16.0 | −69.1 ± 11.2 |
+| 0.15 | 115 | +31.7 ± 23.6 | −9.1 ± 25.4 | −40.3 ± 26.7 | −175.7 ± 34.7 |
+| 0.25 | 198 | +91.4 ± 42.8 | +24.6 ± 51.0 | −51.1 ± 52.3 | −392.1 ± 52.4 |
+| 0.35 | 275 | +101.5 ± 42.5 | +5.4 ± 52.0 | −104.1 ± 55.4 | −612.8 ± 73.5 |
+| 0.50 | 389 | +148.6 ± 37.8 | +58.5 ± 36.7 | −96.9 ± 38.8 | −837.1 ± 57.6 |
+| 0.65 | 512 | **+166.3 ± 15.9** | **+64.6 ± 9.9** | −140.1 ± 12.3 | −1124.5 ± 28.1 |
+| 0.80 | 634 | +137.8 ± 33.4 | +36.7 ± 47.2 | −216.5 ± 46.9 | −1446.9 ± 54.0 |
+| 1.00 | 790 | +63.5 ± 29.8 | −4.4 ± 43.9 | −320.0 ± 43.4 | −1861.4 ± 40.2 |
+
+"Literal" is §10.4's rule as written; "residual" re-runs A without B's matched agents (§10.4,
+correction 3). The full grid, including $c_B = 0.1$, gini and clearance per cell, is in
+`data/processed/institutional/grid_summary.csv`.
+
+**What this says about H4.** At $c_B = 0.01$ the ordering is not monotone in size: B loses or ties
+below size_fraction ≈ 0.2, wins in the middle, and the advantage shrinks toward the right edge.
+The measured optimum is **size_fraction 0.65 ($|B| \approx 512$)** under both accountings, and it is
+the only cell where the residual difference is positive at all five seeds with a spread smaller than
+its mean (+64.6 ± 9.9; per seed +54.6 to +78.5). The residual curve's left side is negative at all
+five seeds at size_fraction 0.05 (−18 to −6), so a crossing exists. By H4's own kill condition — an
+ordering monotone in $N_{\text{sub}}$ — H4 survives at $c_B = 0.01$.
+
+Three qualifications, each of which changes how it may be quoted:
+
+- **It is cost-dependent.** At $c_B \geq 0.05$ the residual difference is negative at every size
+  above 0.02 and falls monotonically in size, which is H4's kill condition on that slice: B always
+  loses to an oracle A. The cost is charged per proposal, every entrant proposes to up to $k$
+  candidates and is matched at most once, so the signalling bill grows linearly in $|B|$ while
+  matches grow more slowly. The interior optimum exists only where c_B is small against the value of
+  a match.
+- **Its right-hand slope is the truncation effect of the clearance table above, not H4's
+  thin-market mechanism.** B's clearance over its own entrants peaks at 0.61 at size_fraction 0.25
+  and falls to 0.39 at 0.65 and 0.31 at 1.0 as the top-20 lists concentrate, and that is what bends
+  the welfare curve down. (Gini over the whole population is not comparable across sizes here: B
+  gives every excluded agent zero exposure, so its Gini runs 0.99 at size_fraction 0.02 down to 0.72
+  at 1.0, against A's 0.65.) The left-hand slope *is* the
+  thin-market penalty. So the optimum is real in this model, but only one of its two sides is caused
+  by what H4 names.
+- **It depends on which A.** Against an NCF-mediated A (seed 42, epochs 30–39, so the NCF has
+  trained), $W_A$ is 234.0 rather than ~1078, and B wins at every size at $c_B = 0.05$: residual
+  differences +39.8, +264.5, +347.6 at size_fraction 0.1, 0.5, 1.0, monotone increasing. Against that
+  A the ordering is monotone, the other half of H4's kill condition. The oracle A is the comparison
+  between institutions; the NCF A folds the recommender's estimation error (H3) into A's side.
+  Neither is reported without the other.
+
+**values_min, as a separate axis.** Size_fraction 0.5, $c_B = 0.01$, same seeds
+(`values_min_summary.csv`). A stricter filter shrinks B in count and raises its alignment, and the
+net effect on welfare_common is monotone down: the residual difference is +91.7 ± 20.4 at
+$g_{\min} = 0$, +58.5 ± 36.7 at 0.3, +7.4 ± 25.7 at 0.5 and −11.5 ± 15.6 at 0.7. The selection
+artifact over the same axis rises from −31.2 ± 52.4 to +192.5 ± 56.8 at 0.5 and falls back to
++74.8 ± 198.3 at 0.7. That pair is the warning of §10.4 in one line: tightening the filter makes
+B's *entrants* look better and makes the *population* worse off. Because $g_{\min}$ moves $|B|$
+(500 → 94 across this axis), its effect is partly a size effect, and the size grid above is run at
+fixed $g_{\min} = 0.3$ for that reason; how the size optimum moves with $g_{\min}$ is not measured
+here.
 
 **Measured against analytic acceptability.** At θ as the bar the two agree within 0.03 everywhere
 (worst gap 0.021 at size_fraction 0.01). That check is nearly vacuous: θ is calibrated at the 0.8
@@ -1132,11 +1250,52 @@ enter through separate channels — drift moves traits, the NCF moves visibility
 whatever its sign is the difference between a measurement and a story. **A decomposition that can
 only report amplification has assumed its own conclusion.**
 
+#### Measured
+
+`src/python/factorial.py`, driven by `scripts/run_institutional.py --only factorial`. N = 1000,
+seeds 42–46, 40 epochs per cell, $W$ = `welfare_total` averaged over epochs 30–39.
+"Drift on" is $\gamma = 0.02$ population status-sd per epoch applied to W's raw status from epoch
+1, so by epoch 39 her status has moved 0.78 sd. "Mediation off" is the **oracle** arm, not an
+unranked market: same $k$, same θ gate, same deferred acceptance, so the switch changes only
+whether the ranking is estimated. The terms are formed per seed and summarised; the four cells at a
+seed are asserted to start from one population (the only assertion the decomposition makes).
+
+| | mean | sd | min | max |
+|---|---|---|---|---|
+| $W_1$ baseline | 974.1 | 78.5 | 907.9 | 1078.2 |
+| $W_2$ drift only | 953.0 | 54.0 | 909.0 | 1029.7 |
+| $W_3$ NCF only | 256.5 | 20.4 | 234.0 | 289.4 |
+| $W_4$ both | 252.1 | 12.1 | 234.9 | 261.7 |
+| $\Delta W_{\text{exog}}$ | −21.1 | 25.3 | −48.6 | +5.2 |
+| $\Delta W_{\text{alg}}$ | −717.6 | 92.6 | −844.2 | −646.5 |
+| $\Delta W_{\text{interaction}}$ | **+16.7** | **40.4** | −17.0 | +74.2 |
+
+**The interaction is indistinguishable from zero.** Its mean is +16.7 with a standard error of 18.1
+over five seeds ($t = 0.93$); three of the five seeds are negative and two positive (+74.2, +43.0,
+−0.4, −17.0, −16.4 at seeds 42–46). Its magnitude is 2.3% of the algorithmic term. A positive sign
+here would mean that drift hurts the NCF market *less* than the oracle market, which is the opposite
+of amplification, and the data do not support even that.
+
+This is the result §10.6 said in advance was likely, and THESIS.md H5 was stated so that it would
+count as a result: **the interaction may be zero, and in this model it is.** Drift moves traits and
+the NCF moves visibility; the two channels are separate by construction, and the measurement agrees
+with the construction. The model therefore offers no support for "the algorithm amplifies the
+demographic shift." It would be wrong to report the +16.7 as a small amplification or a small
+dampening — its sign is not determined by these seeds.
+
+Two caveats on scope. The exogenous term is itself small and of uncertain sign at this $\gamma$
+(−21.1 ± 25.3); a larger drift would separate it from zero sooner than it would the interaction,
+but it was not tuned to do so. And the algorithmic term is large because the NCF's market clears
+far less than the oracle's (mcr ≈ 0.10 against 0.27 over the window), which is H3's
+estimation-error concentration seen through welfare.
+
 ### 10.7 What §10 does not change
 
 - `utility_toward` is untouched. Intent, values and community never enter it.
-- `compute_welfare` gains terms, but the existing per-match welfare is unchanged when $c = 0$ and
-  $d = 0$, which is the default.
+- `compute_welfare` gains terms, but the existing `welfare` key is unchanged at every setting. The
+  §10.4 total `welfare_total` weights value by intent, so it equals `welfare` only when every
+  $\tau_i = 1$, $c = 0$ and nothing dissolves — not at $c = 0, d = 0$ alone, as an earlier version of
+  this line said (§10.4, correction 1).
 - The four ablation arms of §7.7 keep their definitions and their measured values.
 - Every number in §7 and §9 was produced under Environment A and stays valid as such. They are
   A-side results, and the README must say so rather than presenting them as general.

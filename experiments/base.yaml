@@ -120,6 +120,10 @@ simulation:
   bayesian_eta: 0.1
   n_generations: 5
   turnover_fraction: 0.2   # bottom fraction replaced each generation
+  # Exogenous drift of W's status, THEORY.md §10.6: s_w(t) = s_w(0) + gamma*t, gamma in
+  # epoch-0 population status sd per epoch, applied from epoch 1. 0.0 is the no-drift cell;
+  # scripts/run_institutional.py switches it on (--gamma, default 0.02) for the factorial.
+  status_drift: 0.0
 
 output:
   dir: data/processed/

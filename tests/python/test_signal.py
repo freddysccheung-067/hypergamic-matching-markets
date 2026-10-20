@@ -148,6 +148,10 @@ _COLUMNS_EXPECTED = [
     "welfare_alg", "welfare_full", "algorithmic_loss", "n_matched", "n_blocking",
     "pareto_alpha", "mean_swipes_per_agent", "arm", "reach", "top1_share",
     "mean_proposal_intent", "separating_threshold", "proposal_cost_total",
+    # Session 5-E, appended (THEORY.md §10.4). They do not enter the values pinned
+    # below, so the c = 0 identity this test exists for is untouched by them.
+    "value_created", "defection_loss", "welfare_total",
+    "welfare_common", "welfare_selected", "welfare_selection_artifact",
 ]
 
 

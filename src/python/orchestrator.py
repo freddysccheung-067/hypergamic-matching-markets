@@ -35,7 +35,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.python.config import SimConfig
+from src.python.comparison import EpochOutcome, agent_payoffs
+from src.python.config import EnvironmentBConfig, SimConfig
 from src.python.metrics import (
     algorithmic_loss,
     blocking_pair_ratio,
@@ -124,6 +125,18 @@ COLUMNS = [
     "mean_proposal_intent",
     "separating_threshold",
     "proposal_cost_total",
+    # Session 5-E (THEORY.md §10.4). W's value term, its defection term and its
+    # total; the signal-cost term is proposal_cost_total above, not repeated. All
+    # three come from compute_welfare and are cross-checked against the per-agent
+    # payoff vector the cross-environment accounting reads. The paired columns are
+    # NaN on a row from a lone run: welfare_common needs an A outcome for every
+    # agent B did not match, and only src/python/comparison.py's paired_run has one.
+    "value_created",
+    "defection_loss",
+    "welfare_total",
+    "welfare_common",
+    "welfare_selected",
+    "welfare_selection_artifact",
 ]
 
 # The four ablation arms of docs/SPRINT_PROMPTS.md Session 3-C. Only the rule
@@ -138,6 +151,13 @@ ABLATION_ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle")
 # INTERFACES.md §4: the full-information benchmark is O(N²) in memory, about
 # 100 MB per side at N=5000.
 FULL_INFO_MAX_N = 5000
+
+# Survival parameters for a config with no environment_b block: sigma = 1 for every
+# pair, so nothing dissolves and the defection term is exactly zero. The same
+# agent_payoffs call then serves both cases rather than a second code path.
+_NO_DEFECTION = EnvironmentBConfig(size_fraction=1.0, values_min=0.0, signal_cost=0.0,
+                                   defection_penalty=0.0, sigma_0=1.0, sigma_alpha=0.0,
+                                   sigma_beta=0.0, partner_loss=0.0)
 
 
 class Simulation:
@@ -267,6 +287,25 @@ class Simulation:
         self.record_states = False
         self.states_seen: list[np.ndarray] = []
 
+        # Per-epoch EpochOutcome (src/python/comparison.py), recorded only when
+        # asked for. A paired A/B comparison reads these rather than the frame,
+        # because the comparability rule is per agent and the frame is per epoch.
+        self.record_outcomes = False
+        self.outcomes: list[EpochOutcome] = []
+
+        # Exogenous status drift (THEORY.md §10.6), in raw status units per epoch:
+        # the configured gamma is in epoch-0 population sd, converted once here so
+        # the step does not change as the drift itself moves the sd.
+        self._status_step = (float(self.config.simulation.status_drift)
+                             * float(np.std(self.states[:, 2], ddof=1)))
+
+        # Survival parameters for defection. Both environments run the same
+        # formula (THEORY.md §10.3); A differs only in d = 0. Without an
+        # environment_b block there are no survival parameters at all, so no
+        # dissolution is drawn and the defection term is zero — stated, not
+        # silently defaulted.
+        self._env = self.config.environment_b
+
     # ------------------------------------------------------------------ setup
 
     def _log_noise_ratio(self) -> None:
@@ -333,6 +372,21 @@ class Simulation:
                                                    self.config_dict)["welfare"])
         self._benchmark_ready = True
         return True
+
+    def _refresh_after_drift(self) -> None:
+        """Rebuild everything computed from traits once, now that a trait moved.
+
+        Three caches assume traits are fixed: the full-information benchmark, B's
+        utility table, and nothing else. Both are rebuilt rather than kept, because
+        a stale benchmark would report algorithmic_loss against a market that no
+        longer exists, and a stale table would rank B's candidates on epoch-0
+        status. Each costs well under a second at N = 1000.
+        """
+        self._benchmark_ready = False
+        self._full_prefs = None
+        self._ensure_benchmark()
+        if self._utility_table is not None:
+            self._utility_table = utility_table(self.states, self.config_dict)
 
     # -------------------------------------------------------------- one epoch
 
@@ -706,6 +760,7 @@ class Simulation:
         rows: list[dict[str, Any]] = []
         series: list[np.ndarray] = []
         self.states_seen = []
+        self.outcomes = []
         prev_prefs: tuple[list[list[int]], list[list[int]]] | None = None
 
         # p for each proposing side, from the previous epoch's log. None means "no
@@ -717,6 +772,18 @@ class Simulation:
         v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
 
         for epoch in range(n_epochs):
+            # Exogenous drift (THEORY.md §10.6), applied before anything reads the
+            # states so the epoch sees s_w(t) = s_w(0) + gamma*t. Epoch 0 is never
+            # shifted, which is what lets the four factorial cells assert one shared
+            # population at their first epoch. Traits are re-standardized from the
+            # states on every C++ call, so moving W's raw status moves her
+            # standardized status *and* the population mean the cutoff is read
+            # against — the compositional channel, with no algorithm involved.
+            if self._status_step != 0.0 and epoch > 0:
+                self.states[self.acc_rows, 2] += self._status_step
+                self._refresh_after_drift()
+                v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
+
             # Recorded before anything touches the states, so this is the matrix
             # the epoch's preference rule actually saw. All four arms must agree
             # at epoch 0; with freeze_theta they must agree at every epoch.
@@ -815,6 +882,49 @@ class Simulation:
 
             welfare_alg = float(compute_welfare(self.states, matches,
                                                 self.config_dict)["welfare"])
+
+            # ── §10.4 welfare, per agent and in total ─────────────────────────
+            # The matching is in dense index space; the payoff vector and the
+            # defection draw are in rows. Defection uses B's d only in B: A runs
+            # the same survival formula with d = 0 (THEORY.md §10.3).
+            pair_rows = np.stack([self.prop_rows[matches[:, 0]],
+                                  self.acc_rows[matches[:, 1]]], axis=1) \
+                if n_matched else np.zeros((0, 2), dtype=np.int64)
+            if self._env is not None:
+                penalty = float(self._env.defection_penalty) if is_complete else 0.0
+                env = self._env
+            else:
+                penalty, env = 0.0, _NO_DEFECTION
+            payoff, defection = agent_payoffs(
+                self.states, self.config_dict, pair_rows, proposals, cost,
+                env, penalty, self.rng_seed, epoch,
+            )
+            loss = defection.loss
+            w10 = compute_welfare(self.states, matches, self.config_dict,
+                                  cost, n_proposals, loss)
+            # The vector and the C++ sum are two routes to one number; they may
+            # differ in summation order and nothing else.
+            if not np.isclose(payoff.sum(), w10["welfare_total"], rtol=1e-12, atol=1e-9):
+                raise RuntimeError(
+                    f"epoch {epoch}: per-agent payoff sums to {payoff.sum()!r} but "
+                    f"compute_welfare reports {w10['welfare_total']!r}"
+                )
+            if self.record_outcomes:
+                matched_mask = np.zeros(self.n, dtype=bool)
+                matched_mask[pair_rows.ravel()] = True
+                entrant = np.ones(self.n, dtype=bool)
+                if is_complete:
+                    assert self.subgraph is not None
+                    entrant[:] = False
+                    entrant[self.subgraph.rows_m] = True
+                    entrant[self.subgraph.rows_w] = True
+                self.outcomes.append(EpochOutcome(
+                    states=self.states.copy(), payoff=payoff, matched=matched_mask,
+                    entrant=entrant, seed=self.rng_seed, epoch=epoch,
+                    prop_prefs=prop_prefs, acc_prefs=acc_prefs,
+                    proposals=np.asarray(proposals, dtype=np.int64).reshape(-1, 2),
+                    cost=cost, pairs=pair_rows.astype(np.int64),
+                ))
 
             # BPR must be judged against the *true* ordering. The DA return's own
             # n_blocking is measured against the truncated lists it was given, and
@@ -916,6 +1026,14 @@ class Simulation:
                 "mean_proposal_intent": mpi,
                 "separating_threshold": tau_star,
                 "proposal_cost_total": proposal_cost_total(cost, n_proposals),
+                "value_created": float(w10["value_created"]),
+                "defection_loss": float(w10["defection_loss"]),
+                "welfare_total": float(w10["welfare_total"]),
+                # Filled in by comparison.paired_run, which is the only caller that
+                # holds the A outcome every unmatched B agent is scored at.
+                "welfare_common": float("nan"),
+                "welfare_selected": float("nan"),
+                "welfare_selection_artifact": float("nan"),
             })
 
             # θ ← θ + η·(matches/proposals − θ), in place on states[:, 6].

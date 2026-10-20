@@ -153,7 +153,8 @@ deferred_acceptance(prop_prefs: list[list[int]],
                     acc_prefs: list[list[int]],
                     truncated: bool) -> dict
 
-compute_welfare(states, matches: np.ndarray[int32, (P, 2)], config: dict) -> dict
+compute_welfare(states, matches: np.ndarray[int32, (P, 2)], config: dict,
+                signal_cost=0.0, n_proposals=0, defection_loss=0.0) -> dict   # §2.2
 
 utility_sd(states, config: dict) -> float
 #   Standard deviation of the *noise-free* utility over a deterministic sample of
@@ -193,13 +194,37 @@ be every attempt. Length is `n_prop + n_acc`; see §2.3 for the index space.
 ### 2.2 `compute_welfare` return
 
 ```python
+compute_welfare(states, matches, config,
+                signal_cost: float = 0.0, n_proposals: int = 0,
+                defection_loss: float = 0.0) -> dict
 {
   "welfare":           float,  # Σ over matched pairs of U_prop(acc) + U_acc(prop)
   "welfare_proposer":  float,
   "welfare_acceptor":  float,
   "n_pairs":           int,
+  # THEORY.md §10.4, appended in Session 5-E:
+  "value_created":     float,  # Σ τ_prop·U_prop(acc) + τ_acc·U_acc(prop)
+  "value_proposer":    float,
+  "value_acceptor":    float,
+  "signal_cost":       float,  # signal_cost * n_proposals
+  "defection_loss":    float,  # passed through; resolved by environment_b.resolve_defection
+  "welfare_total":     float,  # value_created - signal_cost - defection_loss
 }
 ```
+
+`welfare` is unchanged by §10.4 and is still what `welfare_alg`, `welfare_full` and
+`algorithmic_loss` are computed from, so every A-side number in THEORY.md §7 stands.
+`welfare_total` is the §10.4 W. The two agree exactly — bit for bit, asserted in
+`tests/python/test_comparison.py` against values recorded before the change — when every
+intent is 1, c = 0 and nothing dissolves. **At the shipped intent they do not**:
+Beta(2, 2) intent has mean 0.515, so `value_created` is about 0.52 × `welfare` (0.516 at
+seed 42, 0.530 at seed 43, oracle arm, epoch 0). §10.7 said the per-match welfare is
+unchanged at c = 0 and d = 0; that holds for `welfare`, not for the τ-weighted term,
+and a reader comparing the two columns should expect the factor.
+
+The two cost terms are arguments rather than reads from `config` because neither is a
+function of the matching: the proposal count comes from the swipe log or the subgraph's
+lists, and the defection loss from a survival draw. Negative values are refused.
 
 Uses the same `alpha, beta, gamma, delta, lambda` from `config["hypergamy"]` as `generate_swipes`. If the two disagree, every welfare number in the project is meaningless — this is the single most likely source of a silent bug.
 
@@ -303,6 +328,12 @@ states the correct version.
 | `mean_proposal_intent` | float | E[τ \| proposal]: mean `intent` (col 11) over the proposers of this epoch's label-1 rows; `NaN` for an arm with no swipe log |
 | `separating_threshold` | float | analytic τ* = c / (V̄·p) for this epoch, pooled across sides by proposal count; `inf` when a side's V̄ or p is non-positive |
 | `proposal_cost_total` | float | c × (number of label-1 rows): the signal-cost term of the welfare sum |
+| `value_created` | float | Σ over matched pairs of τ_i·V_ij + τ_j·V_ji, the value term of THEORY.md §10.4 |
+| `defection_loss` | float | Σ over dissolved matches of L·(1 − τ_defector) + d; d = 0 outside Environment B, and 0 when the config has no `environment_b` block (no survival parameters, so no dissolution is drawn) |
+| `welfare_total` | float | `value_created − proposal_cost_total − defection_loss`: W of §10.4 for this run's own market |
+| `welfare_common` | float | §10.4's comparability rule: B-matched agents at their B payoff, every other agent at the payoff of the paired A run, plus what unmatched B entrants spent proposing. Equals `welfare_total` on an A row. **NaN on a row from a lone `Simulation`**; filled by `comparison.paired_run` |
+| `welfare_selected` | float | entrants only, as the per-entrant mean × N so it is in the same units as `welfare_common`. Equals `welfare_total` on an A row; NaN on a lone run |
+| `welfare_selection_artifact` | float | `welfare_selected − welfare_common`. Exactly 0 on an A row. **Not sign-constrained**: see THEORY.md §10.4; NaN on a lone run |
 
 ## 7. Module layout
 
@@ -315,6 +346,9 @@ src/cpp/bindings.cpp         everything in §2
 src/python/ncf.py            GMF+MLP model, training, top-k
 src/python/orchestrator.py   Simulation class, one-epoch pipeline
 src/python/metrics.py        Gini, MCR, RSI, Δ, Pareto MLE
+src/python/environment_b.py  subgraph, complete-information lists, defection, thin-market curve
+src/python/comparison.py     per-agent §10.4 payoffs, welfare_common / welfare_selected, paired_run
+src/python/factorial.py      the four cells of THEORY.md §10.6
 src/python/visualization.py  plots
 ```
 

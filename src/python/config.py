@@ -13,6 +13,7 @@ themselves are plain and can be built directly in tests.
 
 from __future__ import annotations
 
+import math
 import pathlib
 from dataclasses import dataclass, field, fields
 from typing import Any
@@ -274,6 +275,11 @@ class SimulationConfig:
     bayesian_eta: float = 0.1
     n_generations: int = 5
     turnover_fraction: float = 0.2
+    # Exogenous drift of W's status (THEORY.md §10.6): s_w(t) = s_w(0) + gamma*t, with
+    # gamma in units of the epoch-0 population status sd per epoch so the knob means
+    # the same thing at any trait scale. 0.0 is the no-drift cell and leaves every
+    # pre-existing number untouched.
+    status_drift: float = 0.0
 
     def __post_init__(self) -> None:
         if self.delta_eta_out_of_range():
@@ -282,6 +288,8 @@ class SimulationConfig:
             )
         if self.n_generations < 1:
             raise ValueError(f"simulation.n_generations must be >= 1; got {self.n_generations}")
+        if not math.isfinite(self.status_drift):
+            raise ValueError(f"simulation.status_drift must be finite; got {self.status_drift}")
 
     def delta_eta_out_of_range(self) -> bool:
         return not 0.0 <= self.bayesian_eta <= 1.0
@@ -292,6 +300,7 @@ class SimulationConfig:
             "bayesian_eta": self.bayesian_eta,
             "n_generations": self.n_generations,
             "turnover_fraction": self.turnover_fraction,
+            "status_drift": self.status_drift,
         }
 
 

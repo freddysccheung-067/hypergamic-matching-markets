@@ -172,7 +172,13 @@ def test_welfare_matches_utility_arithmetic():
     da = h.deferred_acceptance(prop, acc, False)
     w = h.compute_welfare(states, da["matches"], cfg)
 
-    assert set(w) == {"welfare", "welfare_proposer", "welfare_acceptor", "n_pairs"}
+    # The four pre-§10.4 keys keep their names and meaning; Session 5-E appended
+    # six more (INTERFACES.md §2.2), which test_comparison.py checks term by term.
+    assert {"welfare", "welfare_proposer", "welfare_acceptor", "n_pairs"} <= set(w)
+    assert set(w) - {"welfare", "welfare_proposer", "welfare_acceptor", "n_pairs"} == {
+        "value_created", "value_proposer", "value_acceptor",
+        "signal_cost", "defection_loss", "welfare_total",
+    }
     assert w["n_pairs"] == len(da["matches"])
     assert w["welfare"] == pytest.approx(w["welfare_proposer"] + w["welfare_acceptor"])
 
