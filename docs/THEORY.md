@@ -807,6 +807,32 @@ agent has exactly zero intent. `values` from a Beta on $[0,1]$. `community` is a
 membership probability, not uniformly: a subgraph is defined by an entry filter (§10.3), and
 `community` marks agents who *would* pass it.
 
+**The shipped values.** All five parameters live in `experiments/base.yaml` and are validated on
+both sides of the boundary:
+
+| key | shipped | what it does |
+|---|---|---|
+| `population.intent_beta_a` | 2.0 | shape of $\tau$ |
+| `population.intent_beta_b` | 2.0 | shape of $\tau$ |
+| `population.values_beta_a` | 2.0 | shape of $g$ |
+| `population.values_beta_b` | 2.0 | shape of $g$ |
+| `population.community_prob` | 0.5 | share with $k_i = 1$ |
+
+Beta(2, 2) has mean 0.5 and standard deviation 0.224, so intent is two-sided and no cost is so
+small that it separates nothing — which is the property that makes $\tau^*(c)$ a curve rather
+than a step. The **measured** columns at seed 42, N = 1000, with the heterogeneity and chemistry
+knobs at their shipped settings: mean $\tau$ = 0.5153 (min 0.0227, max 0.9916), mean $g$ = 0.5043,
+and a community share of 0.515 — within binomial error of the 0.5 target. Changing any of the
+five moves only the three new columns: the four trait columns and the chemistry key are drawn from
+a separate engine stream (the implementation note in docs/INTERFACES.md §1) and are bit-identical
+at every setting of these knobs, which `tests/python/test_signal.py` asserts.
+
+None of the three enters `utility_toward`. That is the guard against the failure mode this section
+is most exposed to: putting $\tau$ or $c$ inside the utility would silently change every welfare
+number, because `compute_welfare` reads the same function. A separate test perturbs every intent
+value and asserts the pair utilities do not move by one bit; a second test asserts intent *does*
+change the proposal decision, so the first cannot pass vacuously.
+
 **Why intent must be a declared latent rather than inferred.** There is no instrument for it, in
 this model or in the world. The model's claim is conditional: *if* intent is distributed as
 specified, *then* the welfare consequences follow. §9.1 already makes the analogous point about
@@ -825,6 +851,65 @@ $\{i : \tau_i > c/(V_{ij}p)\}$, giving the separating threshold
 $$\tau^*(c) \;=\; \frac{c}{\bar V p}$$
 
 with $\bar V$ the expected compatibility over the candidate pool.
+
+**$\bar V$ is the mean over θ-admissible candidates, not over the whole market.** This is a
+measurement decision with a large effect. `utility_toward` is unbounded and many of its values are
+negative — the distance penalty and the absence of a bonus both push that way — so a
+whole-market mean is pulled toward zero by pairs the θ gate has already refused, and a cost
+compared against it would almost never bite. Measured at the shipped weights, seed 42, N = 1000:
+the admissible-pool mean is $\bar V_M = 4.43$ and $\bar V_W = 4.94$, against a whole-market mean
+near zero. The threshold is therefore computed against the pool a proposal is actually chosen from,
+and the binding constraint remains the per-pair test $\tau_i V_{ij} p > c$: the pool mean appears
+only in the reported $\tau^*$, never in the decision.
+
+**The shipped parameters and the measured thresholds.** `hypergamy.signal_cost` defaults to 0.0,
+which is the pooling regime and reproduces every pre-existing number bit for bit. The separating
+threshold at the H1 grid, seed 42, N = 1000, $p = 0.5$:
+
+| $c$ | $\tau^*_M$ | $\tau^*_W$ | $E[\tau \mid \text{proposal}]$ | proposals |
+|---|---|---|---|---|
+| 0.00 | 0.0000 | 0.0000 | 0.5153 | 20,000 |
+| 0.05 | 0.0226 | 0.0203 | 0.5153 | 20,000 |
+| 0.25 | 0.1130 | 0.1013 | 0.5209 | 19,762 |
+| 1.00 | 0.4519 | 0.4050 | 0.5797 | 16,605 |
+
+The first two rows are **identical**, and that is a property of the model rather than a defect:
+$\min(\tau_i V_{ij} p)$ over the admitted pairs at these weights is above 0.05, so a cost that
+small selects on nothing. A cost must be of the order of the utility it is compared against to do
+work, and the utilities here are of order 4. H1 is therefore stated as non-decreasing in $c$ with a
+strict increase over the whole grid, which this satisfies; the kill condition — a flat curve
+across all four settings — is not met. Asserting strict increase at every step would be asserting
+a property of the utility scale, not of the mechanism.
+
+The market closes at $c \geq \tau_{\max} \bar V p$. Measured over five seeds at N = 1000 with
+$p = 0.5$: $c_M \approx 2.07$ and $c_W \approx 2.47$ (per-side ranges 1.98–2.15 and 2.41–2.57).
+Above those the log contains no positive row and the clearing rate is zero. Measured on the log: at
+$c = 4$ it still holds 1,082 proposals, at $c = 8$ it holds 19. Through the orchestrator at $c = 40$
+every epoch reports `mcr = 0`, `proposal_cost_total = 0`, and a `separating_threshold` above 1 —
+a closed market, reported rather than hidden as a missing value.
+
+**$p$ is measured, not set.** The accept probability is the previous epoch's empirical rate, taken
+per side from the swipe log: of the positive swipes a side made, the share the other agent
+reciprocated. Epoch 0 has no history and uses $p = 0.5$ for both sides, which is the neutral prior
+rather than a claim about the market. A side that made no positive swipe in the previous epoch
+falls back to 0.5 too, for the same reason: "unmeasured" is not "impossible". A hard-coded $p$
+would make the cost non-responsive and the whole mechanism decorative, so the orchestrator
+recomputes it every epoch and writes it into the config the C++ decision reads.
+
+**The cost constrains the matching through the proposer, not through both sides.** A proposal costs
+the proposer $c$, so it is the proposer's own act: a recommender can rank the candidates in front
+of an agent but cannot spend on their behalf. At $c > 0$ the deferred-acceptance lists are
+restricted to the pairs the proposer actually proposed. Intersecting *both* sides' lists would
+require a mutual top-$k$ positive, which at $k = 20$ of 100 candidates thins the market by a factor
+of five before the cost bites — measured as `mcr` falling from 0.21 to 0.00 at $c = 0.5$, a fifth
+of the way to the cutoff. That is a mutual-consent market, a different experiment, and not this
+one. The acceptor's list stays whole: her willingness is what "accept" means in deferred
+acceptance, and the restriction is about who paid.
+
+A refused pair is **reported with label 0**, not omitted. The label records that the pair was
+considered and declined, which is information the NCF can learn from; a deleted row would be
+indistinguishable from a candidate the agent never saw. Those rows sit after the positives and
+before the sampled negatives within the agent's block.
 
 Three regimes, and they are the spine of the whole comparison:
 

@@ -40,11 +40,11 @@ def base_config(**overrides):
 
 # ── State matrix ─────────────────────────────────────────────────────────────
 
-def test_state_matrix_has_eleven_columns():
-    """Columns 7-10 are the heterogeneity block, appended after θ (INTERFACES §1)."""
+def test_state_matrix_has_fourteen_columns():
+    """Columns 7-10 are heterogeneity, 11-13 the institutional block (INTERFACES §1)."""
     cfg = base_config(population={"taste_sigma": 0.0})
     states = _hypergamic.sample_population(40, cfg, 1)
-    assert states.shape == (40, 11)
+    assert states.shape == (40, 14)
     assert states.dtype == np.float64
 
 
@@ -65,7 +65,7 @@ def test_flatten_is_identity_on_the_wider_matrix():
     cfg = base_config()
     states = _hypergamic.sample_population(20, cfg, 2)
     flat = _hypergamic.flatten_states(states)
-    assert flat.shape == (20, 11)
+    assert flat.shape == (20, 14)
     assert np.array_equal(flat, states)
 
 
@@ -73,9 +73,9 @@ def test_narrow_matrix_is_rejected():
     """The guard has to move with the layout, or every sampler output is refused."""
     cfg = base_config()
     states = _hypergamic.sample_population(10, cfg, 1)
-    with pytest.raises(ValueError, match=r"\(N, 11\)"):
+    with pytest.raises(ValueError, match=r"\(N, 14\)"):
         _hypergamic.generate_swipes(states[:, :7], cfg, 0)
-    with pytest.raises(ValueError, match=r"\(N, 11\)"):
+    with pytest.raises(ValueError, match=r"\(N, 14\)"):
         _hypergamic.utility_sd(states[:, :7], cfg)
 
 

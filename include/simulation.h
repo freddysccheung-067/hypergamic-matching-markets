@@ -45,12 +45,34 @@
 // Determinism: seeded per agent from its own id, never from a thread id or from
 // shared state, so the output is identical at any thread count — the exact
 // regression the thread-safety test is there to catch.
+//
+// `signal` is the proposal decision of THEORY.md §10.2: an admissible candidate in
+// the top k is reported as a positive only if  tau_i * V_ij * p > c.  The ones the
+// decision rejects are still reported, with label 0, so the training log records
+// the refusal rather than hiding it — a row that vanished would be indistinguishable
+// from a candidate the agent never saw.
+//
+// p is estimated PER SIDE, so this takes one SignalParams per proposing side,
+// indexed by AgentType (0 = M proposing, 1 = W proposing). The two sides face
+// different acceptance rates — a man's proposal is accepted at a different rate
+// than a woman's — and collapsing them into one number would make the reported
+// separating threshold wrong on one side by construction. A caller with no history
+// passes the same default for both, which is the epoch-0 rule (p = 0.5).
+//
+// At c <= 0 the decision is skipped entirely rather than evaluated. That is not an
+// optimization: tau * V * 0 = 0 > 0 is false for every negative-utility pair, so a
+// literal test would drop most of the admissible set and break the c = 0
+// pooling regime the whole comparison is anchored on. Pooling means every type
+// proposes, and that is what the skip implements.
+using SignalSide = std::array<SignalParams, 2>;
+
 std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent>& pop,
                                                          const UtilityParams& p,
                                                          const TraitStats& stats, int k,
                                                          std::uint64_t rng_seed,
                                                          std::uint64_t epoch = 0,
-                                                         int n_negatives = 4);
+                                                         int n_negatives = 4,
+                                                         const SignalSide& signal = {});
 
 // ── Ranked admissible sets ────────────────────────────────────────────────────
 // Every θ-admissible candidate of the other side, per agent, in descending

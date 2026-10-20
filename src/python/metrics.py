@@ -171,6 +171,56 @@ def algorithmic_loss(*, welfare_alg: float, welfare_full: float) -> float:
     return float((welfare_full - welfare_alg) / welfare_full)
 
 
+# ── Signalling (THEORY.md §10.2) ─────────────────────────────────────────────
+
+def mean_proposal_intent(intent: np.ndarray, proposer_ids: np.ndarray) -> float:
+    """E[τ | proposal] over the proposing side (THESIS.md H1, THEORY.md §10.2).
+
+    ``intent`` is the row-indexed intent column and ``proposer_ids`` the row id of
+    each reported proposal's proposer. The mean is over proposers, not over both
+    endpoints of the pair: H1 is a statement about the informational content of a
+    *received* proposal, and the type that moves with ``c`` is the one choosing to
+    spend the cost.
+
+    NaN when there are no proposals. That is not a zero — 0.0 would read as "the
+    proposers have no intent" when the truth is that nobody proposed, and telling
+    those two regimes apart is precisely what this metric is for.
+    """
+    ids = np.asarray(proposer_ids, dtype=np.int64).ravel()
+    if ids.size == 0:
+        return float("nan")
+    return float(np.mean(np.asarray(intent, dtype=np.float64).ravel()[ids]))
+
+
+def separating_threshold(cost: float, v_bar: float, accept_prob: float) -> float:
+    """τ*(c) = c / (V̄ · p), the analytic cut of THEORY.md §10.2.
+
+    ``v_bar`` must be the mean utility over the chooser's *admissible* candidates,
+    not over the whole market. ``utility_toward`` is unbounded and many of its
+    values are negative, so a whole-market mean is dragged toward zero or below by
+    pairs the θ gate already refused — and a cost compared against that mean would
+    almost never bite, which would make the mechanism decorative.
+
+    +inf when the denominator is non-positive (no admissible candidate, or p = 0):
+    every finite intent then falls below the cut and nothing is proposed. Infinity
+    rather than NaN so a caller can compare against it and get the right answer.
+    """
+    denom = float(v_bar) * float(accept_prob)
+    if denom <= 0.0:
+        return float("inf")
+    return float(cost) / denom
+
+
+def proposal_cost_total(cost: float, n_proposals: int) -> float:
+    """Σ_over proposals c — the signal-cost term of the welfare sum (§10.4).
+
+    A level, not a ratio: it is subtracted directly from W and must be on the same
+    utility scale as the value created. Zero when nothing was proposed, which is
+    the honest value rather than NaN — the cost genuinely was not spent.
+    """
+    return float(cost) * float(n_proposals)
+
+
 def pareto_alpha(cumulative_counts: np.ndarray) -> float:
     """Pareto tail index fitted to cumulative match counts (THEORY.md §8).
 

@@ -7,7 +7,7 @@ The C++ core and the Python layer are built in **separate Claude Code tabs that 
 Every agent lives in one contiguous array.
 
 ```
-states: np.float64, C-contiguous, shape (N, 11)
+states: np.float64, C-contiguous, shape (N, 14)
 ```
 
 | col | field | semantics |
@@ -23,12 +23,24 @@ states: np.float64, C-contiguous, shape (N, 11)
 | 8 | `taste_beta` | per-agent multiplier on β; same distribution |
 | 9 | `taste_gamma` | per-agent multiplier on γ; same distribution |
 | 10 | `key` | per-agent chemistry key: integer below 2^53, exact in float64 |
+| 11 | `intent` | τ, in `(0, 1]`; Beta(`intent_beta_a`, `intent_beta_b`), rescaled so no agent is exactly 0 |
+| 12 | `values` | g, in `[0, 1]`; Beta(`values_beta_a`, `values_beta_b`) |
+| 13 | `community` | k, exactly `0.0` or `1.0`; Bernoulli(`population.community_prob`) |
 
 Columns 7–10 were appended when preference heterogeneity was added (THEORY.md §2.3). They are
 trailing so every consumer that indexes 0–6 keeps working, and they are drawn by
 `sample_population`, not chosen by a caller: editing them means overriding the model. With
 `population.taste_sigma = 0` the three multipliers are exactly 1.0 and the utility is
 bit-identical to the pre-heterogeneity one.
+
+Columns 11–13 were appended in the same way for the institutional model (THEORY.md §10.1).
+None of the three enters `utility_toward`, so none changes any pre-existing number — they act
+only through the proposal decision (§2, `generate_swipes`) and, later, the Environment B entry
+filter. They are drawn from a **separate engine stream** from the traits and the preference
+heterogeneity columns, so the four trait columns and `key` are bit-identical at every setting of
+`intent_beta_*`, `values_beta_*` and `community_prob`. `intent` is strictly positive by
+construction: the comparison against a cost is a strict inequality, and an agent with exactly
+zero intent would be indistinguishable from an agent that never considered a proposal.
 
 `key` is re-drawn whenever an agent is re-sampled (generational turnover), which gives a
 replaced agent fresh chemistry without disturbing any other pair — every other pair is a
@@ -112,6 +124,25 @@ generate_swipes(states, config: dict, epoch: int) -> np.ndarray[int32, (S, 3)]
 #   of the global top-k). Negatives are drawn uniformly without replacement from
 #   every candidate not reported as a positive, admissible-but-not-selected ones
 #   included.
+#
+#   The proposal decision (THEORY.md §10.2). With c = config["hypergamy"]
+#   ["signal_cost"] > 0, a top-k candidate is reported as a positive only if
+#
+#       tau_user * utility_toward(user, candidate) * p_side > c
+#
+#   where p_side = config["signal"]["accept_prob_m" | "accept_prob_w"], keyed by
+#   the proposer's side. The candidates that fail are still reported, with label
+#   0, in the same agent's block after the positives and before the sampled
+#   negatives — the pair was considered and declined, so the log records the
+#   refusal rather than making it indistinguishable from a candidate never seen.
+#   They are not eligible to be sampled as negatives again.
+#
+#   c <= 0 skips the decision entirely, by design rather than by optimization: a
+#   literal test would reject every pair with a negative utility (0 > 0 is false)
+#   and break the c = 0 pooling regime. At c = 0 every admissible type proposes,
+#   which is the pooling equilibrium of §10.2, and the swipe log is bit-identical
+#   to the pre-signalling one. When neither key is present the defaults are c = 0
+#   and p = 0.5, so a config written before this session runs unchanged.
 
 build_full_info_pref_lists(states, config: dict)
     -> tuple[list[list[int]], list[list[int]]]
@@ -269,6 +300,9 @@ states the correct version.
 | `arm` | str | which ablation arm produced the row (Session 3-C): `ncf`, `random`, `popularity` or `oracle` |
 | `reach` | float | share of agents with non-zero exposure |
 | `top1_share` | float | share of exposure held by the top `ceil(0.01 N)` agents |
+| `mean_proposal_intent` | float | E[τ \| proposal]: mean `intent` (col 11) over the proposers of this epoch's label-1 rows; `NaN` for an arm with no swipe log |
+| `separating_threshold` | float | analytic τ* = c / (V̄·p) for this epoch, pooled across sides by proposal count; `inf` when a side's V̄ or p is non-positive |
+| `proposal_cost_total` | float | c × (number of label-1 rows): the signal-cost term of the welfare sum |
 
 ## 7. Module layout
 

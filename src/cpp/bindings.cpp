@@ -9,6 +9,8 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "agent.h"
@@ -64,6 +66,63 @@ UtilityParams params_from(const py::dict& config) {
     return p;
 }
 
+// The proposal-decision parameters (THEORY.md §10.2). c is read from the
+// hypergamy block; p is per side and comes from an optional "signal" block the
+// orchestrator fills with the previous epoch's empirical accept rate, one entry
+// per proposing side. Both are optional and default to c = 0, p = 0.5, which is
+// the "no signalling cost" behavior every config written before this session had
+// and the epoch-0 rule for p.
+//
+// Why p lives in its own block rather than in hypergamy: hypergamy's five weights
+// are pinned and required, and a knob that changes every epoch is not a model
+// parameter but a state variable. Keeping them apart means a config read by an
+// older tool still resolves every weight it knows.
+SignalSide signal_from(const py::dict& config) {
+    SignalSide sides;
+    double cost = 0.0;
+    if (config.contains("hypergamy")) {
+        const py::dict h = config["hypergamy"].cast<py::dict>();
+        if (h.contains("signal_cost")) {
+            cost = h["signal_cost"].cast<double>();
+            if (!(cost >= 0.0)) {
+                throw std::invalid_argument("hypergamy.signal_cost must be >= 0; got " +
+                                            std::to_string(cost));
+            }
+        }
+    }
+    for (SignalParams& s : sides) {
+        s.cost = cost;
+    }
+    if (config.contains("signal")) {
+        const py::dict sig = config["signal"].cast<py::dict>();
+        // accept_prob applies to both sides when given; the per-side keys override
+        // it. The single key exists so a hand-written config or a test can set one
+        // number without inventing a split it does not have information for.
+        if (sig.contains("accept_prob")) {
+            const double p_both = sig["accept_prob"].cast<double>();
+            if (!(p_both >= 0.0) || !(p_both <= 1.0)) {
+                throw std::invalid_argument("signal.accept_prob must be in [0, 1]; got " +
+                                            std::to_string(p_both));
+            }
+            sides[0].accept_prob = p_both;
+            sides[1].accept_prob = p_both;
+        }
+        for (const auto& [key, slot] :
+             {std::pair{"accept_prob_m", std::size_t{0}},
+              std::pair{"accept_prob_w", std::size_t{1}}}) {
+            if (sig.contains(key)) {
+                const double p = sig[key].cast<double>();
+                if (!(p >= 0.0) || !(p <= 1.0)) {
+                    throw std::invalid_argument(std::string("signal.") + key +
+                                                " must be in [0, 1]; got " + std::to_string(p));
+                }
+                sides[slot].accept_prob = p;
+            }
+        }
+    }
+    return sides;
+}
+
 TraitDist trait_from(const py::dict& d, const char* field) {
     if (!d.contains("dist") || !d.contains("mean") || !d.contains("std")) {
         throw std::invalid_argument(std::string("population.traits.") + field +
@@ -113,6 +172,35 @@ PopConfig pop_config_from(const py::dict& config) {
             throw std::invalid_argument("population.taste_sigma must be >= 0; got " +
                                         std::to_string(cfg.taste_sigma));
         }
+    }
+
+    // Institutional columns (THEORY.md §10.1). All optional and defaulted to the
+    // shipped values, so a config predating these keys samples exactly the traits
+    // it used to: these draws live on their own stream and touch no trait column.
+    auto get_opt = [&pop](const char* key, double& out) {
+        if (pop.contains(key)) {
+            out = pop[key].cast<double>();
+        }
+    };
+    get_opt("intent_beta_a", cfg.intent_beta_a);
+    get_opt("intent_beta_b", cfg.intent_beta_b);
+    get_opt("values_beta_a", cfg.values_beta_a);
+    get_opt("values_beta_b", cfg.values_beta_b);
+    get_opt("community_prob", cfg.community_prob);
+    // Shapes are validated again inside sample_population, which is the function
+    // that cannot run without them; this check just fails with a Python-level
+    // message naming the key rather than a std::invalid_argument from deep inside.
+    for (const auto& [a, b, name] :
+         {std::tuple{cfg.intent_beta_a, cfg.intent_beta_b, "intent_beta"},
+          std::tuple{cfg.values_beta_a, cfg.values_beta_b, "values_beta"}}) {
+        if (!(a > 0.0) || !(b > 0.0)) {
+            throw std::invalid_argument(std::string("population.") + name +
+                                        "_a and " + name + "_b must be > 0");
+        }
+    }
+    if (!(cfg.community_prob >= 0.0) || !(cfg.community_prob <= 1.0)) {
+        throw std::invalid_argument("population.community_prob must be in [0, 1]; got " +
+                                    std::to_string(cfg.community_prob));
     }
     return cfg;
 }
@@ -231,7 +319,8 @@ PYBIND11_MODULE(_hypergamic, m) {
             const TraitStats stats = compute_trait_stats(pop);
 
             const auto rows =
-                generate_swipes(pop, p, stats, k, base_seed, epoch, n_negatives);
+                generate_swipes(pop, p, stats, k, base_seed, epoch, n_negatives,
+                                signal_from(config));
 
             py::array_t<std::int32_t> out(
                 {static_cast<py::ssize_t>(rows.size()), py::ssize_t{3}});
@@ -534,6 +623,107 @@ PYBIND11_MODULE(_hypergamic, m) {
         "Standard deviation of the noise-free utility over a deterministic sample "
         "of at most 4000 ordered pairs. The orchestrator logs "
         "shock_scale * 1.8138 / utility_sd as the implied noise-to-signal ratio.");
+
+    m.def(
+        "utility_for_pairs",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           py::array_t<std::int32_t, py::array::c_style | py::array::forcecast> pairs,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            const auto pinfo = pairs.request();
+            if (pinfo.ndim != 2 || pinfo.shape[1] != 2) {
+                throw std::invalid_argument("pairs must be an int32 array of shape (P, 2)");
+            }
+            const auto* pdata = static_cast<const std::int32_t*>(pinfo.ptr);
+            const py::ssize_t np = pinfo.shape[0];
+
+            const UtilityParams p = params_from(config);
+            const TraitStats stats = compute_trait_stats(pop);
+
+            py::array_t<double> out(np);
+            double* o = out.mutable_data();
+            for (py::ssize_t i = 0; i < np; ++i) {
+                const std::int32_t u = pdata[2 * i + 0];
+                const std::int32_t v = pdata[2 * i + 1];
+                // A row id outside the matrix is a caller bug, and returning NaN
+                // would let it flow into a comparison silently (NaN compares false,
+                // so a refusual would look like a decision). Throw instead.
+                if (u < 0 || u >= n || v < 0 || v >= n) {
+                    throw std::invalid_argument("pairs contains a row id outside [0, N)");
+                }
+                o[i] = pop[static_cast<std::size_t>(u)].utility_toward(
+                    pop[static_cast<std::size_t>(v)], p, stats);
+            }
+            return out;
+        },
+        py::arg("states"), py::arg("pairs"), py::arg("config"),
+        "U_i(j) for each ordered pair of row ids, on the same standardized scale "
+        "generate_swipes uses. Callers apply the §10.2 proposal decision to a list "
+        "they already hold (the NCF shortlist) without rebuilding the whole "
+        "candidate market in Python.");
+
+    m.def(
+        "mean_admissible_utility",
+        [](py::array_t<double, py::array::c_style | py::array::forcecast> states,
+           const py::dict& config) {
+            const auto arr = require_states(states);
+            const auto info = arr.request();
+            const int n = static_cast<int>(info.shape[0]);
+            std::vector<Agent> pop =
+                unflatten_states(static_cast<const double*>(info.ptr), n);
+
+            const UtilityParams p = params_from(config);
+            const TraitStats stats = compute_trait_stats(pop);
+
+            // V̄ per chooser: the mean utility over candidates that clear the
+            // chooser's own θ, which is the pool a proposal decision is actually
+            // made against (THEORY.md §10.2). Deliberately not the whole market:
+            // utility_toward is unbounded and many of its values are negative, so
+            // a whole-market mean is pulled toward zero by pairs the gate already
+            // refused, and a cost compared against it would almost never bite.
+            //
+            // Returned as (mean, count) per row rather than a bare mean, so the
+            // caller can pool two sides by their pool sizes instead of averaging
+            // averages — a side whose agents have very different admissible-set
+            // sizes would otherwise be weighted wrongly.
+            py::array_t<double> means(static_cast<py::ssize_t>(n));
+            py::array_t<double> counts(static_cast<py::ssize_t>(n));
+            double* m_out = means.mutable_data();
+            double* c_out = counts.mutable_data();
+
+            for (int i = 0; i < n; ++i) {
+                const Agent& self = pop[static_cast<std::size_t>(i)];
+                double sum = 0.0;
+                std::size_t k = 0;
+                for (const Agent& cand : pop) {
+                    if (cand.type == self.type) {
+                        continue;
+                    }
+                    const double u = self.utility_toward(cand, p, stats);
+                    // Same gate and same NaN handling as generate_swipes: a NaN
+                    // utility is not admissible.
+                    if (u >= self.threshold) {
+                        sum += u;
+                        ++k;
+                    }
+                }
+                // NaN rather than 0.0 for an agent with no admissible candidate:
+                // its mean does not exist, and 0.0 would silently drag a side's
+                // pooled average toward a value no agent actually has.
+                m_out[i] = (k > 0) ? sum / static_cast<double>(k) : std::nan("");
+                c_out[i] = static_cast<double>(k);
+            }
+            return py::make_tuple(means, counts);
+        },
+        py::arg("states"), py::arg("config"),
+        "Per-agent (mean utility over θ-admissible candidates, admissible count). "
+        "Feed both to metrics.separating_threshold to get τ* = c / (V̄·p) per side "
+        "(THEORY.md §10.2).");
 
     m.def(
         "compute_welfare",

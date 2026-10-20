@@ -64,6 +64,19 @@ class PopulationConfig:
     # mean 1, so this is a coefficient of variation: 0 switches heterogeneity off
     # and every multiplier is exactly 1.0. No empirical anchor — a modeling knob.
     taste_sigma: float = 0.0
+    # ── Institutional state (THEORY.md §10.1) ────────────────────────────────
+    # Beta shapes for the intent and values columns. intent is rescaled to (0, 1]
+    # at sampling; values stays on [0, 1]. Symmetric (2, 2) is the shipped default:
+    # a two-sided population, which is what makes a separating threshold visible at
+    # all — with a = b -> inf every agent has the same intent and no cost separates
+    # anything.
+    intent_beta_a: float = 2.0
+    intent_beta_b: float = 2.0
+    values_beta_a: float = 2.0
+    values_beta_b: float = 2.0
+    # Share of agents eligible for the Environment B subgraph. A probability so the
+    # subgraph scales with N; the real entry filter is g_min (THEORY.md §10.3).
+    community_prob: float = 0.5
 
     def __post_init__(self) -> None:
         if self.n <= 0:
@@ -84,6 +97,14 @@ class PopulationConfig:
             )
         if self.taste_sigma < 0.0:
             raise ValueError(f"population.taste_sigma must be >= 0; got {self.taste_sigma}")
+        for name in ("intent_beta_a", "intent_beta_b", "values_beta_a", "values_beta_b"):
+            value = getattr(self, name)
+            if value <= 0.0:
+                raise ValueError(f"population.{name} must be > 0; got {value}")
+        if not 0.0 <= self.community_prob <= 1.0:
+            raise ValueError(
+                f"population.community_prob must be in [0, 1]; got {self.community_prob}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -92,6 +113,11 @@ class PopulationConfig:
             "admissible_fraction": self.admissible_fraction,
             "traits": {k: v.to_dict() for k, v in self.traits.items()},
             "taste_sigma": self.taste_sigma,
+            "intent_beta_a": self.intent_beta_a,
+            "intent_beta_b": self.intent_beta_b,
+            "values_beta_a": self.values_beta_a,
+            "values_beta_b": self.values_beta_b,
+            "community_prob": self.community_prob,
         }
         if self.init_threshold is not None:
             out["init_threshold"] = self.init_threshold
@@ -110,6 +136,12 @@ class HypergamyConfig:
     # construction so the implied noise-to-signal ratio stays visible across
     # retunes of alpha/beta. 0 switches the term off entirely.
     shock_scale: float = 0.0
+    # Signalling cost c (THEORY.md §10.2): what a proposal costs the proposer,
+    # spent rather than disliked. In utility units, so it is comparable to the
+    # utilities it is weighed against — but it never enters utility_toward, which
+    # is what keeps compute_welfare's numbers unchanged. 0.0 is the pooling regime
+    # and reproduces every pre-session result bit for bit.
+    signal_cost: float = 0.0
 
     def __post_init__(self) -> None:
         if self.delta < 0.0:
@@ -121,6 +153,11 @@ class HypergamyConfig:
             raise ValueError(f"hypergamy.gamma must be >= 0; got {self.gamma}")
         if self.shock_scale < 0.0:
             raise ValueError(f"hypergamy.shock_scale must be >= 0; got {self.shock_scale}")
+        if self.signal_cost < 0.0:
+            # A negative cost would pay agents to propose, which is not this model
+            # and would make the separating threshold negative — meaning every agent
+            # proposes and the "cost" is a subsidy.
+            raise ValueError(f"hypergamy.signal_cost must be >= 0; got {self.signal_cost}")
 
     def to_dict(self) -> dict[str, Any]:
         # The C++ reads the key "lambda"; the Python attribute is `lam` because
@@ -132,6 +169,7 @@ class HypergamyConfig:
             "gamma": self.gamma,
             "lambda": self.lam,
             "shock_scale": self.shock_scale,
+            "signal_cost": self.signal_cost,
         }
 
 
@@ -267,7 +305,10 @@ class SimConfig:
 
         pop_raw = _require(raw, "population", "config")
         _reject_unknown(pop_raw, {"n", "seed", "admissible_fraction", "traits",
-                                  "init_threshold", "taste_sigma"}, "population")
+                                  "init_threshold", "taste_sigma",
+                                  "intent_beta_a", "intent_beta_b",
+                                  "values_beta_a", "values_beta_b",
+                                  "community_prob"}, "population")
         traits_raw = _require(pop_raw, "traits", "population")
         traits = {
             name: _build(TraitDist, block, f"population.traits.{name}")
@@ -280,6 +321,11 @@ class SimConfig:
             traits=traits,
             init_threshold=pop_raw.get("init_threshold"),
             taste_sigma=pop_raw.get("taste_sigma", 0.0),
+            intent_beta_a=pop_raw.get("intent_beta_a", 2.0),
+            intent_beta_b=pop_raw.get("intent_beta_b", 2.0),
+            values_beta_a=pop_raw.get("values_beta_a", 2.0),
+            values_beta_b=pop_raw.get("values_beta_b", 2.0),
+            community_prob=pop_raw.get("community_prob", 0.5),
         )
 
         # The strict unknown-key check lives in _build; these two blocks are built

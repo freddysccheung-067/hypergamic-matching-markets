@@ -62,7 +62,8 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
                                                          const TraitStats& stats, int k,
                                                          std::uint64_t rng_seed,
                                                          std::uint64_t epoch,
-                                                         int n_negatives) {
+                                                         int n_negatives,
+                                                         const SignalSide& signal) {
     if (k <= 0 || pop.empty()) {
         return {};
     }
@@ -125,10 +126,44 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
         std::partial_sort(candidates.begin(), candidates.begin() + n_pos, first_inadmissible,
                           ranks_above);
 
+        // ── The proposal decision (THEORY.md §10.2) ───────────────────────────
+        // tau_i * V_ij * p > c. The candidate list is sorted by descending utility,
+        // and the left-hand side is increasing in V, so the set that fails is a
+        // suffix of the top k: find the cut once instead of testing each entry.
+        //
+        // V is the pair's own utility, not the pool mean. The mean appears only in
+        // the analytic threshold tau* that gets reported, because a decision made
+        // against a pool average would not know which candidate was in front of it.
+        //
+        // c <= 0 skips the test entirely — see the header's note: a literal
+        // comparison at c = 0 would reject every negative-utility pair and destroy
+        // the pooling regime. p <= 0 means no proposal can ever succeed, so nothing
+        // is worth the cost and every top-k entry is refused.
+        //
+        // p is read per chooser side. A man's acceptance rate and a woman's are
+        // different quantities; using one for both would misprice one side of the
+        // market by construction.
+        const SignalParams& mine = signal[static_cast<std::size_t>(user.type)];
+        const double cost = mine.cost;
+        const double accept = mine.accept_prob;
+        std::size_t n_keep = n_pos;
+        if (cost > 0.0) {
+            n_keep = 0;
+            for (std::size_t t = 0; t < n_pos; ++t) {
+                const double surplus = user.intent * candidates[t].utility * accept;
+                if (!(surplus > cost)) {
+                    break;  // descending V, so every later candidate fails too
+                }
+                ++n_keep;
+            }
+        }
+
         // Negatives come from everything that is not a reported positive. That
         // pool is [n_pos, end): the admissible candidates outside the top-k
         // followed by every inadmissible one, in whatever order the partition
-        // left them.
+        // left them. The refused top-k entries sit in [n_keep, n_pos) and are
+        // reported separately, as label 0, so a refusal never consumes a slot from
+        // this pool and an entry can never be both refused and sampled.
         const std::size_t n_neg = std::min(
             static_cast<std::size_t>(k) * static_cast<std::size_t>(n_negatives),
             candidates.size() - n_pos);
@@ -139,8 +174,14 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
 
         std::array<std::int32_t, 3>* block = &blocks[i * stride];
         std::size_t written = 0;
-        for (std::size_t t = 0; t < n_pos; ++t) {
+        for (std::size_t t = 0; t < n_keep; ++t) {
             block[written++] = std::array<std::int32_t, 3>{user.id, candidates[t].id, 1};
+        }
+        // The refused proposals. Label 0 — the pair was considered and declined, so
+        // the NCF learns the refusal; omitting the row would make it look like the
+        // candidate was never seen.
+        for (std::size_t t = n_keep; t < n_pos; ++t) {
+            block[written++] = std::array<std::int32_t, 3>{user.id, candidates[t].id, 0};
         }
         for (std::size_t t = 0; t < n_neg; ++t) {
             block[written++] =

@@ -44,6 +44,27 @@ struct UtilityParams {
     std::uint64_t shock_seed = 0;
 };
 
+// ── Signalling (THEORY.md §10.2) ──────────────────────────────────────────────
+// The proposal decision is  tau_i * V_ij * p > c.  These are the two numbers on
+// the right-hand side, and this is deliberately a separate struct rather than two
+// more members of UtilityParams:
+//
+//   * c is spent, not disliked. It is charged to the proposer's welfare but
+//     never enters utility_toward, which compute_welfare also reads. Putting the
+//     cost inside the utility would silently change every welfare number in the
+//     project (THEORY.md §10.2, "Implementation note").
+//   * the existing five-field aggregate initialisers in the tests keep compiling
+//     untouched, which is the reason UtilityParams has only trailing defaults.
+//
+// p is the chance a proposal is accepted. It is not a modeling constant: the
+// orchestrator measures it per side from the previous epoch's empirical accept
+// rate and passes it in, so the cost stays responsive to the market rather than
+// decorative. Epoch 0 has no history and uses 0.5, stated wherever it is used.
+struct SignalParams {
+    double cost = 0.0;         // c, in utility_toward's units
+    double accept_prob = 0.5;  // p, in [0, 1]
+};
+
 // ── Trait standardization ─────────────────────────────────────────────────────
 // Raw traits live on incompatible scales. At the base config, status is
 // lognormal(0, 0.8) — sd 1.31, max near 44 — while attractiveness is
@@ -152,6 +173,28 @@ struct Agent {
     // engine output, so it is below 2^53 and round-trips exactly through the
     // float64 state matrix. 0 is a legal key but is never drawn deliberately.
     std::uint64_t key = 0;
+
+    // ── Institutional state (THEORY.md §10.1) ────────────────────────────────
+    // Appended after the heterogeneity block and, like it, drawn by
+    // sample_population rather than chosen by a caller. None of the three enters
+    // utility_toward: they change behavior only through the proposal decision and
+    // the Environment B subgraph, which is what keeps every pre-existing welfare
+    // number untouched at the default knobs.
+    //
+    // intent tau_i, in (0, 1]. Private willingness to commit, never observable.
+    // Strictly positive by construction so no agent is exactly priced out at any
+    // finite cost, and rescaled from a Beta draw at sampling. The 1.0 default is
+    // the neutral one for a hand-built fixture: at c > 0 it proposes to every
+    // candidate, which is the behavior a fixture that never set intent means.
+    double intent = 1.0;
+    // values g_i, in [0, 1]. Value alignment; observable only inside B, where
+    // the g_min entry filter reads it. 0.0 is the neutral default and is below
+    // any positive filter, so a fixture must opt in explicitly.
+    double values = 0.0;
+    // community k_i in {0, 1}: 1 = eligible for the Environment B subgraph.
+    // Stored as int32 because it is a flag, not a continuous quantity, and the
+    // flat matrix narrows it back to 0.0/1.0 exactly.
+    std::int32_t community = 0;
 
     // U_i(j) from docs/THEORY.md §2.3:
     //   W evaluating a man : m_a*alpha*z(s_j) + m_b*beta*z(a_j) - m_g*gamma*d

@@ -11,6 +11,18 @@ population:
   # homogeneous population bit for bit. There is no empirical anchor for this
   # number: results are reported as a function of it, never at one setting.
   taste_sigma: 0.5
+  # Institutional state (THEORY.md §10.1). Beta shapes for the two continuous
+  # columns; intent is rescaled to (0,1] so no agent is exactly zero. Beta(2,2) is
+  # symmetric with mean 0.5, which is what makes a separating threshold a curve
+  # rather than a step. Drawn on a separate engine stream, so changing any of these
+  # leaves the four trait columns bit-identical.
+  intent_beta_a: 2.0
+  intent_beta_b: 2.0
+  values_beta_a: 2.0
+  values_beta_b: 2.0
+  # Share of agents eligible for the Environment B subgraph. A probability so the
+  # subgraph scales with N; the real entry filter is g_min (THEORY.md §10.3).
+  community_prob: 0.5
   traits:
     status:
       dist: lognormal
@@ -56,6 +68,16 @@ hypergamy:
   # taste_sigma 0.5, ~2.40 without) is a ratio near 1.0, but that figure is
   # measured at runtime rather than asserted here.
   shock_scale: 1.5
+  # Signalling cost c (THEORY.md §10.2): what a proposal costs its proposer, spent
+  # rather than disliked. Never enters utility_toward, so it changes no welfare
+  # number by itself. 0.0 is the pooling regime — every admissible type proposes —
+  # and reproduces every pre-session result bit for bit.
+  #
+  # Its meaningful range is set by the utilities it is compared against, which at
+  # these weights are of order 4: a cost below ~0.08 binds on nothing at all. The
+  # market closes at c >= tau_max * Vbar * p, measured at ~2.07 (M) and ~2.47 (W)
+  # with p = 0.5. See THEORY.md §10.2 for the table.
+  signal_cost: 0.0
 
 ncf:
   embed_dim: 64

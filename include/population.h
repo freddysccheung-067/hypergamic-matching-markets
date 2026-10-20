@@ -54,13 +54,30 @@ struct PopConfig {
     // every headline result has to be reported as a function of it rather than at
     // one setting.
     double taste_sigma = 0.0;
+
+    // ── Institutional state (THEORY.md §10.1) ────────────────────────────────
+    // Beta shape parameters for the two new continuous columns. Each is drawn
+    // from Beta(a, b) on [0, 1]; intent is then rescaled to (0, 1] so no agent sits
+    // at exactly zero. The (2, 2) default is symmetric with mean 0.5 and gives a
+    // two-sided population, which is what makes a separating threshold visible at
+    // all: with a = b -> inf every agent has the same intent and no cost can
+    // separate anything.
+    double intent_beta_a = 2.0;
+    double intent_beta_b = 2.0;
+    double values_beta_a = 2.0;
+    double values_beta_b = 2.0;
+
+    // Share of agents marking community = 1, i.e. eligible for the Environment B
+    // subgraph. A probability, not a count, so the subgraph scales with N. The
+    // real filter is g_min (§10.3); this only decides who is exposed to it.
+    double community_prob = 0.5;
 };
 
 // Column count of the flat state matrix (docs/INTERFACES.md §1). Named rather
-// than spelled 7 or 11 at each site because it changed once already, and a
-// mismatch between flatten_states and a shape guard is a silent data corruption
+// than spelled 7, 11 or 14 at each site because it has changed twice already, and
+// a mismatch between flatten_states and a shape guard is a silent data corruption
 // rather than an error.
-inline constexpr std::size_t kStateCols = 11;
+inline constexpr std::size_t kStateCols = 14;
 
 // Draws n agents. The first n/2 are M with ids 0..n/2-1 and the remainder are W
 // with ids n/2..n-1, matching states[:, 1] in docs/INTERFACES.md §1.

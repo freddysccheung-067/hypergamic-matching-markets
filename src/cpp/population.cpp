@@ -9,6 +9,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -121,6 +122,59 @@ std::uint64_t draw_key(std::mt19937_64& engine) {
     return engine() >> 12;
 }
 
+// ── Beta draws (THEORY.md §10.1) ──────────────────────────────────────────────
+// Two gamma draws divided by their sum: X ~ Gamma(a, 1), Y ~ Gamma(b, 1) give
+// X/(X+Y) ~ Beta(a, b). Written out rather than taken from std::gamma_distribution
+// for the same reason as every other draw in this file — the standard library's
+// algorithm and its engine-call count are implementation-defined, and these draws
+// decide the published intent and value columns.
+//
+// Marsaglia & Tsang (2000), which is the standard method for a >= 1: the boosted
+// exponential dominates and the squeeze rejects in a few iterations. The a < 1
+// case uses the standard boost X ~ Gamma(a+1) * U^(1/a), which is exact in law
+// and needs one extra uniform. Both branches consume a data-dependent number of
+// engine calls, which is why the traits below get their own streams rather than
+// sharing one: a variable-length draw interleaved into the trait stream would
+// shift every later trait and destroy the bit-identical guarantee.
+double gamma_draw(double shape, std::mt19937_64& engine, NormalSource& normal) {
+    if (shape < 1.0) {
+        // Boost to shape + 1 and take the a-th root of a uniform on (0, 1].
+        const double u = uniform_open_closed(engine);
+        return gamma_draw(shape + 1.0, engine, normal) * std::pow(u, 1.0 / shape);
+    }
+    const double d = shape - 1.0 / 3.0;
+    const double c = 1.0 / std::sqrt(9.0 * d);
+    for (;;) {
+        // The engine draws happen before the acceptance test either way, so the
+        // rejection loop is the only place the call count varies.
+        const double x = normal();
+        const double v = 1.0 + c * x;
+        if (v <= 0.0) {
+            continue;
+        }
+        const double v3 = v * v * v;
+        const double u = uniform01(engine);
+        const double x2 = x * x;
+        // The cheap squeeze first: it accepts most candidates for shape >= 1.
+        if (u < 1.0 - 0.0331 * x2 * x2) {
+            return d * v3;
+        }
+        if (u > 0.0 && std::log(u) < 0.5 * x2 + d * (1.0 - v3 + std::log(v3))) {
+            return d * v3;
+        }
+    }
+}
+
+double beta_draw(double a, double b, std::mt19937_64& engine, NormalSource& normal) {
+    const double x = gamma_draw(a, engine, normal);
+    const double y = gamma_draw(b, engine, normal);
+    const double s = x + y;
+    // Both shapes are validated positive at entry, so s > 0 in exact arithmetic.
+    // A guard rather than an assert: at a = b = 2 the probability of seeing this
+    // is nil, but returning 0.5 beats returning NaN into a state column.
+    return (s > 0.0) ? x / s : 0.5;
+}
+
 }  // namespace
 
 std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t seed) {
@@ -128,6 +182,23 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
     validate(cfg.attractiveness, "attractiveness");
     validate(cfg.sociability, "sociability");
     validate(cfg.age, "age");
+
+    // The Beta shapes are validated before the loop for the same reason as the
+    // trait distributions: a bad shape must fail on an empty population rather
+    // than halfway through. Both shapes must be strictly positive — a zero shape
+    // makes one of the gamma draws identically zero, so the ratio is degenerate.
+    for (const auto& [a, b, name] :
+         {std::tuple{cfg.intent_beta_a, cfg.intent_beta_b, "intent_beta"},
+          std::tuple{cfg.values_beta_a, cfg.values_beta_b, "values_beta"}}) {
+        if (!(a > 0.0) || !(b > 0.0) || !std::isfinite(a) || !std::isfinite(b)) {
+            throw std::invalid_argument(std::string("sample_population: population.") + name +
+                                        "_a and " + name + "_b must be finite and > 0");
+        }
+    }
+    if (!(cfg.community_prob >= 0.0) || !(cfg.community_prob <= 1.0)) {
+        throw std::invalid_argument(
+            "sample_population: population.community_prob must be in [0, 1]");
+    }
 
     if (n < 0) {
         n = 0;
@@ -171,6 +242,19 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
     std::mt19937_64 taste_engine(taste_seq);
     NormalSource taste_normal(taste_engine);
 
+    // A third stream for the institutional columns (THEORY.md §10.1). Same
+    // argument as the two above, and one more specific to it: a Beta draw consumes
+    // a data-dependent number of uniforms, so sharing the trait stream would make
+    // every later trait depend on the Beta shapes. Here the knob moves only the
+    // three new columns.
+    // Spelled within 32 bits, unlike the two older tags: those literals are 36-bit
+    // and MSVC warns on the narrowing. The value only has to differ from every
+    // other tag in this file and from any agent engine in simulation.cpp.
+    const std::uint32_t signal_tag[3] = {seed_lo, seed_hi, 0x51E9A1C0u};
+    std::seed_seq signal_seq(std::begin(signal_tag), std::end(signal_tag));
+    std::mt19937_64 signal_engine(signal_seq);
+    NormalSource signal_normal(signal_engine);
+
     for (int i = 0; i < n; ++i) {
         Agent& a = pop[static_cast<std::size_t>(i)];
         a.id = i;
@@ -190,6 +274,18 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
         a.taste_alpha = taste_multiplier(cfg.taste_sigma, taste_normal);
         a.taste_beta = taste_multiplier(cfg.taste_sigma, taste_normal);
         a.taste_gamma = taste_multiplier(cfg.taste_sigma, taste_normal);
+
+        // Institutional columns, from the third stream and in a fixed order so a
+        // knob moves only its own column. intent is rescaled to (0, 1]: a Beta
+        // draw is never exactly 0 in exact arithmetic, but the smallest double
+        // keeps the invariant true rather than merely almost true, and it matters
+        // because tau enters a strict inequality against a cost.
+        a.intent = std::max(beta_draw(cfg.intent_beta_a, cfg.intent_beta_b, signal_engine,
+                                      signal_normal),
+                            std::numeric_limits<double>::min());
+        a.values = beta_draw(cfg.values_beta_a, cfg.values_beta_b, signal_engine, signal_normal);
+        a.community =
+            (uniform01(signal_engine) < cfg.community_prob) ? std::int32_t{1} : std::int32_t{0};
     }
     return pop;
 }
@@ -211,6 +307,10 @@ std::vector<double> flatten_states(const std::vector<Agent>& pop) {
         row[9] = a.taste_gamma;
         // Exact: key < 2^52, so every bit is inside a double's 53-bit mantissa.
         row[10] = static_cast<double>(a.key);
+        row[11] = a.intent;
+        row[12] = a.values;
+        // Exact: the flag is 0 or 1, both representable.
+        row[13] = static_cast<double>(a.community);
     }
     return out;
 }
@@ -237,6 +337,12 @@ std::vector<Agent> unflatten_states(const double* data, int n) {
         // a larger value in this column would round here, which is why the sampler
         // draws 52 bits rather than 53.
         a.key = static_cast<std::uint64_t>(row[10]);
+        a.intent = row[11];
+        a.values = row[12];
+        // Round-tripping through a double then narrowing: a hand-built matrix with
+        // 0.5 here would become 0, which is the safe direction (not eligible for a
+        // subgraph) rather than silently admitting an agent nobody flagged.
+        a.community = (row[13] == 1.0) ? std::int32_t{1} : std::int32_t{0};
     }
     return pop;
 }

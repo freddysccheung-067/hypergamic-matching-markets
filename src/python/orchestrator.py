@@ -41,9 +41,12 @@ from src.python.metrics import (
     blocking_pair_ratio,
     gini,
     market_clearing_rate,
+    mean_proposal_intent,
     pareto_alpha,
+    proposal_cost_total,
     rank_satisfaction_index,
     reach,
+    separating_threshold,
     top1_share,
 )
 from src.python.ncf import NCFModel, NCFTrainer
@@ -56,6 +59,7 @@ try:  # the extension lands in build/Release (README "Installation")
         count_blocking_pairs,
         deferred_acceptance,
         generate_swipes,
+        mean_admissible_utility,
         sample_population,
         update_thresholds,
         utility_sd,
@@ -71,6 +75,7 @@ except ImportError:  # pragma: no cover - convenience for a fresh checkout
         count_blocking_pairs,
         deferred_acceptance,
         generate_swipes,
+        mean_admissible_utility,
         sample_population,
         update_thresholds,
         utility_sd,
@@ -106,6 +111,13 @@ COLUMNS = [
     "arm",
     "reach",
     "top1_share",
+    # Session 5 (THEORY.md §10.2). Appended for the same reason as the ablation
+    # columns: adding is free, renaming breaks the plots. The first two are the
+    # quantities H1 is stated in terms of; proposal_cost_total is the signal-cost
+    # term of the welfare sum.
+    "mean_proposal_intent",
+    "separating_threshold",
+    "proposal_cost_total",
 ]
 
 # The four ablation arms of docs/SPRINT_PROMPTS.md Session 3-C. Only the rule
@@ -492,6 +504,130 @@ class Simulation:
 
         return prop_prefs, acc_prefs, self._exposure_from_dense(prop_prefs, acc_prefs)
 
+    def _restrict_to_proposals(
+        self,
+        prop_prefs: list[list[int]],
+        acc_prefs: list[list[int]],
+        proposals: np.ndarray,
+    ) -> tuple[list[list[int]], list[list[int]]]:
+        """Keep only pairs the *proposer* proposed, in the given order.
+
+        Below c = 0 this is not called and the lists are untouched, so every
+        pre-signalling number is reproduced exactly.
+
+        Above c = 0 the reachable set is the proposal set, and the reason is not a
+        convention: a proposal costs the proposer ``c``, so it is the proposer's own
+        act. A recommender can rank the candidates in front of an agent; it cannot
+        spend on their behalf. Letting the NCF shortlist pairs the agent declined to
+        pay for would make the cost decorative — the matching would fill up with
+        pairs the model says nobody would have proposed, and a prohibitive cost
+        would still produce a clearing market.
+
+        **Only the proposer's side is restricted.** The acceptor's list is a ranking,
+        and her willingness is already what "accept" means in deferred acceptance;
+        intersecting both lists instead would require a *mutual* top-k positive,
+        which at k = 20 of 100 candidates thins the market by a factor of five long
+        before the cost bites — measured as mcr falling from 0.21 to 0.0 at c = 0.5,
+        a fifth of the way to the separating cutoff. That is a different experiment
+        (a mutual-consent market), not this one.
+
+        Which side is "the proposer" is M by construction (§5 of this file's
+        contract: M proposes, W accepts). A W-proposing arm would restrict the other
+        list; that is the same code with the arguments swapped.
+
+        Args:
+            proposals: (P, 2) array of *row* ids, [proposer_row, acceptor_row].
+        """
+        if proposals.shape[0] == 0:
+            return [[] for _ in prop_prefs], [[] for _ in acc_prefs]
+
+        # proposer row -> the set of acceptor slots it proposed to. A dict of sets
+        # rather than a row-indexed array: a proposer appears once per proposal, so
+        # an array indexed by row would keep only the last one — which is exactly
+        # the bug this shape avoids.
+        proposed: dict[int, set[int]] = {}
+        for u, v in proposals:
+            proposed.setdefault(int(u), set()).add(int(self._acc_slot[int(v)]))
+
+        out_prop: list[list[int]] = [
+            [a for a in lst if a in proposed.get(int(row), ())]
+            for row, lst in zip(self.prop_rows, prop_prefs)
+        ]
+
+        # The acceptor's list is kept whole and in order: it is her ranking, and
+        # the restriction is about who spent the cost, not about who may say yes.
+        return out_prop, [list(lst) for lst in acc_prefs]
+
+    def _accept_prob_from_log(
+        self, prev_log: np.ndarray | None
+    ) -> dict[str, float]:
+        """Per-side acceptance probability for the *next* epoch's proposal decision.
+
+        p is the previous epoch's empirical accept rate, measured on the swipe log
+        rather than assumed: among the positive swipes a side made, the share that
+        the other agent reciprocated. That is the closest thing the model has to
+        "a proposal was accepted", it is observable without a matching step, and it
+        is available for the epoch about to run — the C++ decision happens before
+        deferred acceptance, so a rate taken from this epoch's matches could not be
+        used without a second pass.
+
+        Epoch 0 has no history. It uses 0.5 for both sides and says so; the
+        constant is not a claim about the market, it is the neutral prior that
+        makes the first epoch's decision non-degenerate.
+
+        A side with no positive swipes has no measured rate either. It falls back
+        to 0.5 rather than to 0.0: a zero would be read as "no proposal can ever be
+        accepted" and would refuse every candidate at the first epoch of a cold
+        side, which is a much stronger claim than "we have not measured this yet".
+        """
+        if prev_log is None or prev_log.shape[0] == 0:
+            return {"accept_prob_m": 0.5, "accept_prob_w": 0.5}
+
+        users = prev_log[:, 0].astype(np.int64)
+        items = prev_log[:, 1].astype(np.int64)
+        positive = prev_log[:, 2] == 1
+        users, items = users[positive], items[positive]
+
+        # Reciprocity: a pair (u, v) is a mutual positive when the reverse row
+        # (v, u) is also positive. Encoded as a single int64 key so the lookup is a
+        # set membership rather than a Python dict over tuples.
+        keys = users * np.int64(self.n) + items
+        mutual = np.isin(items * np.int64(self.n) + users, keys)
+
+        out: dict[str, float] = {}
+        for side, rows in (("m", self.prop_rows), ("w", self.acc_rows)):
+            mask = np.isin(users, rows)
+            n_sent = int(np.count_nonzero(mask))
+            # A side that made no positive swipe has no measurement; the neutral
+            # prior is the honest value (see docstring).
+            out[f"accept_prob_{side}"] = (
+                float(np.count_nonzero(mutual & mask)) / float(n_sent) if n_sent else 0.5
+            )
+        return out
+
+    def _mean_admissible_utility_by_side(self) -> tuple[float, float]:
+        """V̄ per proposing side: the pooled mean over θ-admissible candidates.
+
+        Pooled by admissible-set size, not as a mean of per-agent means: an agent
+        with three admissible candidates and one with two hundred should not carry
+        equal weight in the number the cost is compared against.
+
+        A side with no admissible candidate at all yields NaN here, which
+        ``separating_threshold`` turns into +inf — the right reading, since no
+        proposal is possible at any finite cost.
+        """
+        means, counts = mean_admissible_utility(self.states, self.config_dict)
+        out = []
+        for rows in (self.prop_rows, self.acc_rows):
+            c = counts[rows]
+            total = float(c.sum())
+            if total <= 0.0:
+                out.append(float("nan"))
+            else:
+                ok = np.isfinite(means[rows])
+                out.append(float(np.sum(means[rows][ok] * c[ok]) / total))
+        return out[0], out[1]
+
     def _proposals_by_row(self, proposals: np.ndarray) -> np.ndarray:
         """Map DA's dense proposal counts to row-indexed counts.
 
@@ -529,6 +665,14 @@ class Simulation:
         self.states_seen = []
         prev_prefs: tuple[list[list[int]], list[list[int]]] | None = None
 
+        # p for each proposing side, from the previous epoch's log. None means "no
+        # history", which _accept_prob_from_log maps to 0.5 for both sides.
+        accept_prob: dict[str, float] = {"accept_prob_m": 0.5, "accept_prob_w": 0.5}
+        # V̄ per side, recomputed when θ moves: θ is the gate that defines the
+        # admissible pool, so a stale V̄ would report a threshold against a pool the
+        # agent no longer has. Recomputed only on the epochs that actually need it.
+        v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
+
         for epoch in range(n_epochs):
             # Recorded before anything touches the states, so this is the matrix
             # the epoch's preference rule actually saw. All four arms must agree
@@ -536,11 +680,18 @@ class Simulation:
             if self.record_states:
                 self.states_seen.append(self.states.copy())
 
+            # The config the C++ decision reads. A copy per epoch: signal_cost is
+            # fixed but accept_prob is this epoch's measurement, and the state
+            # matrix must not be mutated by a config write.
+            epoch_config = dict(self.config_dict)
+            epoch_config["signal"] = dict(accept_prob)
+
             n_swipes = 0
+            swipe_log = None
             if self.recommender == "ncf":
-                log = generate_swipes(self.states, self.config_dict, epoch)
-                self.trainer.train_epoch(log)
-                n_swipes = len(log)
+                swipe_log = generate_swipes(self.states, epoch_config, epoch)
+                self.trainer.train_epoch(swipe_log)
+                n_swipes = len(swipe_log)
 
                 # Score each side against the *other* side only. The model has no
                 # notion of sides — an agent is a user and a candidate in one id
@@ -565,9 +716,46 @@ class Simulation:
                 # lists — the DA call, welfare, the metrics, the θ step — is the
                 # same code the NCF arm runs.
                 prop_prefs, acc_prefs, exposure = self._arm_prefs(epoch, top_k, prev_prefs)
+
+            # ── The proposal set constrains the matching (THEORY.md §10.2) ────
+            # At c > 0 only proposed pairs are reachable, for every arm: the cost
+            # is the proposer's own, so a recommender ranks but cannot spend. The
+            # NCF arm also builds the swipe log here when c > 0, because the log is
+            # what says which pairs were proposed — at c = 0 it is not built for
+            # the non-NCF arms and nothing is restricted, so those arms are
+            # bit-identical to before.
+            cost = float(self.config.hypergamy.signal_cost)
+            proposal_log = swipe_log
+            if cost > 0.0 and proposal_log is None:
+                # Every arm needs the same proposal set, so it comes from the same
+                # function the NCF arm uses, on the same states and epoch. This is
+                # the only extra O(N²) call the non-NCF arms pay, and only when a
+                # cost is switched on.
+                proposal_log = generate_swipes(self.states, epoch_config, epoch)
+
+            n_proposals = 0
+            if proposal_log is not None and proposal_log.shape[0]:
+                positive = proposal_log[:, 2] == 1
+                prop_rows = proposal_log[positive, 0]
+                acc_rows = proposal_log[positive, 1]
+                n_proposals = int(prop_rows.size)
+                proposals = np.stack([prop_rows, acc_rows], axis=1).astype(np.int64) \
+                    if n_proposals else np.zeros((0, 2), dtype=np.int64)
+            else:
+                proposals = np.zeros((0, 2), dtype=np.int64)
+
+            if cost > 0.0:
+                prop_prefs, acc_prefs = self._restrict_to_proposals(
+                    prop_prefs, acc_prefs, proposals
+                )
+                # Exposure is a property of the lists the matching actually saw, so
+                # it is recomputed after the restriction rather than before. The
+                # alternative — keeping the pre-restriction counts — would report a
+                # Gini over a market that no longer exists.
+                exposure = self._exposure_from_dense(prop_prefs, acc_prefs)
+
             prev_prefs = (prop_prefs, acc_prefs)
             series.append(exposure)
-
 
             da = deferred_acceptance(prop_prefs, acc_prefs, True)
             matches = da["matches"]
@@ -601,6 +789,55 @@ class Simulation:
             gen_final = (epoch + 1) % epochs_per_gen == 0
             alpha = pareto_alpha(self._cumulative_matches) if gen_final else float("nan")
 
+            # ── Signalling columns (THEORY.md §10.2) ──────────────────────────
+            # The proposals are the label-1 rows of the epoch's swipe log, computed
+            # above. An arm with no log and c = 0 made no proposal, which is why it
+            # reports 0 cost and NaN intent rather than a plausible number.
+            if n_proposals:
+                proposer_rows = proposals[:, 0]
+                mpi = mean_proposal_intent(self.states[:, 11], proposer_rows)
+            else:
+                n_proposals = 0
+                mpi = float("nan")
+
+            # τ* per side. One column in the §6 frame, so the two sides are pooled
+            # by proposal count: the number a reader wants next to E[τ | proposal]
+            # is the cut that produced those proposals, weighted by who proposed.
+            # Both sides are also logged at INFO so the paired numbers survive a
+            # run without a second column.
+            n_m = int(np.count_nonzero(np.isin(proposer_rows, self.prop_rows))) if n_proposals else 0
+            n_w = n_proposals - int(n_m)
+
+            def _tau_star(v_bar: float, p: float) -> float:
+                return separating_threshold(cost, v_bar, p)
+
+            tau_m = _tau_star(v_bar_m, accept_prob["accept_prob_m"])
+            tau_w = _tau_star(v_bar_w, accept_prob["accept_prob_w"])
+            weights = np.array([n_m, n_w], dtype=np.float64)
+            if n_proposals > 0 and weights.sum() > 0:
+                taus = np.array([tau_m, tau_w], dtype=np.float64)
+                finite = np.isfinite(taus)
+                tau_star = (
+                    float(np.average(taus[finite], weights=weights[finite]))
+                    if finite.any() else float("inf")
+                )
+            else:
+                # No proposals to weight by. τ* is still defined — it is c/(V̄·p),
+                # a property of the market and the cost, not of what anyone did —
+                # so it is reported as the unweighted mean of the finite sides
+                # rather than as NaN. NaN here would hide the very case the
+                # no-proposal regime is about: a threshold high enough to empty the
+                # market should read as a large number, not as "not measured".
+                taus = np.array([tau_m, tau_w], dtype=np.float64)
+                finite = np.isfinite(taus)
+                tau_star = float(np.mean(taus[finite])) if finite.any() else float("inf")
+            log.info(
+                "epoch %d: c=%.4g p_m=%.4f p_w=%.4f Vbar_m=%.4f Vbar_w=%.4f "
+                "tau*_m=%.4f tau*_w=%.4f proposals=%d",
+                epoch, cost, accept_prob["accept_prob_m"], accept_prob["accept_prob_w"],
+                v_bar_m, v_bar_w, tau_m, tau_w, n_proposals,
+            )
+
             rows.append({
                 "epoch": epoch,
                 "generation": generation,
@@ -624,6 +861,9 @@ class Simulation:
                 "arm": self.recommender,
                 "reach": reach(exposure),
                 "top1_share": top1_share(exposure),
+                "mean_proposal_intent": mpi,
+                "separating_threshold": tau_star,
+                "proposal_cost_total": proposal_cost_total(cost, n_proposals),
             })
 
             # θ ← θ + η·(matches/proposals − θ), in place on states[:, 6].
@@ -637,6 +877,16 @@ class Simulation:
                     self._matches_by_row(matches),
                     eta,
                 )
+                # θ moved, so the admissible pool moved with it. V̄ is a mean over
+                # that pool and would otherwise be a number about a market that no
+                # longer exists.
+                v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
+
+            # Next epoch's p, measured on this epoch's log. Read after the matching
+            # step on purpose: the log is this epoch's behavior, and nothing after
+            # the swipe call mutates it.
+            if swipe_log is not None:
+                accept_prob = self._accept_prob_from_log(swipe_log)
 
         self.exposure_series = (
             np.stack(series) if series else np.zeros((0, self.n), dtype=np.int64)
