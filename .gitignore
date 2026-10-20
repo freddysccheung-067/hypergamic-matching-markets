@@ -39,10 +39,15 @@ profile.out
 .ipynb_checkpoints/
 notebooks/.ipynb_checkpoints/
 
-# Figures generated at runtime
+# Figures. Generated at runtime by scripts/make_figures.py, but the three
+# headline figures are tracked because the README embeds them and GitHub renders
+# from the repository, not from a local build. Everything else here stays ignored.
 docs/figures/*.png
 docs/figures/*.gif
 docs/figures/*.svg
+!docs/figures/separating_curve.png
+!docs/figures/thin_market_curve.png
+!docs/figures/decomposition.png
 
 # OS
 .DS_Store
