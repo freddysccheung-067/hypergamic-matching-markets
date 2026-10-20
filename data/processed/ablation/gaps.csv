@@ -1,0 +1,4 @@
+gap,n_seeds,mean,sd
+gini_ncf_minus_oracle,5,0.28490668,0.007410105603296031
+gini_oracle_minus_random,5,0.27638492,0.011677741070815095
+gini_popularity_minus_random,5,0.58200012,0.005812089226517471
