@@ -154,11 +154,19 @@ $\beta/\alpha = 1$ and $2$ — the region where non-status traits begin to compe
 status deficit across the whole shortlist rather than only in its tail.
 
 Rule of thumb: $\delta$ has real power when $\beta/\alpha \geq 2$. `experiments/base.yaml`
-ships $\alpha = 1.0$, $\beta = 2.0$: status stays the dominant linear term, which preserves
-the Matthew-effect story, while $\delta$ is no longer structurally dead. This is guarded by
-`tests/cpp/test_delta_power.cpp`, which fails if a retune drives the overlap back above 0.95,
-and by its inverse, which asserts near-inertness at $\beta \ll \alpha$ and exact inertness
-when status is the only signal, so the guardrail cannot pass vacuously.
+ships $\alpha = 1.0$, $\beta = 2.0$, where $\delta$ is no longer structurally dead. This is
+guarded by `tests/cpp/test_delta_power.cpp`, which fails if a retune drives the overlap back
+above 0.95, and by its inverse, which asserts near-inertness at $\beta \ll \alpha$ and exact
+inertness when status is the only signal, so the guardrail cannot pass vacuously.
+
+A correction to the sentence this paragraph used to carry. It said status "stays the dominant
+linear term, which preserves the Matthew-effect story". The first half is false at these
+weights: `docs/attribution.md` measures zeroing `beta` as moving *more* of the shortlist than
+zeroing `alpha` (overlap 0.607 against 0.748 at $k = 20$), which is what $\beta = 2\alpha$ on
+standardized traits implies. The Matthew-effect narrative in the README is about concentration
+under a recommender, and it does not depend on which of the two linear terms dominates — but any
+prose that says "status drives selection" is wrong at the shipped configuration and is corrected
+in §9.2.
 
 **Why this note exists, and why the numbers above were re-measured.** An earlier version of
 the model ran on raw traits, where status sd was $1.31$. At the then-default $\alpha = 1.0$,
@@ -627,3 +635,139 @@ Over $T$ epochs, track the distribution of cumulative match counts per agent. Fi
 $$P(X > x) = \left(\frac{x_m}{x}\right)^{\alpha_P}$$
 
 A decreasing $\alpha_P$ across generations indicates heavier tail concentration — fewer agents capturing progressively more matches. This is the macro-level signature of micro-level hypergamy amplified through the NCF loop.
+
+---
+
+## 9. Identification limits
+
+This section records what the model can and cannot answer. It exists because the rest of the
+document describes a mechanism precisely enough that its output is easy to over-read, and a
+reader who takes a correlation out of the swipe log will reach a conclusion the model does not
+support.
+
+The short version: **the model has no causal structure between traits.** It answers "how much does
+each term of the utility drive selection" and nothing about why any trait is distributed the way
+it is. Everything below is a consequence of that.
+
+### 9.1 Traits are sampled independently, so no trait causes another
+
+`sample_population` draws status, attractiveness, sociability and age from four separate
+distributions using one seeded engine (§1). No draw is conditioned on any other. The generative
+correlation between every pair of traits is therefore zero up to sampling error — measured at
+±0.005 across all six pairs on a 50,000-agent draw, and asserted over 20 seeds in
+`tests/python/test_attribution.py`.
+
+This is a design commitment rather than a finding. It means:
+
+- There is no path in this model by which status *causes* attractiveness or the reverse. A
+  regression of one on the other inside the simulation recovers zero, as it must.
+- Any nonzero association that appears downstream was created by the selection mechanism, not
+  inherited from the population.
+- The independence makes the selection effects *cleaner* than they would be in real data, where
+  the traits are plausibly correlated for reasons the model has no representation of. It does not
+  make the model more realistic; it makes the selection mechanism legible, which is the point.
+
+### 9.2 The model cannot answer "does status reflect attractiveness"
+
+Because no such relationship is generated, the model has nothing to estimate. A question of the
+form "among people who end up together, is the high-status partner also the better-looking one"
+is a question about a joint distribution the model does not contain. It would need an assumed
+copula between the traits, and the answer would be a restatement of that assumption.
+
+What the model *can* answer is a question about the mechanism rather than the population: **how
+much does each term of the utility drive who reaches the top of the market?** That is what
+leave-one-term-out measures — zero one weight, rebuild every agent's ranking, and see how much of
+the baseline shortlist survives.
+
+The measurement is `src/python/attribution.py::leave_one_term_out_effect`, and its output is in
+`docs/attribution.md`. At the shipped configuration (N=1000, seven seeds, k=20, share-in-common
+overlap) it reads:
+
+| term zeroed | weight | overlap with the baseline shortlist |
+|---|---|---|
+| `attract` | `beta` = 2.0 | 0.607 ± 0.014 |
+| `status` | `alpha` = 1.0 | 0.748 ± 0.010 |
+| `indicator` | `lambda` = 1.5 | 0.918 ± 0.002 |
+| `distance` | `gamma` = 0.3 | 0.929 ± 0.005 |
+
+Two things about that table are worth stating rather than leaving to the reader. Attractiveness
+reorders more of the shortlist than status does, which is the opposite of what the project's prose
+about the "Matthew effect" invites a reader to assume — and it is exactly qualification 2 below:
+`beta` is twice `alpha`, so it should. And the two linear terms are separated from the other two
+by a wide margin with spreads an order of magnitude smaller, so the grouping is solid even where
+the within-group ordering is a property of the weights.
+
+Three qualifications travel with every number in it:
+
+1. **It is one weight at a time, at one configuration.** Removing `alpha` while `beta`, `gamma`
+   and `lambda` stay put measures the marginal contribution of `alpha` *at these weights*. It is
+   not an intrinsic importance ranking, and it does not transfer to another weighting — an
+   interaction as basic as the indicator's dependence on `delta` (§2.2) already breaks additivity.
+2. **The weight decides much of it.** Weights are expressed against standardized traits (§2.0), so
+   at `beta = 2·alpha` the attractiveness term has twice the linear influence by construction.
+   The ablation reports that, correctly, and it is not a claim about what anyone values.
+3. **The distribution decides the rest.** Status is lognormal and heavy-tailed; attractiveness is
+   normal and clipped. A term multiplying a heavy tail can recruit a large share of a top-k
+   without its weight being large, purely because its extreme upper tail is where the ranking
+   concentrates. A Pareto status would move these numbers again.
+
+So the honest form of the claim is: *at this weighting and these distributions, removing term X
+changes this share of the shortlist.* Report the configuration alongside it or the number means
+nothing.
+
+### 9.3 Correlation among matched pairs is a selection artifact
+
+An analyst who computes a correlation from a swipe log, or from a table of matched pairs, sees a
+number that is not zero. It is **not** evidence of a relationship between the traits. It is what
+happens when you condition on a shortlist.
+
+The market ranks candidates on several traits at once and keeps a small surviving subset. Measured
+on the same seven populations as the table above, for the status/attractiveness pair:
+
+| shortlist size | population | among shortlisted pairs |
+|---|---|---|
+| top-10 | +0.008 ± 0.010 | −0.248 ± 0.125 |
+| top-100 | +0.008 ± 0.010 | −0.177 ± 0.050 |
+| top-500 (whole pool) | +0.008 ± 0.010 | +0.008 ± 0.010 |
+
+Two consequences follow:
+
+- **The selected set separates from the population.** `selection_correlation` reports the
+  population value next to the selected-set value for each trait pair, and the gap is the
+  artifact. It is largest at small shortlists and decays to zero as the shortlist approaches the
+  whole candidate pool — where "selected" and "population" are the same set and the two columns
+  agree exactly. That decay is the diagnostic: a genuine generative correlation would be flat in
+  $k$, because a shortlist would merely sample it.
+- **The sign is not the intuitive one.** With two positively-weighted traits and a shortlist far
+  smaller than the candidate pool, the induced correlation is **negative**: among candidates that
+  clear a high bar, a higher status comes with a lower attractiveness on average, because a
+  candidate can be admitted on either. This is the same structure as conditioning on a sum, and it
+  is the opposite of what a reader expecting "the survivors are better on everything" would guess.
+  The sign is measured, not assumed. Over 20 independent populations at N=1000 it was negative in
+  every one, so the sign is a property of the mechanism; the magnitude is not, varying from −0.06
+  to −0.38 across those markets.
+
+Two practical rules follow, both cheap to follow and both easy to violate:
+
+- **Never report a correlation computed on matched or shortlisted pairs without the population
+  value beside it.** Alone it describes the search, and will be read as describing people.
+- **Never quote a selection statistic from one market without its spread.** The per-market
+  magnitude above varies by a factor of six. `docs/attribution.md` reports every figure as a mean
+  and standard deviation over independent populations, which is the only form in which it can be
+  quoted.
+
+A note on what the $n$ is, because it is routinely got wrong in both directions. The selected-set
+correlation is computed over pooled (agent, candidate) pairs — 10,000 at top-10 with 1000 agents
+— so its binomial standard error is tiny. The uncertainty that matters is *between markets*: two
+populations drawn with different seeds give the same sign but different magnitudes, because the
+identity of the endogenous top of the market changes with the draw. Bootstrapping pairs inside one
+market would resample the wrong thing and would report a confidence interval far too narrow.
+
+### 9.4 What this section protects
+
+The paragraphs above are the difference between a project that demonstrates a specified mechanism
+and one that appears to demonstrate something about real people. Everything in §1–§8 is a
+statement about a simulation with declared inputs. The moment a selected-set correlation is
+reported as a finding about individuals, the project has made a claim it did not measure and
+cannot measure — and the reviewers most likely to catch it are the ones most likely to be reading
+the README first.
