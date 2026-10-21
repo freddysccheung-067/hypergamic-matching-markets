@@ -233,11 +233,16 @@ std::vector<Agent> sample_population(int n, const PopConfig& cfg, std::uint64_t 
     // collide with a swipe-stream state by construction rather than by luck.
     const std::uint32_t seed_lo = static_cast<std::uint32_t>(seed);
     const std::uint32_t seed_hi = static_cast<std::uint32_t>(seed >> 32);
-    const std::uint32_t key_tag[3] = {seed_lo, seed_hi, 0x7A57E5EEDu};
+    // Spelled at 32 bits. Both tags below were written as 35-bit literals, which MSVC
+    // warns about twice per build for the narrowing to uint32_t. The compiler was
+    // already taking the low 32 bits, so writing that value directly is bit-identical
+    // and the swipe-log digests pinned in tests/python/test_heterogeneity.py do not
+    // move.
+    const std::uint32_t key_tag[3] = {seed_lo, seed_hi, 0xA57E5EEDu};
     std::seed_seq key_seq(std::begin(key_tag), std::end(key_tag));
     std::mt19937_64 key_engine(key_seq);
 
-    const std::uint32_t taste_tag[3] = {seed_lo, seed_hi, 0x7A5AC4EE5u};
+    const std::uint32_t taste_tag[3] = {seed_lo, seed_hi, 0xA5AC4EE5u};
     std::seed_seq taste_seq(std::begin(taste_tag), std::end(taste_tag));
     std::mt19937_64 taste_engine(taste_seq);
     NormalSource taste_normal(taste_engine);
