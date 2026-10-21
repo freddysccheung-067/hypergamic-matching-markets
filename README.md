@@ -204,6 +204,48 @@ anything. That claim would need a non-zero interaction, and this one has $t \app
 the sign changing across seeds. The algorithmic bar is estimation error against an oracle, not a
 measurement of any deployed recommender.
 
+### The A-side figures
+
+The first half of the project measured one institution. These four figures are those results.
+
+![Gini of exposure for the four ablation arms, with the popularity closed form as a reference line](docs/figures/arm_comparison.png)
+
+**Figure 4 — the ablation.** Final-epoch Gini for the four ranking rules on one population, seed and
+utility set. Measured over five seeds: NCF 0.939 ± 0.006, oracle 0.654 ± 0.011, random 0.378 ± 0.006,
+popularity 0.960 ± 0.000. The dashed line is the popularity arm's closed form, $1 - 2k/N$, and that
+bar sits on it to the third decimal with zero variance — it is arithmetic, not a finding. *What it
+does not show:* that unequal exposure is harm. The oracle, the best available ranker on its own
+task, also concentrates; and the random arm is lowest *by construction*, since uniform sampling
+gives a near-equal profile. The comparison that carries the argument is NCF minus oracle
+(+0.285 ± 0.007), not NCF minus random.
+
+![Gini of exposure over epochs for each arm, flat because the ablation market is static](docs/figures/gini_evolution.png)
+
+**Figure 5 — Gini over time.** One line per arm, mean ± 1 sd across seeds, with generation breaks
+read from the run's own `generation` column. The popularity arm jumps from the oracle's 0.654 at
+epoch 0 to its closed form at epoch 1 — the first epoch has no in-degree history, so it falls back
+to the true-utility ranking. *What it does not show:* feedback. These runs use
+`admissible_fraction 0.2`, where the θ gate never binds, so the market does not respond to its own
+outcomes. An upward slope here is preference concentration in a static market, not a loop.
+
+![Lorenz curves of exposure for the oracle and NCF rankers on one population](docs/figures/matthew_effect.png)
+
+**Figure 6 — the Matthew effect.** Cumulative share of exposure against cumulative share of agents,
+for the oracle and the NCF on the same population. The NCF's curve hugs the axis almost to the
+right edge: a few percent of agents receive nearly all the exposure. *What it does not show:* that
+users would behave differently if shown a different list. `generate_swipes` takes no shown-set
+argument, so preferences never respond to exposure.
+
+![Population correlation against selection-induced correlation, and leave-one-term-out overlap](docs/figures/attribution.png)
+
+**Figure 7 — attribution.** Left: the correlation an analyst would measure among selected pairs
+(blue) beside the generative correlation in the population (grey), for each trait pair. Status and
+attractiveness correlate −0.23 among selected pairs and +0.008 in the population: the gap is the
+artifact. Right: how much of each agent's top-20 survives zeroing one term, so a low bar means that
+term drives selection. Attractiveness (0.607) ranks below status (0.748) in *visibility* but above it
+in *influence* here, because $\beta = 2\alpha$ on standardized traits. *What it does not show:* that
+any trait causes another. They are drawn independently; the correlation is a property of the search.
+
 ## Limitations
 
 This is a model of a mechanism, not a measurement of a population. The distinction matters most
