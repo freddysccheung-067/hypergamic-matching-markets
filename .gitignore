@@ -48,6 +48,10 @@ docs/figures/*.svg
 !docs/figures/separating_curve.png
 !docs/figures/thin_market_curve.png
 !docs/figures/decomposition.png
+!docs/figures/arm_comparison.png
+!docs/figures/gini_evolution.png
+!docs/figures/matthew_effect.png
+!docs/figures/attribution.png
 
 # OS
 .DS_Store

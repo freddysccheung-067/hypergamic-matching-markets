@@ -13,6 +13,8 @@ the assertion. Three layers, in increasing strength:
 
 import pathlib
 import sys
+import warnings
+from contextlib import nullcontext as _nullcontext
 
 import numpy as np
 import pandas as pd
@@ -270,16 +272,281 @@ def test_decomposition_terms_match_the_csv_and_add_up():
         + d["interaction"]["mean"] == pytest.approx(d["both"])
 
 
+# ── 4. the ablation arms ─────────────────────────────────────────────────────
+#
+# These four come from two different places and the tests say which. `arm_comparison`
+# and `gini_evolution` read the committed CSVs, so their assertions compare drawn
+# artists against the file. `matthew_effect` and `attribution` run the model, so their
+# assertions compare the figure against a second invocation of the function it calls,
+# or against the published number.
+
+try:
+    import _hypergamic  # noqa: F401
+    _HAVE_EXTENSION = True
+except ImportError:  # pragma: no cover
+    # The extension lands in build/Release, which is not on sys.path by default. Try
+    # that before concluding it is missing, or every test that needs it would skip on
+    # a checkout where it is built.
+    sys.path.insert(0, str(PROJECT_ROOT / "build" / "Release"))
+    try:
+        import _hypergamic  # noqa: F401
+        _HAVE_EXTENSION = True
+    except ImportError:
+        _HAVE_EXTENSION = False
+
+needs_extension = pytest.mark.skipif(
+    not _HAVE_EXTENSION,
+    reason="C++ extension not built — run: cmake --build build --config Release",
+)
+
+
+# ── 4. arm comparison ────────────────────────────────────────────────────────
+
+def test_plot_arm_comparison_returns_a_figure_and_writes_a_png(tmp_path):
+    fig = figures.plot_arm_comparison(out_dir=tmp_path)
+    assert isinstance(fig, Figure)
+    path = tmp_path / "arm_comparison.png"
+    assert path.is_file() and path.stat().st_size > 10_000
+    assert _looks_drawn(path)
+    assert _is_light(path)
+
+
+def test_arm_comparison_bars_are_the_summary_gini_values(tmp_path):
+    """A wrong column must not plot silently: read the bar heights back."""
+    fig = figures.plot_arm_comparison(out_dir=tmp_path)
+    summary = pd.read_csv(DATA / "ablation" / "summary.csv")
+    summary = summary[summary.metric == "gini"].set_index("arm")
+
+    heights = [p.get_height() for p in fig.axes[0].patches if p.get_width() > 0.3]
+    assert len(heights) == 4
+
+    # Sorted ascending by gini, the order _arm_summary imposes.
+    expected = summary["mean"].sort_values().to_numpy()
+    np.testing.assert_allclose(heights, expected, atol=0.01)
+
+    # And the four published values, so a column swap has to get past the caption too.
+    for arm, published in (("ncf", 0.939), ("oracle", 0.664), ("random", 0.378),
+                           ("popularity", 0.960)):
+        assert summary.loc[arm, "mean"] == pytest.approx(published, abs=0.01)
+
+
+def test_arm_comparison_draws_the_popularity_closed_form():
+    """1 - 2k/N at k=20, N=1000 is 0.96. The line must sit there rather than at a data
+    mean: the popularity arm's Gini is arithmetic, and the line is what says so."""
+    fig = figures.plot_arm_comparison(save=False)
+    horizontals = [ln for ln in fig.axes[0].lines
+                   if len(set(np.asarray(ln.get_ydata(), dtype=float).tolist())) == 1]
+    assert any(np.isclose(ln.get_ydata()[0], 0.96) for ln in horizontals), \
+        [ln.get_ydata()[0] for ln in horizontals]
+
+
+def test_arm_comparison_annotates_reach_on_every_arm():
+    fig = figures.plot_arm_comparison(save=False)
+    labels = " ".join(t.get_text() for t in fig.axes[0].get_xticklabels())
+    for pct in ("99.4%", "95.8%", "18.1%", "4.0%"):
+        assert pct in labels, labels
+
+
+# ── 5. gini evolution ────────────────────────────────────────────────────────
+
+def _evolution_figure(**kw):
+    """plot_gini_evolution, tolerating the missing-generation warning when it applies.
+
+    The committed tables predate the `generation` column, so the function warns and
+    omits the boundaries. That is a missing annotation on otherwise correct output, so
+    the tests around it assert the absence explicitly and do not let the warning abort
+    the rest.
+    """
+    has_generation = "generation" in pd.read_csv(DATA / "ablation" / "ncf_seed42.csv")
+    with _nullcontext() if has_generation else pytest.warns(RuntimeWarning, match="generation"):
+        return figures.plot_gini_evolution(**kw)
+
+
+def test_plot_gini_evolution_returns_a_figure_and_writes_a_png(tmp_path):
+    fig = _evolution_figure(out_dir=tmp_path)
+    assert isinstance(fig, Figure)
+    path = tmp_path / "gini_evolution.png"
+    assert path.is_file() and path.stat().st_size > 10_000
+    assert _looks_drawn(path)
+    assert _is_light(path)
+
+
+def test_gini_evolution_lines_are_the_seed_means(tmp_path):
+    fig = _evolution_figure(out_dir=tmp_path)
+    ax = fig.axes[0]
+    assert len(ax.lines) == 4
+
+    for arm, line in zip(("random", "oracle", "ncf", "popularity"), ax.lines):
+        frames = [pd.read_csv(p) for p in
+                  sorted((DATA / "ablation").glob(f"{arm}_seed*.csv"))]
+        expected = pd.concat(frames).groupby("epoch").gini.mean().to_numpy()
+        np.testing.assert_allclose(np.asarray(line.get_ydata(), dtype=float), expected,
+                                   rtol=1e-12)
+
+
+def test_gini_evolution_invents_no_boundary_without_the_column():
+    """The committed tables predate `generation`, so this figure draws no boundaries and
+    warns. The failure being guarded against is silently recomputing them from
+    n_epochs // n_generations, which would draw a line the run never had."""
+    if "generation" in pd.read_csv(DATA / "ablation" / "ncf_seed42.csv"):
+        pytest.skip("committed ablation records `generation`; nothing to guard")
+
+    with pytest.warns(RuntimeWarning, match="generation"):
+        fig = figures.plot_gini_evolution(save=False)
+    verticals = [ln for ln in fig.axes[0].lines
+                 if len(set(np.asarray(ln.get_xdata(), dtype=float).tolist())) == 1]
+    assert verticals == []
+
+
+def test_gini_evolution_draws_the_generation_breaks_from_the_column(tmp_path):
+    """The boundary path, exercised on synthetic tables that carry `generation`.
+
+    The breaks are placed off the natural 20-epoch grid on purpose: a figure that
+    recomputed them from n_epochs // n_generations would draw at 20 and 40 and this
+    test would fail. What is asserted is the column, not the arithmetic.
+    """
+    ablation = tmp_path / "ablation"
+    ablation.mkdir()
+    breaks = (7, 15)  # deliberate: not multiples of anything in the config
+    for arm in ("ncf", "oracle", "random", "popularity"):
+        for seed in (42, 43, 44, 45, 46):
+            epochs = np.arange(20)
+            pd.DataFrame({
+                "arm": arm, "seed": seed, "epoch": epochs,
+                # Generation 0 up to epoch 6, 1 from 7 to 14, 2 from 15.
+                "generation": (epochs >= 7).astype(int) + (epochs >= 15).astype(int),
+                "gini": 0.5 + 0.01 * epochs + 0.001 * seed,
+                "reach": 0.9, "top1_share": 0.1, "mcr": 0.5, "rsi": 0.4,
+                "welfare_alg": 0.0, "noise_ratio": 1.0,
+            }).to_csv(ablation / f"{arm}_seed{seed}.csv", index=False)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # the missing-column warning must not fire here
+        fig = figures.plot_gini_evolution(data_dir=tmp_path, save=False)
+
+    verticals = [float(np.asarray(ln.get_xdata())[0]) for ln in fig.axes[0].lines
+                 if len(set(np.asarray(ln.get_xdata(), dtype=float).tolist())) == 1]
+    # Drawn once for all four arms, at every generation change: 7 and 15.
+    assert verticals == [pytest.approx(b - 0.5) for b in breaks]
+
+
+def test_gini_evolution_still_renders_and_is_not_blank(tmp_path):
+    with pytest.warns(RuntimeWarning):
+        fig = figures.plot_gini_evolution(out_dir=tmp_path)
+    assert isinstance(fig, Figure)
+    assert _looks_drawn(tmp_path / "gini_evolution.png")
+
+
+# ── 6. lorenz / matthew ──────────────────────────────────────────────────────
+
+def test_lorenz_curve_reproduces_the_exposure_gini():
+    """plot_lorenz annotates a Gini; it must be the metric's Gini over the same array,
+    and the curve must run from (0, 0) to (1, 1)."""
+    rng = np.random.default_rng(0)
+    before = rng.integers(0, 3, size=200)
+    after = rng.integers(0, 12, size=200)
+
+    ax = figures.plot_lorenz(before, after)
+    labels = [t.get_text() for t in ax.get_legend().get_texts()]
+    assert len(labels) == 2
+    for label, values in zip(labels, (before, after)):
+        assert float(label.split()[-1]) == pytest.approx(figures._gini(values), abs=5e-4)
+
+    fx, fy = figures._lorenz(after)
+    assert fx[0] == 0.0 and fy[0] == 0.0
+    assert fx[-1] == pytest.approx(1.0) and fy[-1] == pytest.approx(1.0)
+    # Two arrays of different concentration must not give the same curve.
+    assert not np.allclose(figures._lorenz(before)[1], figures._lorenz(after)[1])
+
+
+@needs_extension
+def test_plot_matthew_effect_returns_a_figure_and_writes_a_png(tmp_path):
+    fig = figures.plot_matthew_effect(n_epochs=4, out_dir=tmp_path)
+    assert isinstance(fig, Figure)
+    path = tmp_path / "matthew_effect.png"
+    assert path.is_file() and path.stat().st_size > 10_000
+    assert _looks_drawn(path)
+    assert _is_light(path)
+
+
+@needs_extension
+def test_matthew_effect_puts_the_higher_concentration_on_the_ncf_arm():
+    """ncf concentrates more than oracle at this horizon: the solid curve must sit
+    below the dashed one over the body of the plot. A figure that plotted the arms the
+    other way round would look equally plausible."""
+    fig = figures.plot_matthew_effect(n_epochs=6, save=False)
+    ax = fig.axes[0]
+    reference, treatment = ax.lines[1], ax.lines[2]
+    assert np.asarray(treatment.get_ydata()).mean() < np.asarray(reference.get_ydata()).mean()
+
+
+# ── 7. attribution ───────────────────────────────────────────────────────────
+
+@needs_extension
+def test_plot_attribution_returns_a_figure_and_writes_a_png(tmp_path):
+    fig = figures.plot_attribution(out_dir=tmp_path)
+    assert isinstance(fig, Figure)
+    path = tmp_path / "attribution.png"
+    assert path.is_file() and path.stat().st_size > 10_000
+    assert _looks_drawn(path)
+    assert _is_light(path)
+
+
+@needs_extension
+def test_attribution_values_are_the_published_ones():
+    """The two numbers the caption quotes, from the function the figure draws from."""
+    d = figures.attribution_measurements()
+    assert d["terms"]["attract"]["mean"] == pytest.approx(0.607, abs=0.02)
+    assert d["terms"]["status"]["mean"] == pytest.approx(0.748, abs=0.02)
+    # Attractiveness ahead of status is the claimed ordering at beta = 2*alpha.
+    assert d["terms"]["attract"]["mean"] < d["terms"]["status"]["mean"]
+
+    pair = d["pairs"]["attractiveness~status"]
+    assert pair["population"] == pytest.approx(0.0, abs=0.05)
+    assert pair["selected"] < -0.1
+
+
+def test_attribution_figure_draws_every_pair_and_every_term():
+    """Both panels must carry the whole table, not a subset that happens to plot."""
+    fig = figures.plot_attribution(save=False)
+    ax, az = fig.axes
+    assert len(ax.patches) == 12  # six trait pairs, two bars each
+    assert len(az.patches) == 4   # four terms
+    assert [t.get_text() for t in az.get_yticklabels()] == [
+        "attract", "status", "indicator", "distance"]
+
+
 # ── captions ─────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("name", ["separating_curve", "thin_market_curve", "decomposition"])
-def test_every_caption_states_what_it_does_not_show(name):
+A_SIDE = ("arm_comparison", "gini_evolution", "matthew_effect", "attribution")
+
+
+@pytest.mark.parametrize("name", A_SIDE)
+def test_a_side_captions_state_what_they_do_not_show(name):
     cap = figures.CAPTIONS[name]
     assert "What it does not show" in cap
     assert len(cap.split("What it does not show")[1]) > 150
 
 
-def test_captions_carry_the_three_required_limits():
-    assert "real proposers" in figures.CAPTIONS["separating_curve"]
-    assert "real community" in figures.CAPTIONS["thin_market_curve"]
-    assert "algorithms amplify" in figures.CAPTIONS["decomposition"]
+def test_arm_caption_carries_the_three_required_limits():
+    cap = figures.CAPTIONS["arm_comparison"]
+    assert "Gini alone is not a measure of harm" in cap
+    assert "by construction" in cap
+    assert "ncf-minus-oracle" in cap and "not ncf-minus-random" in cap
+
+
+def test_attribution_caption_qualifies_the_ordering():
+    cap = figures.CAPTIONS["attribution"]
+    assert "not of traits in general" in cap
+    assert "property of the search, not of people" in cap
+
+
+def test_gini_evolution_caption_names_the_regime_and_the_static_market():
+    cap = figures.CAPTIONS["gini_evolution"]
+    assert "admissible_fraction" in cap and "never binds" in cap
+    assert "static market" in cap and "not feedback" in cap
+
+
+def test_matthew_caption_names_the_missing_shown_set():
+    assert "`generate_swipes` takes no shown-set argument" \
+        in figures.CAPTIONS["matthew_effect"]
