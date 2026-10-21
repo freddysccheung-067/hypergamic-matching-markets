@@ -181,9 +181,27 @@ which would itself be a finding about the model.
 interaction is +16.7 ± 40.4 (standard error 18.1, three of five seeds negative): indistinguishable
 from zero, as this section anticipated.
 
-**H6 — High-intent agents exit the global market first.** Attrition in Environment A is negatively
-correlated with `τ`.
-*Killed if:* attrition is flat in `τ`.
+**H6 — High-intent agents exit the global market first.** `Corr(τ, attrition) > 0`: agents with
+high intent leave Environment A at a higher rate than low-intent ones.
+*Killed if:* attrition is flat in `τ`, or if the sign is reversed.
+
+*Corrected 2026-10-21:* this was written as "attrition is negatively correlated with `τ`", which
+says the opposite of the sentence above it. The heading is the claim; the formal line carried the
+sign error.
+
+*Partially measured (THEORY.md §10.8):* there is no attrition mechanism in the model, so the
+hypothesis cannot be tested as stated. What can be measured is the direction an exit rule would
+see, and the answer depends entirely on the rule:
+
+| exit keyed on | corr(τ, exit) | H6 |
+|---|---|---|
+| "unmatched this epoch" | ≈ 0.00 | killed — matching does not depend on τ |
+| net payoff | +0.85 at `c = 2` | holds, but by cost-burn, not by rejection |
+
+High-intent agents propose about six times as often at `c = 1` and are matched at the same rate,
+so they spend without converting. Their payoff falls below the low-intent quartile's by `c = 2`
+(−34.6 against −0.1). The mechanism is that a costly proposal is paid regardless of acceptance and
+high-intent agents make the most of them — which is also why H4 dies at `c_B ≥ 0.05`.
 
 ## What this design cannot show
 

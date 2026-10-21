@@ -1299,3 +1299,53 @@ estimation-error concentration seen through welfare.
 - The four ablation arms of §7.7 keep their definitions and their measured values.
 - Every number in §7 and §9 was produced under Environment A and stays valid as such. They are
   A-side results, and the README must say so rather than presenting them as general.
+
+### 10.8 Attrition and intent (H6)
+
+H6 claims high-intent agents leave Environment A at a higher rate. **There is no attrition
+mechanism in the model**, so the hypothesis cannot be tested as stated: `turnover_fraction` is a
+config field with no implementation, and `run_multigen` was never built. What can be measured is
+the direction any given exit rule would see, and the answer depends entirely on which rule.
+
+Measured at N = 1000, three seeds, oracle lists truncated at k = 20, epoch 0. Rank correlations
+with $\tau$ (Spearman, because $\tau$ is Beta-shaped and the outcomes are 0/1):
+
+| cost $c$ | proposes | proposal count | matched | pair survival |
+|---|---|---|---|---|
+| 0.00 | −0.015 | −0.015 | +0.012 | +0.180 |
+| 0.25 | +0.010 | +0.051 | +0.012 | +0.180 |
+| 1.00 | +0.200 | +0.612 | +0.012 | +0.180 |
+
+Three things follow.
+
+**Matching does not depend on intent.** The $\tau$-matched correlation is +0.012 at every cost,
+because $\tau$ never enters `utility_toward`. So an exit rule keyed on "did not match this epoch" is
+flat in $\tau$ by construction and kills H6 without needing evidence.
+
+**Pair survival does, but in H6's favour only weakly.** A match between two high-intent agents
+survives more often (+0.180), which makes high-intent agents *better off*, not worse — the
+opposite of exiting first.
+
+**Cost-burn is the one channel that produces H6's direction.** At $c > 0$ a high-intent agent
+proposes far more often (rank correlation +0.612 at $c = 1$) and is matched no more often
+(+0.012), because a proposal is paid whether or not it is accepted. Net payoff therefore inverts:
+
+| cost $c$ | corr($\tau$, payoff) | mean payoff | low-$\tau$ quartile | high-$\tau$ quartile |
+|---|---|---|---|---|
+| 0.00 | +0.074 | +1.0 | +0.4 | +1.7 |
+| 0.25 | +0.034 | −3.9 | −4.3 | −3.3 |
+| 0.50 | −0.124 | −8.5 | −7.5 | −8.3 |
+| 1.00 | −0.540 | −15.1 | −5.6 | −18.3 |
+| 2.00 | −0.851 | −16.0 | −0.1 | −34.6 |
+
+So H6 is **conditionally true**: an exit rule keyed on net payoff makes high-intent agents leave
+first, at correlations up to −0.85, and the mechanism is not rejection but cost-burn. Under any
+other rule it is false or undefined. This is the same cost dominance that kills H4 above
+$c_B = 0.05$ (§10.4) — an entrant pays up to $k$ proposals and converts at most once.
+
+**What would make H6 testable properly.** An actual exit rule, and a decision about which signal it
+keys on. That decision is not a detail: it flips the hypothesis's sign. A model in which high-intent
+agents leave first *because they are rejected* is not supported here; one in which they leave first
+*because commitment is expensive and unreciprocated* is, and the two have different policy
+implications. Recorded as an open question rather than resolved.
+
