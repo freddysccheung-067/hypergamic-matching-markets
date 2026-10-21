@@ -6,6 +6,11 @@ simulation.
 
     python scripts/run_ablation.py --seeds 42,43,44,45,46
 
+That command read `experiments/base.yaml` while it shipped `admissible_fraction: 0.2`,
+at a 20-epoch horizon. Since Session 4-A the file ships 0.02 and `n_epochs: 100`, so
+reproducing these tables needs both pinned: a copy of base.yaml with
+`population.admissible_fraction: 0.2`, passed as `--config`, plus `--epochs 20`.
+
 ## Regime
 
 This is the **inert-loop regime**: `population.admissible_fraction: 0.2`, at which
@@ -13,7 +18,7 @@ the θ gate never truncates and the market does not respond to its own clearing
 outcomes. THEORY.md §3 states the condition for the gate to bind
 (`phi < 2k/N`, i.e. below 0.04 at k=20, N=1000) and records both measured regimes.
 
-Session 4-A changes the default to 0.02 and re-runs this sweep into
+Session 4-A changed the default to 0.02 and re-ran this sweep into
 `data/processed/ablation_live/`. Both directories are kept deliberately: the
 difference between them is the evidence that feedback matters, and a single
 directory would make that comparison impossible after the default changed.

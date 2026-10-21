@@ -4,7 +4,25 @@ population:
   # Share of candidates an agent finds admissible at epoch 0. θ is calibrated per
   # agent as the (1 - admissible_fraction) quantile of that agent's own utilities,
   # so this is a target, not a cutoff — see docs/INTERFACES.md §2 and THEORY.md §3.
-  admissible_fraction: 0.2
+  #
+  # The rule, not the number: θ only acts when it cuts an agent's admissible set
+  # below the shortlist length k, i.e. when
+  #
+  #     admissible_fraction < 2 * ncf.top_k / population.n      (0.04 at k=20, N=1000)
+  #
+  # At or above that every agent takes the top k of a larger set wherever θ sits,
+  # the θ update moves no positive, and the market never responds to its own
+  # outcomes. phi and k interact: raising top_k (or lowering n) requires lowering
+  # this. config.py warns when the rule is broken. Measured at seed 42, N=1000,
+  # k=20, epoch 0, shifting every θ down by one utility unit (the direction the
+  # update moves it):
+  #
+  #     0.2   ~100 admissible, 0/1000 truncated,    0 positives moved
+  #     0.02   ~10 admissible, 1000/1000 truncated, 6709 positives moved
+  #
+  # 0.2 was the shipped value until Session 4-A; data/processed/ablation/ is that
+  # inert regime and data/processed/ablation_live/ is this one.
+  admissible_fraction: 0.02
   # Spread of the per-agent taste multipliers (THEORY.md §2.3). Each of
   # m_alpha, m_beta, m_gamma is lognormal(-sigma^2/2, sigma) with mean 1, so this
   # is a coefficient of variation. 0 disables heterogeneity and reproduces the

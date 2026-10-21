@@ -248,3 +248,55 @@ def test_config_rejects_unknown_key():
     raw = base_config(ncf={"topk": 20})
     with pytest.raises(ValueError, match="unknown key"):
         SimConfig.from_dict(raw)
+
+
+# ── the θ gate's operating point (THEORY.md §3) ─────────────────────────────────
+
+def test_shipped_config_is_in_the_live_gate_regime():
+    """phi < 2k/N at the shipped N and k, so the θ gate truncates at epoch 0."""
+    import warnings
+
+    from src.python.config import InertGateWarning
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", InertGateWarning)
+        cfg = SimConfig.from_yaml()
+    assert cfg.population.admissible_fraction < 2 * cfg.ncf.top_k / cfg.population.n
+
+
+@pytest.mark.parametrize("phi", [0.04, 0.05, 0.2])
+def test_inert_gate_warns_and_does_not_raise(phi):
+    """At or above 2k/N the market is static. Legal — the inert ablation runs there
+    on purpose — so it warns, and the config still builds."""
+    from src.python.config import InertGateWarning
+
+    raw = base_config(population={"admissible_fraction": phi})
+    with pytest.warns(InertGateWarning, match="2 \* ncf.top_k / population.n"):
+        cfg = SimConfig.from_dict(raw)
+    assert cfg.population.admissible_fraction == phi
+
+
+def test_the_inert_warning_follows_k_and_n_not_a_fixed_phi():
+    """phi and k interact: 0.02 is live at k=20, N=1000 and inert at k=5."""
+    import warnings
+
+    from src.python.config import InertGateWarning
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", InertGateWarning)
+        SimConfig.from_dict(base_config(population={"admissible_fraction": 0.02}))
+    with pytest.warns(InertGateWarning):
+        SimConfig.from_dict(base_config(population={"admissible_fraction": 0.02},
+                                        ncf={"top_k": 5}))
+
+
+def test_explicit_init_threshold_does_not_warn():
+    """An absolute θ bypasses calibration, so phi says nothing about the gate."""
+    import warnings
+
+    from src.python.config import InertGateWarning
+
+    raw = base_config(population={"admissible_fraction": 0.2, "init_threshold": 0.0})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", InertGateWarning)
+        SimConfig.from_dict(raw)

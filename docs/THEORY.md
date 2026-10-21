@@ -338,8 +338,9 @@ set the NCF trains on. Because the update target is a *yield* in $[0,1]$ while $
 compared against utilities on the scale of $\alpha\tilde{s} + \beta\tilde{a} - \gamma d +
 \lambda\mathbb{1}[\cdot]$ (standardized units, §2.0), $\theta_i$ is
 calibrated at $t=0$ as the $(1-\phi)$ quantile of each agent's own utility distribution, with
-$\phi$ = `population.admissible_fraction` (default 0.2), so that roughly $\phi N/2$ candidates per
-agent are admissible at the start rather than all or none.
+$\phi$ = `population.admissible_fraction` (shipped 0.02 since Session 4-A; 0.2 before), so
+that roughly $\phi N/2$ candidates per agent are admissible at the start rather than all or
+none.
 
 **A known inconsistency, not fixed here.** The update target is a yield in $[0,1]$ and
 $\theta_i$ is a utility, so the recursion drives $\theta_i$ toward a number whose *scale*
@@ -353,14 +354,46 @@ takes the top $k$ of them regardless of where the cutoff sits. The condition is
 
 $$\phi < \frac{k}{N/2},$$
 
-i.e. `admissible_fraction` below $2k/N$. At the shipped $\phi = 0.2$ and $k=20$, $N=1000$
-that is $0.2 < 0.04$ — false, so every agent has roughly 100 admissible candidates against a
-shortlist of 20 and $\theta$ never acts. Measured: at $\phi = 0.02$ (about 10 admissible at
-$k=20$) every one of 1000 agents is truncated and 6709 positives move under a one-unit shift
-in $\theta$; at $\phi = 0.2$, none do. The feedback loop of §3 is therefore *live only above
-this threshold*, which is a genuine property of the model rather than a defect to hide: it
-says the market only responds to its own outcomes when selectivity is tight relative to list
-length. Every ablation result below reports the regime it was run in.
+i.e. `admissible_fraction` below $2k/N$ — 0.04 at $k = 20$, $N = 1000$. $\phi$ and $k$
+interact: a longer shortlist needs a tighter $\phi$, so the rule is the condition, not a
+number, and `config.py` warns (it does not refuse) whenever a config breaks it.
+
+Measured at seed 42, $N = 1000$, $k = 20$, epoch 0, shifting every $\theta$ down by one
+utility unit — the direction §3's update moves it, since the target is a yield in $[0,1]$
+and the calibrated $\theta$ sits well above 1:
+
+| $\phi$ | admissible per agent | agents truncated | positives moved |
+|---|---|---|---|
+| 0.20 | 100 | 0 / 1000 | 0 |
+| 0.05 | 25 | 0 / 1000 | 0 |
+| 0.02 | 10 | 1000 / 1000 | 6709 |
+| 0.01 | 5 | 1000 / 1000 | 3869 |
+
+A shift *up* tells a different story at 0.05 (5786 positives lost), because raising $\theta$
+can cut a 25-candidate set below 20. The update never moves $\theta$ up from its calibrated
+value, so the downward column is the one that describes the loop.
+
+**Which regime the shipped config is in.** `experiments/base.yaml` ships $\phi = 0.02$: the
+gate binds at $t = 0$ for every agent. Until Session 4-A it shipped 0.2, where the gate
+never binds and the market is a repeated static experiment; every number this document
+reported before then — §7.7's ablation table, the §10.4–§10.6 welfare tables, the pinned
+digests in the test suite — was measured there, and the tests that pin those numbers now
+set $\phi = 0.2$ explicitly rather than reading it from the config. The two regimes have
+separate ablation directories: `data/processed/ablation/` (0.2, inert) and
+`data/processed/ablation_live/` (0.02, live). §7.7's headline numbers are the inert ones.
+
+**The live regime is a transient, not a steady state.** The scale mismatch above makes
+this concrete. At $\phi = 0.02$ the calibrated $\theta$ averages 7.5 utility units, and the
+update pulls it toward a yield below 1 at rate $\eta = 0.1$; within a few epochs most agents'
+$\theta$ falls below their 20th-best utility and the gate stops binding again. Measured,
+oracle arm, seed 42: agents truncated per epoch run 1000, 968, 425, 93, 27, then 16 from
+epoch 5 onward; the NCF arm holds more agents truncated for longer (419 at epoch 19), because
+its lists do not track utility. By epoch 4 the oracle arm's Gini and clearing rate are those
+of the inert regime to three digits. So the shipped config has a live loop, but what the loop
+does is *relax* an initially tight market toward the inert one — it does not sustain
+selectivity. Whether the loop matters is therefore a question about the first few epochs of
+each population, which is exactly what generational turnover (§8) re-creates: newcomers are
+calibrated fresh, so each generation starts with a binding gate for its newcomers.
 
 ---
 
@@ -617,6 +650,30 @@ rather than a simulation. The arms still separate, because they separate on rank
 than on feedback — but the regime is stated rather than left implicit, and the live-gate
 regime ($\phi < 2k/N$, §3) is a separate measurement.
 
+**The live-gate measurement.** Same five seeds, same 20-epoch horizon, $\phi = 0.02$
+(`data/processed/ablation_live/`), final epoch:
+
+| arm | Gini, inert ($\phi$ 0.2) | Gini, live ($\phi$ 0.02) |
+|---|---|---|
+| `random` | 0.3780 ± 0.0058 | 0.4214 ± 0.0049 |
+| `oracle` | 0.6544 ± 0.0109 | 0.6545 ± 0.0111 |
+| `ncf` | 0.9393 ± 0.0065 | 0.9412 ± 0.0033 |
+| `popularity` | 0.9600 ± 0.0000 | 0.9600 ± 0.0000 |
+
+| gap | inert | live |
+|---|---|---|
+| `gini(ncf) − gini(oracle)` | +0.2849 ± 0.0074 | **+0.2867 ± 0.0101** |
+| `gini(oracle) − gini(random)` | +0.2764 ± 0.0117 | +0.2330 ± 0.0087 |
+| `gini(popularity) − gini(random)` | +0.5820 ± 0.0058 | +0.5386 ± 0.0049 |
+
+The headline gap does not move. That is what §3's transient predicts: the regimes differ
+in the first few epochs — at epoch 0 the live oracle arm has Gini 0.697 and clears 11% of
+the market, against the inert arm's 0.654 and 26% — and by epoch 4 the oracle arm has relaxed
+onto the inert one. Only the random arm is still visibly separated at epoch 19, because its
+uniform draw keeps exposing the residual truncation that the oracle's top-$k$ hides. So the
+answer to "does feedback matter" at this horizon is: for the trajectory, yes; for the
+endpoint the headline is quoted at, no. Both tables are kept so that claim stays checkable.
+
 **What this model does and does not contain.** It is exposure-mediated *in one direction
 only*. `generate_swipes` takes no shown-set argument: an agent's preferences are a pure
 function of (states, params, seed, epoch), so what the recommender surfaced never shapes what
@@ -624,7 +681,8 @@ anyone wants. The Matthew effect here is therefore **not compounded by a feedbac
 through preferences** — the recommender's concentration is a property of who it can rank
 confidently, iterated over a market whose tastes do not move in response to it. What *does*
 feed back is selectivity: the matching outcome moves $\theta$ (§3), and $\theta$ gates the
-next epoch's positives. That loop is real but, at the shipped calibration, inert.
+next epoch's positives. That loop is real; at $\phi = 0.2$ it is inert, and at the shipped
+$\phi = 0.02$ it binds for the first few epochs of each population and then relaxes (§3).
 
 ---
 
@@ -635,6 +693,38 @@ Over $T$ epochs, track the distribution of cumulative match counts per agent. Fi
 $$P(X > x) = \left(\frac{x_m}{x}\right)^{\alpha_P}$$
 
 A decreasing $\alpha_P$ across generations indicates heavier tail concentration — fewer agents capturing progressively more matches. This is the macro-level signature of micro-level hypergamy amplified through the NCF loop.
+
+**Turnover.** `Simulation.run_multigen` runs `simulation.n_generations` generations of
+`n_epochs / n_generations` epochs each, through `run()`, and between generations replaces the
+bottom `turnover_fraction` of agents by cumulative match count. A newcomer keeps the leaver's
+slot (id, side, row) and nothing else: traits, taste multipliers, key and institutional columns
+are drawn from the original distributions at a seed derived from (seed, generation); $\theta$ is
+recalibrated by the §3 quantile rule against the market it enters; its cumulative count starts
+at 0; and its NCF embedding rows are re-drawn. Survivors are untouched, bit for bit. Ties at the
+cut — common, since most agents hold zero or one match after a short generation — are broken by
+a seeded permutation, because rows are laid out M then W and a row tie-break would retire one
+side first.
+
+**The fit is over the generation's cumulative counts, and that makes $\alpha_P$ fall by
+itself.** Survivors carry their counts forward and newcomers start at 0, so the positive
+support widens every generation whether or not concentration changes. With *no* turnover at
+all the oracle arm's $\alpha_P$ falls 0.356 → 0.286 → 0.257 → 0.240 → 0.228 over five
+generations (seeds 42–46, sd ≤ 0.004) while its Gini and clearing rate do not move — so a
+falling $\alpha_P$ here is first an accumulation effect, not evidence of a heavier tail in any
+one epoch. With 20% turnover the same arm reads 0.356 → 0.300 → 0.279 → 0.266 → 0.255: turnover
+*slows* the fall, because it removes the zero-to-low end and resets it, and it also lifts the
+clearing rate (0.26 → 0.36) as newcomers arrive with a freshly binding gate. The quantity that
+isolates turnover is the paired difference against the no-turnover run on the same seed, not
+the trend in either.
+
+The NCF arm (seeds 42–44, same config) says the same about $\alpha_P$ more starkly: it falls
+0.474 → 0.450 → 0.444 → 0.394 → 0.370 with turnover and 0.474 → 0.448 → 0.434 → 0.394 → 0.353
+without, overlapping within a seed sd at every generation but the last. Where turnover *does*
+show is exposure: the end-of-generation Gini reaches 0.774 ± 0.006 with turnover against
+0.692 ± 0.007 without. Every replacement re-draws a slot's embedding, so a fifth of the market
+re-enters the recommender as unknowns each generation, and an unknown is exactly what §7.7
+says the NCF drops from every shortlist. Turnover keeps the learned arm further from the oracle
+than a closed population would let it drift.
 
 ---
 
@@ -1303,8 +1393,9 @@ estimation-error concentration seen through welfare.
 ### 10.8 Attrition and intent (H6)
 
 H6 claims high-intent agents leave Environment A at a higher rate. **There is no attrition
-mechanism in the model**, so the hypothesis cannot be tested as stated: `turnover_fraction` is a
-config field with no implementation, and `run_multigen` was never built. What can be measured is
+mechanism in the model**, so the hypothesis cannot be tested as stated. Generational turnover
+(`run_multigen`, §8, added in Session 4-A) is not one: it retires the bottom agents by
+cumulative match count, a rule that is flat in $\tau$ by the argument below. What can be measured is
 the direction any given exit rule would see, and the answer depends entirely on which rule.
 
 Measured at N = 1000, three seeds, oracle lists truncated at k = 20, epoch 0. Rank correlations

@@ -58,10 +58,16 @@ logging.getLogger("src.python.environment_b").setLevel(logging.ERROR)
 # compute_welfare (and identical to the welfare_alg column of that run).
 PRE_SESSION_WELFARE = {42: 2193.2503578352744, 43: 2048.172665594763}
 
+# Every number pinned in this file, and the §10.4 tables it guards, was measured at
+# admissible_fraction 0.2. base.yaml moved to 0.02 in Session 4-A; these tests stay
+# at the regime their numbers belong to rather than being re-pinned to the new one.
+_RECORDED_PHI = 0.2
+
 
 def _cfg(seed: int = 42, n: int | None = None, **env) -> dict:
     d = SimConfig.from_yaml().to_dict()
     d["population"]["seed"] = seed
+    d["population"]["admissible_fraction"] = _RECORDED_PHI
     if n is not None:
         d["population"]["n"] = n
     d["environment_b"].update(env)

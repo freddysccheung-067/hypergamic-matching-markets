@@ -88,11 +88,16 @@ def test_both_knobs_off_reproduces_the_historical_swipe_log():
     on base.yaml at seed 42 with N=1000, epochs 0-2. Any change to the sampling
     stream, the utility arithmetic, or the θ calibration path shows up here as a
     failure rather than as a quietly different set of published numbers.
+
+    admissible_fraction is pinned at 0.2, the value the hash was recorded at.
+    base.yaml moved to 0.02 in Session 4-A (the live-gate regime, THEORY.md §3);
+    that is a config change, not a code change, and pinning it here keeps this
+    a test of the code.
     """
     import hashlib
 
     cfg = base_config(
-        population={"taste_sigma": 0.0},
+        population={"taste_sigma": 0.0, "admissible_fraction": 0.2},
         hypergamy={"shock_scale": 0.0},
     )
     states = _hypergamic.sample_population(1000, cfg, 42)
@@ -241,7 +246,9 @@ def test_theta_calibration_survives_heterogeneity():
     are now heterogeneous, which is exactly why the count needs checking rather
     than assuming.
     """
-    cfg = base_config()
+    # Pinned at 0.2 because the re-calibration below and the band after it are
+    # written for that value; base.yaml has shipped 0.02 since Session 4-A.
+    cfg = base_config(population={"admissible_fraction": 0.2})
     states = _hypergamic.sample_population(400, cfg, 23)
 
     # sample_population already calibrates θ at 0.2, so this is a re-calibration:

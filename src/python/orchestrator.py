@@ -62,6 +62,7 @@ try:  # the extension lands in build/Release (README "Installation")
     from _hypergamic import (
         admissible_prefs,
         build_full_info_pref_lists,
+        calibrate_thresholds,
         compute_welfare,
         count_blocking_pairs,
         deferred_acceptance,
@@ -78,6 +79,7 @@ except ImportError:  # pragma: no cover - convenience for a fresh checkout
     from _hypergamic import (  # noqa: F401
         admissible_prefs,
         build_full_info_pref_lists,
+        calibrate_thresholds,
         compute_welfare,
         count_blocking_pairs,
         deferred_acceptance,
@@ -292,6 +294,11 @@ class Simulation:
         # because the comparability rule is per agent and the frame is per epoch.
         self.record_outcomes = False
         self.outcomes: list[EpochOutcome] = []
+
+        # One entry per turnover run_multigen performed: {"generation", "rows"}.
+        self.turnover_log: list[dict[str, Any]] = []
+        # The noise-to-signal ratio each generation of run_multigen started with.
+        self.noise_ratio_by_generation: list[float] = []
 
         # Exogenous status drift (THEORY.md §10.6), in raw status units per epoch:
         # the configured gamma is in epoch-0 population sd, converted once here so
@@ -743,10 +750,28 @@ class Simulation:
             by_row[self.acc_rows[int(ai)]] += 1
         return by_row
 
-    def run(self, n_epochs: int) -> pd.DataFrame:
-        """Run ``n_epochs`` epochs and return the §6 metrics frame."""
+    def run(self, n_epochs: int, *, start_epoch: int = 0) -> pd.DataFrame:
+        """Run ``n_epochs`` epochs and return the §6 metrics frame.
+
+        ``start_epoch`` is the absolute index of the first epoch, so a caller that
+        runs one generation at a time (``run_multigen``) gets an ``epoch`` column
+        that continues across calls rather than restarting at 0. Everything keyed
+        on the epoch — the swipe stream, the random arm's draw, the defection draw,
+        status drift, and the ``generation`` label — reads the absolute index, so a
+        generation run at ``start_epoch = 40`` sees exactly the streams epochs 40..
+        of one long run would. At the default 0 this is the single-population path,
+        unchanged.
+
+        Per-call history — the popularity arm's in-degrees and the measured accept
+        rate — starts fresh on every call. Across a generation boundary that is
+        the right reading rather than a shortcut: a fifth of the slots now hold
+        different agents, and an in-degree carried over would credit a newcomer
+        with the popularity of the agent it replaced.
+        """
         if n_epochs < 0:
             raise ValueError(f"n_epochs must be >= 0; got {n_epochs}")
+        if start_epoch < 0:
+            raise ValueError(f"start_epoch must be >= 0; got {start_epoch}")
 
         ok_benchmark = self._ensure_benchmark()
         top_k = int(self.config.ncf.top_k)
@@ -771,7 +796,7 @@ class Simulation:
         # agent no longer has. Recomputed only on the epochs that actually need it.
         v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
 
-        for epoch in range(n_epochs):
+        for epoch in range(start_epoch, start_epoch + n_epochs):
             # Exogenous drift (THEORY.md §10.6), applied before anything reads the
             # states so the epoch sees s_w(t) = s_w(0) + gamma*t. Epoch 0 is never
             # shifted, which is what lets the four factorial cells assert one shared
@@ -1071,3 +1096,158 @@ class Simulation:
                 "n_matched": "int64", "n_blocking": "int64",
             })
         return frame
+
+    # ------------------------------------------------------ generational turnover
+
+    def run_multigen(self) -> pd.DataFrame:
+        """``simulation.n_generations`` generations with turnover between them.
+
+        Each generation is one ``run()`` call of ``n_epochs // n_generations``
+        epochs, started at the absolute epoch where the previous one ended. There
+        is no second epoch loop: ``run()`` derives ``generation`` from the absolute
+        epoch and fits ``pareto_alpha`` on each generation's final row, so both
+        come out of the one place they were already computed.
+
+        Between generations, ``_turnover`` replaces the bottom
+        ``turnover_fraction`` of agents by cumulative match count (THEORY.md §8).
+        There is no turnover after the last generation: nothing would observe it.
+
+        ``exposure_series``, ``states_seen`` and ``outcomes`` hold the whole run,
+        all generations in epoch order, as they would after one long ``run()``.
+        """
+        sim_cfg = self.config.simulation
+        n_epochs, n_gen = int(sim_cfg.n_epochs), int(sim_cfg.n_generations)
+        # run() maps epochs to generations as epoch // (n_epochs // n_generations).
+        # A remainder would either be dropped or spill into a generation n_gen that
+        # was never configured, so it is refused rather than resolved silently.
+        if n_epochs < n_gen or n_epochs % n_gen != 0:
+            raise ValueError(
+                f"run_multigen needs simulation.n_epochs ({n_epochs}) to be a positive "
+                f"multiple of simulation.n_generations ({n_gen})"
+            )
+        epochs_per_gen = n_epochs // n_gen
+
+        frames: list[pd.DataFrame] = []
+        series: list[np.ndarray] = []
+        states_seen: list[np.ndarray] = []
+        outcomes: list[EpochOutcome] = []
+        self.turnover_log = []
+        # Newcomers change the population's utility spread, so the noise-to-signal
+        # ratio is a per-generation number, recorded for each one as it starts.
+        self.noise_ratio_by_generation = []
+        for g in range(n_gen):
+            if g > 0:
+                self._turnover(g)
+            self.noise_ratio_by_generation.append(self.noise_ratio)
+            frames.append(self.run(epochs_per_gen, start_epoch=g * epochs_per_gen))
+            series.append(self.exposure_series)
+            states_seen.extend(self.states_seen)
+            outcomes.extend(self.outcomes)
+
+        self.exposure_series = np.concatenate(series)
+        self.states_seen = states_seen
+        self.outcomes = outcomes
+
+        frame = pd.concat(frames, ignore_index=True)
+        if not np.array_equal(frame["epoch"].to_numpy(), np.arange(len(frame))):
+            raise RuntimeError("run_multigen: epoch is not contiguous across generations")
+        return frame
+
+    def _turnover(self, generation: int) -> np.ndarray:
+        """Replace the bottom ``turnover_fraction`` of agents; return their rows.
+
+        Called before ``generation`` starts. The rules, each tested in
+        tests/python/test_multigen.py:
+
+        * **Who leaves.** The ``round(turnover_fraction * N)`` agents with the fewest
+          cumulative matches. Ties — and at a clearing rate near a quarter most
+          agents are tied at zero or one — are broken by a permutation seeded on
+          (seed, generation), not by row: rows below N/2 are all M, so a row
+          tie-break would retire one side first.
+        * **Slot, not traits.** A newcomer takes the leaver's row, so id, side and
+          every dense index stay valid. Everything else in the row is new: traits,
+          taste multipliers, key and the institutional columns all come from a
+          fresh population drawn from the ORIGINAL distributions at a seed derived
+          from (seed, generation) — reproducible, and not a repeat of generation 0.
+        * **θ is recalibrated, not inherited.** A newcomer carrying a rejected
+          agent's θ would start life already pessimistic. It is calibrated against
+          the market it actually enters (survivors plus newcomers), by the same
+          quantile rule the sampler uses; survivors keep the θ they have earned.
+        * **A new key** (THEORY.md §2.3), so the newcomer's chemistry is fresh with
+          everyone and no other pair's chemistry moves — every other pair is a
+          function of two keys, neither of which changed.
+        * **Cumulative matches reset to 0**, or the next Pareto fit would measure
+          the dead agent's history plus the newcomer's.
+        * **The recommender forgets the slot.** Its embedding rows are re-drawn, for
+          the same reason θ is not inherited: a newcomer holding a rejected agent's
+          embedding would start out ranked as that agent was.
+
+        Survivors' rows are not written at all, so they are bit-identical.
+        """
+        n_replace = int(round(float(self.config.simulation.turnover_fraction) * self.n))
+        if n_replace <= 0:
+            self.turnover_log.append({"generation": generation,
+                                      "rows": np.zeros(0, dtype=np.int64)})
+            return np.zeros(0, dtype=np.int64)
+
+        tiebreak = np.random.default_rng([self.rng_seed, generation, _TURNOVER_TAG])
+        order = np.lexsort((tiebreak.permutation(self.n), self._cumulative_matches))
+        rows = np.sort(order[:n_replace]).astype(np.int64)
+
+        fresh_seed = _generation_seed(self.rng_seed, generation)
+        fresh = sample_population(self.n, self.config_dict, fresh_seed)
+        # Same rows in both matrices are the same slot: the sampler lays out M then
+        # W by row, so a row's side does not depend on the seed.
+        if not np.array_equal(fresh[:, :2], self.states[:, :2]):
+            raise RuntimeError("turnover: the fresh population's id/side layout differs")
+        self.states[rows] = fresh[rows]
+
+        # θ: the configured cutoff verbatim if one is set, otherwise the quantile
+        # rule, computed on a copy so that only the newcomers' column is taken.
+        if self.config.population.init_threshold is not None:
+            self.states[rows, 6] = float(self.config.population.init_threshold)
+        else:
+            calibrated = self.states.copy()
+            calibrate_thresholds(calibrated, self.config_dict,
+                                 float(self.config.population.admissible_fraction))
+            self.states[rows, 6] = calibrated[rows, 6]
+
+        keys = self.states[:, 10]
+        if np.unique(keys).size != keys.size:
+            # 52-bit keys over N agents: a collision is ~N²/2^53, but a shared key
+            # would give two agents identical chemistry with everyone, so it is
+            # checked rather than assumed.
+            raise RuntimeError(f"turnover: duplicate key after generation {generation}")
+
+        self._cumulative_matches[rows] = 0
+        self.trainer.reinitialize(rows, seed=fresh_seed)
+
+        # Caches built from traits. The benchmark and B's utility table are the two
+        # _refresh_after_drift already knows about; B's membership also depends on
+        # the newcomers' values, so the subgraph is rebuilt with them.
+        self._refresh_after_drift()
+        if self.recommender == "complete":
+            self.subgraph = build_subgraph(self.states, self.config.require_environment_b(),
+                                           self.rng_seed)
+        self._log_noise_ratio()
+
+        self.turnover_log.append({"generation": generation, "rows": rows})
+        log.info("generation %d: replaced %d agents (seed %d)", generation, rows.size,
+                 fresh_seed)
+        return rows
+
+
+# Third word of the tie-break seed, so it never coincides with the random arm's
+# (seed, epoch) generator.
+_TURNOVER_TAG = 0x7E4E0FE5
+
+
+def _generation_seed(seed: int, generation: int) -> int:
+    """The population seed newcomers of ``generation`` are drawn at.
+
+    Derived through a SeedSequence rather than as ``seed + generation``: seed 42's
+    generation 1 would otherwise be seed 43's generation 0, and a seed sweep would
+    reuse one population as another run's newcomers.
+    """
+    state = np.random.SeedSequence([int(seed), int(generation), _TURNOVER_TAG])
+    return int(state.generate_state(1, dtype=np.uint64)[0] >> np.uint64(1))

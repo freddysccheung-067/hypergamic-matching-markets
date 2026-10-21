@@ -305,6 +305,8 @@ states the correct version.
 
 `Simulation.run()` returns exactly these columns, one row per epoch. `visualization.py` reads only these — adding a column is free, renaming one breaks the plots.
 
+`Simulation.run_multigen()` returns the same columns for `simulation.n_generations` generations of `n_epochs / n_generations` epochs each (the two must divide), with turnover between generations (THEORY.md §8). It drives `run(n, start_epoch=...)` once per generation, so `epoch` is the absolute index — exactly `0..T-1` across the whole frame — and `generation` is derived from it in one place. `pareto_alpha` is non-NaN only on each generation's final row.
+
 | column | dtype | definition |
 |--------|-------|------------|
 | `epoch` | int | absolute epoch index across all generations |

@@ -94,9 +94,11 @@ def test_cost_zero_reproduces_the_pinned_hash():
 
     The two heterogeneity knobs are forced off to match that recording; the cost
     is the default 0.0 and is not set at all, which is also the case that matters:
-    a config that predates the key must run unchanged.
+    a config that predates the key must run unchanged. admissible_fraction is
+    pinned at 0.2, the value the hash was recorded at (see test_heterogeneity.py).
     """
-    cfg = base_config(population={"taste_sigma": 0.0}, hypergamy={"shock_scale": 0.0})
+    cfg = base_config(population={"taste_sigma": 0.0, "admissible_fraction": 0.2},
+                      hypergamy={"shock_scale": 0.0})
     assert "signal_cost" not in cfg["hypergamy"] or cfg["hypergamy"]["signal_cost"] == 0.0
     states = _hypergamic.sample_population(1000, cfg, 42)
 
@@ -122,9 +124,11 @@ def test_cost_zero_leaves_the_orchestrator_frame_identical():
 
     A separate pinned comparison of the *frame* rather than the log, because the
     log does not see the matching, the welfare read or the θ step, and a change
-    in any of those would be invisible to the hash above.
+    in any of those would be invisible to the hash above. Recorded at
+    admissible_fraction 0.2 and pinned there.
     """
-    cfg = base_config(population={"n": 200}, simulation={"n_epochs": 6})
+    cfg = base_config(population={"n": 200, "admissible_fraction": 0.2},
+                      simulation={"n_epochs": 6})
     frame = Simulation(config=cfg).run(3)
 
     assert list(frame.columns) == _COLUMNS_EXPECTED

@@ -172,6 +172,33 @@ class NCFTrainer:
                 break
         return np.concatenate([data, *extra]) if extra else data
 
+    # ------------------------------------------------------------------ turnover
+
+    @torch.no_grad()
+    def reinitialize(self, ids: np.ndarray, seed: int) -> None:
+        """Re-draw the four embedding rows of each id, as at construction.
+
+        Generational turnover puts a new agent in an old slot; without this the
+        newcomer would be scored with the embedding the model learned for whoever
+        held the slot before. Same init as ``NCFModel`` (normal, std 0.01), from a
+        generator seeded by the caller so the multi-generation run stays
+        reproducible and torch's global stream is left alone.
+
+        The shared MLP and output layers are kept — they encode the market, not an
+        agent — and so is Adam's state: its moment estimates for these rows are
+        stale, but zeroing them would make the next step for exactly these rows the
+        largest in the model, which is a bias of its own.
+        """
+        idx = torch.as_tensor(np.asarray(ids, dtype=np.int64), device=self.device)
+        if idx.numel() == 0:
+            return
+        gen = torch.Generator().manual_seed(int(seed))
+        for emb in (self.model.gmf_user, self.model.gmf_item,
+                    self.model.mlp_user, self.model.mlp_item):
+            fresh = torch.normal(0.0, 0.01, size=(idx.numel(), emb.embedding_dim),
+                                 generator=gen)
+            emb.weight[idx] = fresh.to(emb.weight.device, emb.weight.dtype)
+
     # ----------------------------------------------------------------- inference
 
     @torch.no_grad()

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import math
 import pathlib
+import warnings
 from dataclasses import dataclass, field, fields
 from typing import Any
 
@@ -22,6 +23,15 @@ import yaml
 
 # Repository root, so the default config path works from any working directory.
 _PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+
+class InertGateWarning(UserWarning):
+    """The θ gate cannot bind at this (admissible_fraction, top_k, n).
+
+    A category of its own so a script that runs the inert regime on purpose (the
+    committed data/processed/ablation/ tables) can filter exactly this and nothing
+    else.
+    """
 
 
 @dataclass
@@ -372,6 +382,25 @@ class SimConfig:
             raise ValueError(
                 f"ncf.top_k ({self.ncf.top_k}) must be < n/2 ({pool}), the size of the "
                 "candidate pool"
+            )
+
+        # θ acts only when it cuts an agent's admissible set below k (THEORY.md §3):
+        # phi < 2k/n. At or above that every agent takes the top k of a larger set
+        # wherever θ sits, so the θ update moves no positive and the market never
+        # responds to its own outcomes. That is legal — the inert-regime ablation runs
+        # there on purpose — but a run that lands there by accident looks entirely
+        # healthy, so it warns rather than refusing. An explicit init_threshold
+        # bypasses calibration, and phi then means nothing.
+        bound = 2.0 * self.ncf.top_k / self.population.n
+        if (self.population.init_threshold is None
+                and self.population.admissible_fraction >= bound):
+            warnings.warn(
+                f"population.admissible_fraction ({self.population.admissible_fraction}) "
+                f">= 2 * ncf.top_k / population.n ({bound:.4g}): the θ gate never "
+                "truncates a shortlist, so the feedback loop is inert and the market is "
+                "static (THEORY.md §3)",
+                InertGateWarning,
+                stacklevel=3,
             )
 
     def require_environment_b(self) -> EnvironmentBConfig:

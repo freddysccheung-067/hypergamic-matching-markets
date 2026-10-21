@@ -224,9 +224,11 @@ gives a near-equal profile. The comparison that carries the argument is NCF minu
 **Figure 5 — Gini over time.** One line per arm, mean ± 1 sd across seeds, with generation breaks
 read from the run's own `generation` column. The popularity arm jumps from the oracle's 0.654 at
 epoch 0 to its closed form at epoch 1 — the first epoch has no in-degree history, so it falls back
-to the true-utility ranking. *What it does not show:* feedback. These runs use
+to the true-utility ranking. *What it does not show:* feedback in the A-side numbers. These runs use
 `admissible_fraction 0.2`, where the θ gate never binds, so the market does not respond to its own
-outcomes. An upward slope here is preference concentration in a static market, not a loop.
+outcomes. An upward slope here is preference concentration in a static market, not a loop. The
+shipped config now uses 0.02, at which the gate does bind; the two regimes are compared in
+`data/processed/ablation/` and `data/processed/ablation_live/`.
 
 ![Lorenz curves of exposure for the oracle and NCF rankers on one population](docs/figures/matthew_effect.png)
 
@@ -295,8 +297,10 @@ THEORY.md §9.2 states the qualification in full.
 one direction only. `generate_swipes` takes no shown-set argument, so what the recommender surfaced
 never shapes what anyone wants and the Matthew effect is not compounded by a feedback loop through
 preferences. A separate loop does exist — the matching outcome moves the acceptance threshold θ,
-which gates the next epoch's swipe set — but at the shipped `admissible_fraction` (0.2) θ never
-truncates, so that loop is inert and the runs are effectively repeated static experiments.
+which gates the next epoch's swipe set. Whether that loop binds depends on `admissible_fraction`:
+θ can only truncate when the admissible set is shorter than the shortlist (`phi < 2k/N`), which at
+k=20, N=1000 is 0.04. The config now ships 0.02, so the loop is live; the A-side results reported
+above were measured at 0.2, where it was inert, and are labelled as such.
 
 **Correlation among matched pairs is a selection artifact.** Traits are drawn independently, so no
 trait causes another. The market sorts on several at once, which makes the survivors correlate at
