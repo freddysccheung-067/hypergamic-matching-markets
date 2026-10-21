@@ -1400,58 +1400,104 @@ most common way a plotting test passes vacuously.
 
 ## DAY 5 — Visualization & Performance Profiling
 
-### Session 5-A: Visualization Suite
+### Session 5-A: The A-side figure set — extending figures.py, not replacing it
 
-Read docs/INTERFACES.md first — §6 fixes the column names; read only those and never guess.
+Read src/python/figures.py, src/python/attribution.py and docs/INTERFACES.md §6 first.
+
+WHAT ALREADY EXISTS. Session 5-F built `src/python/figures.py` (about 390 lines) with a
+complete style system and three published figures: `separating_curve`, `thin_market_curve`,
+`decomposition`. It has `_STYLE` (white background, ink axes, top and right spines off),
+an Okabe-Ito palette (`BLUE, VERMILION, GREEN, ORANGE, SKY, PURPLE, INK, GREY, LIGHT`),
+`DPI = 150`, `_new_figure`, `_save`, `_read`, `_by_seed_mean_sd`, a `CAPTIONS` dict, and
+`make_all`. `tests/python/test_figures.py` covers them.
+
+WHAT THIS SESSION ADDS. Four A-side figures — the ones the project's first half produced
+and never illustrated. **Do not create a `visualization.py`.** The earlier version of this
+prompt told you to, which would have produced a second palette, a second save convention and
+two sets of figures that do not match. Extend `figures.py`: reuse `_STYLE`, `_new_figure`,
+`_save`, `_read` and the existing colours, add to `CAPTIONS`, and add the four functions to
+`make_all`.
+
+**Do not use a dark theme.** An earlier draft of this prompt asked for one and then asked
+for light-mode-safe output in the same paragraph. `_STYLE` is white; keep it. The README is
+rendered on a white page and is the only consumer.
+
+WHERE THE DATA COMES FROM. Two of the four figures read committed CSVs; two need a run.
+
+| figure | source |
+|---|---|
+| arm comparison | `data/processed/ablation/summary.csv` and `<arm>_seed<seed>.csv` — committed |
+| Gini evolution | the same per-arm CSVs (one row per epoch) — committed |
+| Lorenz / Matthew | needs a `Simulation` run: `exposure_series` is an instance attribute and is not persisted anywhere |
+| attribution | calls `src/python/attribution.py` directly; `docs/attribution.md` is prose, there is no CSV |
+
+If you want the Lorenz figure to read a file rather than run, persist the exposure series
+first — but a run at N=1000 is under a second, so running is the simpler choice and does not
+add a data file that can drift from the code.
 
 ```
-In hypergamic-matching-markets. The full metrics pipeline works and sweep CSVs are in data/processed/.
+Read src/python/figures.py in full before writing anything. Match its conventions exactly:
+_STYLE via a context manager or rcParams around the figure, _new_figure, _save, the Okabe-Ito
+constants, a CAPTIONS entry per figure, and a return of the Figure.
 
-Read docs/INTERFACES.md §6 first — your plots must read exactly those column names.
+1. plot_arm_comparison(data_dir=None) -> Figure
+   The four ablation arms side by side, from data/processed/ablation/summary.csv.
+   gini per arm with the seed sd as error bars; annotate each with its reach.
+   This is the headline A-side result and it is currently unpublished:
+   ncf 0.939 +- 0.006, oracle 0.664, random 0.378 +- 0.006, popularity 0.960 +- 0.000.
+   Draw the popularity closed form 1 - 2k/N as a dashed reference line at k=20, N=1000
+   so the reader can see that arm is arithmetic rather than a finding.
+   CAPTION must state: Gini alone is not a measure of harm; the random arm is lowest by
+   construction because uniform exposure is near-equal; the comparison that carries the
+   argument is ncf-minus-oracle (+0.285 +- 0.007), not ncf-minus-random.
 
-Write src/python/visualization.py. matplotlib, dark theme, color-blind-safe series colors.
-Use plt.rcParams rather than plt.style.use('dark_background') so the figures still read
-correctly when embedded in a light-mode README (the README is the main consumer).
+2. plot_gini_evolution(data_dir=None) -> Figure
+   gini against epoch, one line per arm, mean +- sd across the five seeds.
+   Vertical dashed lines at generation boundaries, read from the `generation` column rather
+   than recomputed. If every arm has identical generation breaks (they do), draw them once.
+   CAPTION: the ablation regime is admissible_fraction 0.2, at which the theta gate never
+   binds; see THEORY.md 3. This is a static market, so an upward slope is preference
+   concentration, not feedback.
 
-Reuse one shared helper:
-  def _fig_ax(ax) -> tuple[Figure, Axes]   # create a 1-panel figure when ax is None
+3. plot_lorenz(before, after, ax=None) -> Axes
+   and plot_matthew_effect(config=None, epoch_a=0, epoch_b=None) -> Figure
+   Lorenz curve of exposure inequality: cumulative share of exposure against cumulative
+   share of agents, with the 45-degree equality diagonal. Keep plot_lorenz a primitive that
+   takes two exposure arrays and draws both on one axes, annotated with their Gini values --
+   two side-by-side axes make a before/after comparison much harder to read than one.
+   The wrapper runs a Simulation (N=1000, two arms: "oracle" as the low-concentration
+   reference and "ncf" as the treatment) and takes exposure_series from the first and last
+   epoch. CAPTION: this shows exposure concentration under two ranking rules on one
+   population; it does not show that users would behave differently if shown a different
+   list, because generate_swipes takes no shown-set argument.
 
-Functions:
+4. plot_attribution(config=None) -> Figure
+   Two panels, from src/python/attribution.py rather than from a file:
+   (a) population correlation against selection-induced correlation for each trait pair,
+       grouped bars, so the artifact can only be read against its null;
+   (b) leave-one-term-out overlap, sorted, with the baseline marked at 1.0.
+   Measured values to annotate: attractiveness 0.607 and status 0.748 at k=20, meaning
+   attractiveness drives selection more than status at beta = 2*alpha -- true of this weight
+   set, not of traits in general. CAPTION: say exactly that, and that a nonzero selected-set
+   correlation is a property of the search, not of people.
 
-def plot_gini_evolution(metrics_df, ax=None) -> plt.Axes
-    Gini vs epoch. Vertical dashed line at every generation boundary
-    (where generation increments). If delta varies across rows, one line per delta.
+5. Add all four to make_all and to CAPTIONS. Extend scripts/make_figures.py to write them.
+   Output to docs/figures/ at DPI 150, bbox_inches="tight", white facecolor.
 
-def plot_lorenz(exposures, ax=None, label=None) -> plt.Axes
-    Lorenz curve from an exposure-count array, plus the 45° equality diagonal.
-    Keep this as a primitive: plot_matthew_effect calls it twice on one axes, because
-    two side-by-side axes make the before/after comparison much harder to read.
+6. tests/python/test_figures.py: add one test per function, following the existing ones.
+   Each must assert that the returned object is a Figure, that a PNG was written, and that
+   the PNG has more than one distinct colour -- a blank axes is the most common way a
+   plotting test passes vacuously. For plot_arm_comparison also assert the four gini values
+   are within 0.01 of summary.csv, so a wrong column cannot silently plot.
 
-def plot_matthew_effect(before_exposures, after_exposures, ax=None) -> plt.Axes
-    Both Lorenz curves on one axes, annotated with each Gini value.
-
-def plot_clearing_rate(metrics_df, ax=None) -> plt.Axes
-    mcr vs epoch, reference line at 1.0.
-
-def plot_algorithmic_loss(metrics_df, ax=None) -> plt.Axes
-    algorithmic_loss vs epoch. Skip NaN rows silently — the early epochs have no benchmark.
-
-def plot_pareto_evolution(metrics_df, ax=None) -> plt.Axes
-    pareto_alpha vs generation, dropping NaN. Declining alpha = heavier tail concentration.
-
-def plot_sweep_comparison(sweep_results: dict[float, pd.DataFrame], metric: str) -> plt.Figure
-    One violin per delta value, final-epoch values of `metric`. Raise a clear error if
-    `metric` is not a column rather than plotting an empty axes.
-
-def save_dashboard(metrics_df, output_path="docs/figures/dashboard.png") -> pathlib.Path
-    Name it save_*, not create_*: it writes a file. 4 panels — Gini, MCR, algorithmic_loss,
-    Pareto — on a 2×2 grid. Create parent directories. Return the path.
-
-Verification:
-  python -c "import src.python.visualization as v; print([n for n in dir(v) if n.startswith(('plot_','save_'))])"
-  Then render one dashboard from a real sweep CSV and open the PNG. Check that no axis
-  label is clipped and the dark background does not bleed into a white page.
+Run:
+   python scripts/make_figures.py
+   python -m pytest tests/python/test_figures.py -q
+Then open all four PNGs and check: no clipped axis labels, no dark background bleeding into
+a white page, legible at the width GitHub renders (about 880 px). Report the four file paths
+and their pixel dimensions.
 ```
+
 
 ---
 
