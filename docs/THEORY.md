@@ -395,6 +395,37 @@ selectivity. Whether the loop matters is therefore a question about the first fe
 each population, which is exactly what generational turnover (§8) re-creates: newcomers are
 calibrated fresh, so each generation starts with a binding gate for its newcomers.
 
+**What the update reads, and what it does not (H2, measured 2026-10-21).** The step reads
+$\text{proposals}_i$, which for an acceptor is the number of deferred-acceptance proposals she
+received, and nothing else about them. Three consequences, measured on the NCF arm at
+$\phi = 0.02$, $k = 20$, $c = 0$, seeds 42–44, 20 epochs (`scripts/run_flooding.py`):
+
+- **Coverage.** An acceptor with no DA proposal is skipped. Only 4% of W receive one in
+  epochs 0–4 and 9% in epochs 5–19; the other 91% never move from their calibrated $\theta$.
+- **Scale.** For an acceptor who is reached, $\theta$ averages 4.5 against a yield of at most 1,
+  so the step is $-\eta\theta$ to within 0.1%: $\eta \cdot \text{yield}$ averages 0.0002 against
+  $\eta\theta \approx 0.45$.
+- **Sign.** Received volume enters only as the yield's denominator, so it can lower $\theta$
+  and never raise it. Received intent is never read.
+
+Regressing $\Delta\theta$ on received swipe volume $V/\bar V$ gives a negative slope
+($-0.031 \pm 0.002$ late) that vanishes ($0.0000$) once $\theta \cdot 1[\text{reached}]$ and
+$1[\text{reached}]$ are controlled for: high-volume acceptors are the ones reached (P(reached)
+from 1% in the bottom volume quartile to 30% in the top), and being reached is what moves
+$\theta$. The update tracks its own level, gated by reach.
+
+**The flooding term (optional).** `hypergamy.flooding_weight` $= w \ge 0$ adds, after the step,
+
+$$\theta_i \mathrel{+}= w \left(\frac{V_i}{\bar V_{\text{side}}} - 1\right)(1 - \bar\tau_i)$$
+
+with $V_i$ the positive swipes $i$ received this epoch and $\bar\tau_i$ their mean proposer
+intent; an agent who received nothing uses the population mean intent. $w = 0$ is the default,
+is omitted from the config dict, and reproduces every result bit for bit. Two properties follow
+from the form and are not findings: the term's coefficients are $w$ by construction, and because
+$V$ is normalised by its side mean the term averages to about zero — it moves $\theta$ *between*
+acceptors and moves mean $\theta$ by under 1% of its own spread (the residual comes from the
+$1 - \bar\tau$ weight correlating weakly with volume). Results are in THESIS.md under H2.
+
 ---
 
 ## 4. NCF Recommendation Engine
@@ -982,9 +1013,38 @@ a closed market, reported rather than hidden as a missing value.
 per side from the swipe log: of the positive swipes a side made, the share the other agent
 reciprocated. Epoch 0 has no history and uses $p = 0.5$ for both sides, which is the neutral prior
 rather than a claim about the market. A side that made no positive swipe in the previous epoch
-falls back to 0.5 too, for the same reason: "unmeasured" is not "impossible". A hard-coded $p$
-would make the cost non-responsive and the whole mechanism decorative, so the orchestrator
-recomputes it every epoch and writes it into the config the C++ decision reads.
+has no new measurement and **keeps the $p$ it had**. A hard-coded $p$ would make the cost
+non-responsive and the whole mechanism decorative, so the orchestrator recomputes it every epoch
+and writes it into the config the C++ decision reads.
+
+*Corrected 2026-10-21.* The fallback for an empty log used to be the 0.5 prior. At $c = 1$ the
+measured rate is about 0.015 (M) and 0.013 (W), so $\tau^* = c/(\bar V p) \approx 8$, above every
+agent's intent, and the next log is empty; the reset then reopened the market at $p = 0.5$, which
+measured 0.015 again. Every odd epoch held zero proposals — a two-cycle produced by the fallback,
+not by the market. "Nobody proposed" is not evidence that a proposal has become likelier, so the
+last measurement is carried instead. Only the NCF arm re-measures $p$, so only its multi-epoch
+runs at $c > 0$ change; every $c = 0$ number, every epoch-0 number (the H1 sweep above and the
+separating figure) and every committed dataset is unchanged.
+
+**What the corrected $p$ implies: the market closes near $c = 0.07$, not $c = 2$.** The cutoffs
+above are computed at the epoch-0 prior $p = 0.5$. The measured $p$ is about thirty times smaller,
+and with it carried forward the market's multi-epoch fate is (NCF arm, seed 42, N = 1000, 20 epochs):
+
+| $c$ | proposals, epoch 0 → 19 | $E[\tau \mid \text{proposal}]$, epochs 5–19 |
+|---|---|---|
+| 0.00 | 20,000 → 20,000 | 0.513 |
+| 0.03 | 10,000 → 14,859 | 0.540 |
+| 0.05 | 10,000 → 13,426 | 0.579 |
+| 0.07 | 10,000 → 0 | closed |
+| 0.10 | 9,982 → 2,991 → 0 from epoch 2 | closed |
+| 1.00 | 8,697 → 0 from epoch 1 | closed |
+
+So the separating range a learning market can sustain is $c \in (0, \approx 0.06)$, an order of
+magnitude below the epoch-0 cutoffs, and the H1 grid's upper values describe a market that exists
+for exactly one epoch. The mutual-positive rate is a strict proxy for acceptance — it requires
+both sides to put each other in their top $k$ — and the closure is partly a property of that
+proxy. Measuring $p$ from deferred-acceptance outcomes instead would be a model change, not a
+fix, and is not made here.
 
 **The cost constrains the matching through the proposer, not through both sides.** A proposal costs
 the proposer $c$, so it is the proposer's own act: a recommender can rank the candidates in front

@@ -453,3 +453,31 @@ def test_a_sharp_beta_puts_intent_near_its_mode():
     cfg = base_config(population={"intent_beta_a": 8.0, "intent_beta_b": 2.0})
     states = _hypergamic.sample_population(2000, cfg, 9)
     assert states[:, 11].mean() > 0.7
+
+
+# ── p after an empty log ─────────────────────────────────────────────────────────
+
+def test_an_empty_log_keeps_the_measured_accept_probability():
+    """A side with no positive swipes keeps its last p rather than resetting to 0.5.
+
+    The reset made the market cycle: at c = 1 the measured p is ~0.015, so the next
+    log is empty, the reset reopened it at p = 0.5, and every odd epoch held zero
+    proposals. Carrying p forward closes the market and keeps it closed.
+    """
+    cfg = base_config(hypergamy={"signal_cost": 1.0})
+    sim = Simulation(config=cfg)
+    frame = sim.run(6)
+    proposals = (frame["proposal_cost_total"] / 1.0).round().astype(int).tolist()
+    assert proposals[0] > 0
+    assert proposals[1:] == [0] * 5
+
+
+def test_accept_probability_fallbacks():
+    sim = Simulation(config=base_config(population={"n": 100}))
+    measured = {"accept_prob_m": 0.02, "accept_prob_w": 0.03}
+    empty = np.zeros((0, 3), dtype=np.int32)
+    assert sim._accept_prob_from_log(None) == {"accept_prob_m": 0.5, "accept_prob_w": 0.5}
+    assert sim._accept_prob_from_log(empty, measured) == measured
+    # A log with only label-0 rows: no side sent a positive, so neither is re-measured.
+    negatives = np.array([[int(sim.prop_rows[0]), int(sim.acc_rows[0]), 0]], dtype=np.int32)
+    assert sim._accept_prob_from_log(negatives, measured) == measured

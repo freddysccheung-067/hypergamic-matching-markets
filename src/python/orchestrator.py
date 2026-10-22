@@ -162,6 +162,49 @@ _NO_DEFECTION = EnvironmentBConfig(size_fraction=1.0, values_min=0.0, signal_cos
                                    sigma_beta=0.0, partner_loss=0.0)
 
 
+def received_proposals(states: np.ndarray, pairs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Per-row count and mean proposer intent of the proposals each agent received.
+
+    ``pairs`` is (Q, 2) row ids, [proposer, receiver] — the label-1 rows of a swipe
+    log, columns 0 and 1, or the complete arm's proposal set. The receiver is
+    column 1: column 0 is the agent who swiped. Intent is read from ``states``
+    column 11 at the *proposer's* row. An agent who received nothing has a count of
+    0 and a mean intent of NaN, never 0.0, because no proposal is not the same
+    thing as proposals from zero-intent agents.
+    """
+    n = states.shape[0]
+    pairs = np.asarray(pairs, dtype=np.int64).reshape(-1, 2)
+    volume = np.bincount(pairs[:, 1], minlength=n).astype(np.float64)
+    intent_sum = np.bincount(pairs[:, 1], weights=states[pairs[:, 0], 11], minlength=n)
+    mean_intent = np.full(n, np.nan)
+    got = volume > 0
+    mean_intent[got] = intent_sum[got] / volume[got]
+    return volume, mean_intent
+
+
+def flooding_delta(volume: np.ndarray, mean_intent: np.ndarray,
+                   sides: tuple[np.ndarray, ...], weight: float,
+                   fallback_intent: float) -> np.ndarray:
+    """The flooding term of THESIS.md H2, per row: w * (V_i / V̄_side - 1) * (1 - τ̄_i).
+
+    V̄ is the mean over the rows of i's own side, so w is scale-free in volume: a
+    market where every agent receives twice as much has the same term as before,
+    and only *dispersion* in received volume moves θ. An agent who received
+    nothing has no τ̄; ``fallback_intent`` (the population mean intent, the
+    posterior a pooling acceptor would hold) stands in for it, which makes the term
+    -w * (1 - fallback) — an unswamped agent lowers her bar. A side that received
+    nothing at all has no V̄ and gets no term.
+    """
+    delta = np.zeros(volume.shape[0])
+    for rows in sides:
+        v_bar = float(volume[rows].mean()) if rows.size else 0.0
+        if v_bar <= 0.0:
+            continue
+        tau = np.where(np.isnan(mean_intent[rows]), fallback_intent, mean_intent[rows])
+        delta[rows] = weight * (volume[rows] / v_bar - 1.0) * (1.0 - tau)
+    return delta
+
+
 class Simulation:
     """A complete run: population, recommender, matching and the metrics frame.
 
@@ -294,6 +337,15 @@ class Simulation:
         # because the comparability rule is per agent and the frame is per epoch.
         self.record_outcomes = False
         self.outcomes: list[EpochOutcome] = []
+
+        # Per-epoch market record, kept only when asked for: the swipe log, the
+        # proposal set the matching was restricted to, DA's per-row proposal and
+        # match counts — the exact inputs update_thresholds read — and θ after the
+        # step, so Δθ exists for the last epoch too. An attribute, not a config key,
+        # for the same reason as record_states: it changes what is kept, never what
+        # is computed.
+        self.record_market = False
+        self.market_log: list[dict[str, Any]] = []
 
         # One entry per turnover run_multigen performed: {"generation", "rows"}.
         self.turnover_log: list[dict[str, Any]] = []
@@ -663,7 +715,7 @@ class Simulation:
         return out_prop, [list(lst) for lst in acc_prefs]
 
     def _accept_prob_from_log(
-        self, prev_log: np.ndarray | None
+        self, prev_log: np.ndarray | None, prev: dict[str, float] | None = None,
     ) -> dict[str, float]:
         """Per-side acceptance probability for the *next* epoch's proposal decision.
 
@@ -679,13 +731,19 @@ class Simulation:
         constant is not a claim about the market, it is the neutral prior that
         makes the first epoch's decision non-degenerate.
 
-        A side with no positive swipes has no measured rate either. It falls back
-        to 0.5 rather than to 0.0: a zero would be read as "no proposal can ever be
-        accepted" and would refuse every candidate at the first epoch of a cold
-        side, which is a much stronger claim than "we have not measured this yet".
+        A side with no positive swipes this epoch has no *new* measurement, and
+        keeps the p it already had (``prev``). It does not fall back to 0.5: that
+        reset is what made the market cycle. At c = 1 the measured rate is about
+        0.015, so τ* = c / (V̄ p) is above every agent's intent and the next log is
+        empty; a reset to 0.5 then reopened the market, the reopened market
+        measured 0.015 again, and every odd epoch was empty. "Nobody proposed" is
+        not evidence that proposals have become likelier. Only a side that has
+        never been measured — ``prev`` is None — uses the 0.5 prior.
         """
+        prior = {"accept_prob_m": 0.5, "accept_prob_w": 0.5}
+        prev = prior if prev is None else prev
         if prev_log is None or prev_log.shape[0] == 0:
-            return {"accept_prob_m": 0.5, "accept_prob_w": 0.5}
+            return dict(prev)
 
         users = prev_log[:, 0].astype(np.int64)
         items = prev_log[:, 1].astype(np.int64)
@@ -702,10 +760,11 @@ class Simulation:
         for side, rows in (("m", self.prop_rows), ("w", self.acc_rows)):
             mask = np.isin(users, rows)
             n_sent = int(np.count_nonzero(mask))
-            # A side that made no positive swipe has no measurement; the neutral
-            # prior is the honest value (see docstring).
-            out[f"accept_prob_{side}"] = (
-                float(np.count_nonzero(mutual & mask)) / float(n_sent) if n_sent else 0.5
+            # A side that made no positive swipe has no new measurement and keeps
+            # the p it had (see docstring).
+            key = f"accept_prob_{side}"
+            out[key] = (
+                float(np.count_nonzero(mutual & mask)) / float(n_sent) if n_sent else prev[key]
             )
         return out
 
@@ -776,6 +835,7 @@ class Simulation:
         ok_benchmark = self._ensure_benchmark()
         top_k = int(self.config.ncf.top_k)
         eta = float(self.config.simulation.bayesian_eta)
+        flooding_w = float(self.config.hypergamy.flooding_weight)
 
         # The config's n_epochs is the full generation schedule, so a shorter run
         # still maps epochs onto the same generations a full run would.
@@ -786,6 +846,7 @@ class Simulation:
         series: list[np.ndarray] = []
         self.states_seen = []
         self.outcomes = []
+        self.market_log = []
         prev_prefs: tuple[list[list[int]], list[list[int]]] | None = None
 
         # p for each proposing side, from the previous epoch's log. None means "no
@@ -1065,23 +1126,52 @@ class Simulation:
             # Skipped under freeze_theta, which is a diagnostic that holds the
             # market still so the arms can be compared at identical states rather
             # than only at identical epoch-0 states.
-            if not self.freeze_theta:
-                update_thresholds(
-                    self.states,
-                    self._proposals_by_row(da["proposals"]),
-                    self._matches_by_row(matches),
-                    eta,
+            prop_by_row = self._proposals_by_row(da["proposals"])
+            match_by_row = self._matches_by_row(matches)
+
+            # The flooding term reads the proposals each agent *received* this
+            # epoch, so it is computed from the states the epoch saw, before the
+            # yield step moves θ. An arm that built no swipe log at c = 0 made no
+            # proposals, so at w > 0 its log is built here by the same call the
+            # c > 0 path uses; at w = 0 nothing below runs and no extra draw is made.
+            flood = None
+            if flooding_w != 0.0 and not self.freeze_theta:
+                if is_complete or proposal_log is not None:
+                    flood_pairs = proposals
+                else:
+                    log_w = generate_swipes(self.states, epoch_config, epoch)
+                    flood_pairs = log_w[log_w[:, 2] == 1, :2]
+                volume, recv_intent = received_proposals(self.states, flood_pairs)
+                flood = flooding_delta(
+                    volume, recv_intent, (self.prop_rows, self.acc_rows), flooding_w,
+                    float(self.states[:, 11].mean()),
                 )
+
+            if not self.freeze_theta:
+                update_thresholds(self.states, prop_by_row, match_by_row, eta)
+                if flood is not None:
+                    self.states[:, 6] += flood
                 # θ moved, so the admissible pool moved with it. V̄ is a mean over
                 # that pool and would otherwise be a number about a market that no
                 # longer exists.
                 v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
 
+            if self.record_market:
+                self.market_log.append({
+                    "epoch": epoch,
+                    "swipe_log": None if swipe_log is None else swipe_log.copy(),
+                    "proposals": np.asarray(proposals, dtype=np.int64).reshape(-1, 2).copy(),
+                    "da_proposals": prop_by_row.copy(),
+                    "matches": match_by_row.copy(),
+                    "theta_after": self.states[:, 6].copy(),
+                    "flood": None if flood is None else flood.copy(),
+                })
+
             # Next epoch's p, measured on this epoch's log. Read after the matching
             # step on purpose: the log is this epoch's behavior, and nothing after
             # the swipe call mutates it.
             if swipe_log is not None:
-                accept_prob = self._accept_prob_from_log(swipe_log)
+                accept_prob = self._accept_prob_from_log(swipe_log, accept_prob)
 
         self.exposure_series = (
             np.stack(series) if series else np.zeros((0, self.n), dtype=np.int64)
@@ -1112,8 +1202,9 @@ class Simulation:
         ``turnover_fraction`` of agents by cumulative match count (THEORY.md §8).
         There is no turnover after the last generation: nothing would observe it.
 
-        ``exposure_series``, ``states_seen`` and ``outcomes`` hold the whole run,
-        all generations in epoch order, as they would after one long ``run()``.
+        ``exposure_series``, ``states_seen``, ``outcomes`` and ``market_log`` hold the
+        whole run, all generations in epoch order, as they would after one long
+        ``run()``.
         """
         sim_cfg = self.config.simulation
         n_epochs, n_gen = int(sim_cfg.n_epochs), int(sim_cfg.n_generations)
@@ -1131,6 +1222,7 @@ class Simulation:
         series: list[np.ndarray] = []
         states_seen: list[np.ndarray] = []
         outcomes: list[EpochOutcome] = []
+        market_log: list[dict[str, Any]] = []
         self.turnover_log = []
         # Newcomers change the population's utility spread, so the noise-to-signal
         # ratio is a per-generation number, recorded for each one as it starts.
@@ -1143,10 +1235,12 @@ class Simulation:
             series.append(self.exposure_series)
             states_seen.extend(self.states_seen)
             outcomes.extend(self.outcomes)
+            market_log.extend(self.market_log)
 
         self.exposure_series = np.concatenate(series)
         self.states_seen = states_seen
         self.outcomes = outcomes
+        self.market_log = market_log
 
         frame = pd.concat(frames, ignore_index=True)
         if not np.array_equal(frame["epoch"].to_numpy(), np.arange(len(frame))):

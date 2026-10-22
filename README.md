@@ -163,6 +163,13 @@ match scored at their Environment A outcome), never the entrant-only figure.
   welfare_common by 92 (84 under the residual accounting). A reader shown only the entrants would
   see the filter working.
 
+- **H2, threshold inflation as a defence: not testable as shipped, not supported when added.** The
+  θ update moves only acceptors who receive a proposal (4–9% of them), and for those it is decay
+  toward a yield the calibrated θ is far above; received volume can only lower θ and intent is
+  never read. A flooding term added by hand (`hypergamy.flooding_weight`) is visible net of the
+  yield step only at its larger weight and k = 20, is weakened rather than ended by a separating
+  cost, and at that weight closes a cost-bearing market. See THESIS.md under H2.
+
 Three corrections to the plan in THESIS.md came out of the measurement and are stated in THEORY.md
 §10.4: the §10.4 welfare equals the old welfare only when every intent is 1; the entrant-only figure
 is *not* always above welfare_common (it goes negative when B's cost or thinness makes entrants
@@ -183,7 +190,7 @@ line because the decision compares $\tau V_{ij} p$ with $c$ pair by pair and $V_
 low-intent agent can still clear it against a high-value candidate. *What it does not show:* that
 real proposers face this cost or this utility scale, or that the assumed accept rate is the one the
 market produces — the decision is handed $p = 0.5$, the epoch-0 prior, while measured reciprocity is
-0.013–0.041. The curve is a statement about epoch 0 under that prior.
+0.013–0.041. The curve is a statement about epoch 0 under that prior: with the measured rate carried forward, a market running for more than one epoch closes for good near $c = 0.07$.
 
 ![Thin-market welfare against subgraph size, showing the interior optimum and the selection artifact](docs/figures/thin_market_curve.png)
 

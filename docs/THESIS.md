@@ -154,11 +154,47 @@ would refute it.
 increases with `c`; and the acceptance rate of high-intent proposers rises while low-intent
 proposers exit.
 *Killed if:* `E[τ | proposal]` is flat in `c` over `c ∈ {0, 0.05, 0.25, 1.0}`.
+*Caveat (THEORY.md §10.2, 2026-10-21):* the grid is measured at epoch 0 under the prior
+`p = 0.5`. With `p` measured and carried, a multi-epoch market closes for good between `c = 0.05`
+and `c = 0.07`, so only the bottom of the grid describes a market that persists. Within it the
+direction holds: proposer intent over epochs 5–19 is 0.513 at `c = 0`, 0.540 at 0.03, 0.579 at 0.05.
 
 **H2 — Threshold inflation is a defence against pooling, not a contagion.** `θ` rises with
 received proposal volume **net of** the mean received intent, and stops rising when `c` makes the
 signal informative.
 *Killed if:* `θ` is unrelated to volume, or continues to rise at high `c`.
+
+*Measured (THEORY.md §3, 2026-10-21): not testable in the shipped model, and not supported under
+an explicit flooding term.* The shipped update reads only the count of deferred-acceptance
+proposals an acceptor received, and only as a yield denominator. It moves `θ` for 4–9% of
+acceptors, and for those it is `−ηθ` to within 0.1%, because `θ` sits near 4.5 and the yield is
+at most 1. Received intent is never read. Δθ falls with received volume (−0.031 ± 0.002, epochs
+5–19) only because high-volume acceptors are the ones reached; holding reach fixed the slope is
+0.0000. In no cell does `θ` rise with volume net of intent.
+
+Adding the mechanism by hand — `hypergamy.flooding_weight` `w`, which raises `θ` by
+`w (V/V̄ − 1)(1 − τ̄)` — answers whether it would survive if it existed (`scripts/run_flooding.py`,
+N = 1000, k ∈ {20, 40}, three seeds, 20 epochs, acceptor side, epochs 5–19):
+
+| `c` | `w` | net slope of Δθ on V/V̄ | slope holding reach fixed | 1 − τ̄ received | market |
+|---|---|---|---|---|---|
+| 0 | 0.05 | −0.021 ± 0.002 | +0.025 | 0.494 | open |
+| 0 | 0.20 | +0.009 ± 0.001 | +0.099 | 0.494 | open |
+| 0.05 | 0.05 | −0.020 ± 0.002 | +0.020 | 0.386 | open |
+| 0.05 | 0.20 | — | — | — | closes by epoch 5 |
+
+(k = 20. At k = 40 every net slope is more negative and stays below zero at `w = 0.2` too:
+−0.016 ± 0.002 at `c = 0`; at `c = 0.05`, `w = 0.2` closes that market as well.) Three things follow.
+The term is visible net of the yield step only at `w = 0.2`, `k = 20`. At `c = 0.05` the slope
+falls by a fifth, through `1 − τ̄` falling from 0.49 to 0.39, not through fewer proposers, so
+the signal becoming informative weakens the defence rather than ending it. And at `w = 0.2` the
+defence closes the market: raising `θ` for the most-swiped acceptors cuts reciprocity until
+the measured accept rate is zero, at which no proposal is worth its cost. Because `V` is
+normalised by its mean, the term moves `θ` between acceptors and barely moves mean `θ`, which
+is what "`θ` rises" asserts. (Not exactly zero: `V/V̄ − 1` averages to zero but is weighted by
+`1 − τ̄`, which correlates weakly with volume. Measured at epoch 5, the side mean of the term is
++0.0003 against a per-agent sd of 0.040 at `w = 0.05`, and +0.0012 against 0.161 at `w = 0.2` —
+under 1% of the spread.) H2 as written is not a property of this model under either rule.
 
 **H3 — Algorithmic estimation error concentrates exposure.** `Gini(NCF) > Gini(oracle)` on a
 shared population and seed; already measured at 0.939 vs 0.664.

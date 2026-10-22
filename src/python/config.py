@@ -153,6 +153,13 @@ class HypergamyConfig:
     # is what keeps compute_welfare's numbers unchanged. 0.0 is the pooling regime
     # and reproduces every pre-session result bit for bit.
     signal_cost: float = 0.0
+    # Weight w of the flooding term in the θ step (THESIS.md H2): after the yield
+    # update, θ_i += w * (V_i / V̄_side - 1) * (1 - τ̄_i), with V_i the positive
+    # swipes i received this epoch and τ̄_i their mean proposer intent. In utility
+    # units per epoch. 0.0 switches the term off and leaves the shipped yield rule
+    # exactly as it was; the key is then omitted from to_dict, so the config dict
+    # every C++ call receives is the one it received before this knob existed.
+    flooding_weight: float = 0.0
 
     def __post_init__(self) -> None:
         if self.delta < 0.0:
@@ -169,11 +176,18 @@ class HypergamyConfig:
             # and would make the separating threshold negative — meaning every agent
             # proposes and the "cost" is a subsidy.
             raise ValueError(f"hypergamy.signal_cost must be >= 0; got {self.signal_cost}")
+        if not (math.isfinite(self.flooding_weight) and self.flooding_weight >= 0.0):
+            # A negative w would make flooding *lower* the bar, the opposite of the
+            # mechanism H2 states; NaN or inf would poison every θ it touched and,
+            # through the gate, every swipe log after it.
+            raise ValueError(
+                f"hypergamy.flooding_weight must be finite and >= 0; got {self.flooding_weight}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         # The C++ reads the key "lambda"; the Python attribute is `lam` because
         # `lambda` is a keyword. The mapping lives here and nowhere else.
-        return {
+        out: dict[str, Any] = {
             "delta": self.delta,
             "alpha": self.alpha,
             "beta": self.beta,
@@ -182,6 +196,9 @@ class HypergamyConfig:
             "shock_scale": self.shock_scale,
             "signal_cost": self.signal_cost,
         }
+        if self.flooding_weight != 0.0:
+            out["flooding_weight"] = self.flooding_weight
+        return out
 
 
 @dataclass
