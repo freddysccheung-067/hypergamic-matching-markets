@@ -120,7 +120,13 @@ def test_top_k_chunking_matches_single_pass():
     trainer = NCFTrainer(model, device="cpu")
     ids = np.arange(N_AGENTS)
     whole = trainer.top_k_recommendations(ids, ids, 5)
-    trainer.SCORE_CHUNK_PAIRS = 3 * N_AGENTS  # three users per forward pass
+    trainer.SCORE_CHUNK_ROWS = 3  # three users per forward pass
+    assert trainer.top_k_recommendations(ids, ids, 5) == whole
+    # The pair budget still caps the block when it is the tighter of the two;
+    # one row per pass is the degenerate case the scale test runs into, so it
+    # has to agree with the wide pass as well.
+    trainer.SCORE_CHUNK_ROWS = 40
+    trainer.SCORE_CHUNK_PAIRS = N_AGENTS  # one row per pass
     assert trainer.top_k_recommendations(ids, ids, 5) == whole
 
 

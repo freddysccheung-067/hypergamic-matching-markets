@@ -73,8 +73,53 @@ class NCFTrainer:
     before building the model to make a whole run reproducible.
     """
 
-    # Upper bound on (user, candidate) pairs scored in one forward pass; keeps
-    # the expanded embedding tensors to a few hundred MB at any N.
+    # Sizing of the block of users scored in one forward pass. Two bounds,
+    # because they fail in opposite directions and the old single pair budget
+    # failed in one of them without saying so.
+    #
+    # SCORE_CHUNK_ROWS is the throughput floor. Per-pass Python and dispatch
+    # overhead is fixed, so a pass that scores very few rows pays it per row
+    # rather than per block: at N=10,000 a 8,192-pair budget resolves to ONE row
+    # per pass — 5,000 passes — and a pair budget alone therefore degrades as N
+    # grows, which is exactly the direction the scale test goes. The measured
+    # cure is not to add passes but to raise the row floor, which is why the
+    # constant is in rows.
+    #
+    # SCORE_CHUNK_PAIRS stays as the memory ceiling: the (rows, candidates, 128)
+    # MLP activations are the big tensor, and at N=100,000 even a handful of rows
+    # is hundreds of MB.
+    #
+    # Measured in the real run loop, one side scored against the other, this
+    # machine, 24 threads, torch 2.14.1+cpu:
+    #
+    #     rows   N=5,000 top_k/call   N=10,000 top_k/call
+    #        1           1.42 s              5.74 s
+    #        2           1.00                4.83
+    #        3           0.98                4.46
+    #        4           0.85                4.32
+    #        6           0.80                4.27   <- chosen
+    #        8           0.77                5.90
+    #       13           1.07                  -
+    #       26           1.73                  -
+    #      104           1.72-1.87             -     <- the old value, 1<<18 pairs
+    #
+    # The curve is flat-to-shallow between 2 and 8 and climbs sharply after, and
+    # the plateau is in the same place at both N — which is why the knob is in
+    # rows and not in pairs. Six sits in the trough at both sizes instead of on a
+    # peak that would not survive a different cache.
+    #
+    # End to end this is worth NOTHING measurable, and the comment says so
+    # because a later reader will otherwise assume otherwise. Median of
+    # alternating runs, whole loop: 1.03x at N=5,000 (216.7 -> 209.7 s) and
+    # 0.98x at N=10,000 (393.3 -> 400.6 s) — i.e. noise. Per-call timings do
+    # improve ~2x, and an 8-epoch A/B did show that saving; across a full run it
+    # does not survive, because per-call block timing and per-pass wall clock
+    # are not the same quantity once 24 threads are synchronised on a small
+    # block. What this constant buys is the degenerate case: without a row
+    # floor, a pair budget resolves to one row per pass at N>=100,000, which is
+    # thousands of synchronised passes per epoch. That is a robustness argument,
+    # not a speed one.
+    SCORE_CHUNK_ROWS = 6
     SCORE_CHUNK_PAIRS = 1 << 18
 
     def __init__(
@@ -226,7 +271,10 @@ class NCFTrainer:
 
         users_t = torch.from_numpy(users).to(self.device)
         cands_t = torch.from_numpy(cands).to(self.device)
-        rows = max(1, self.SCORE_CHUNK_PAIRS // n_cands)
+        # Start from the throughput floor, then cut it down if that many rows
+        # would exceed the memory ceiling. max(1, ...) is the last resort and
+        # only matters above N ~ 32,000, where one row is already over budget.
+        rows = min(self.SCORE_CHUNK_ROWS, max(1, self.SCORE_CHUNK_PAIRS // n_cands))
 
         was_training = self.model.training
         self.model.eval()
