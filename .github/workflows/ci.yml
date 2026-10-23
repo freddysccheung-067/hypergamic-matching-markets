@@ -49,10 +49,7 @@ jobs:
         shell: bash
         run: |
           export PYTHONPATH=build:tests/python
-          o=$( (python .github/ci_diag.py; OMP_NUM_THREADS=1 python .github/ci_diag.py) 2>&1 | cut -c1-170 | head -60 )
-          o="${o//'%'/'%25'}"; o="${o//$'
-'/'%0A'}"
-          echo "::notice::$o"
+          (python .github/ci_diag.py; OMP_NUM_THREADS=1 python .github/ci_diag.py) 2>&1 | cut -c1-170 | head -60 | python .github/ci_diag_emit.py
           echo "::notice::numpy $(python -c 'import numpy;print(numpy.__version__)') nproc $(nproc)"
       # TEMPORARY: surface the failure summary as public annotations
       - name: Annotate failures
