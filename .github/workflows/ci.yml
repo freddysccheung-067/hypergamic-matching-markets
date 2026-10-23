@@ -45,8 +45,9 @@ jobs:
         run: pytest tests/python/ -v --tb=short -rfE -m "not slow" 2>&1 | tee pytest.log
       # TEMPORARY: surface the failure summary as public annotations
       - name: Annotate failures
-        if: failure()
+        if: always()
         run: |
+          echo "::notice::cpu: $(grep -m1 'model name' /proc/cpuinfo)"
           grep -E "^(FAILED|ERROR) |=+ .*(passed|failed|error)" pytest.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:480}"; done
 
   test-cpp:
@@ -72,4 +73,10 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure 2>&1 | tee ctest.log
+      # TEMPORARY diagnostics
+      - name: Annotate
+        if: always()
+        run: |
+          echo "::notice::cpu: $(grep -m1 'model name' /proc/cpuinfo)"
+          grep -E "Failed|FAILED|SIGILL|Illegal|\*\*\*|tests passed|REQUIRE|CHECK|with expansion|==" ctest.log | head -30 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
