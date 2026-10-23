@@ -42,6 +42,7 @@ jobs:
 
       # slow property tests are excluded from the default run
       - name: Run pytest
+        shell: bash
         run: pytest tests/python/ -v --tb=short -rfE -m "not slow" 2>&1 | tee pytest.log
       # TEMPORARY: surface the failure summary as public annotations
       - name: Annotate failures
@@ -73,6 +74,7 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
+        shell: bash
         run: ctest --test-dir build --output-on-failure 2>&1 | tee ctest.log
       # TEMPORARY diagnostics
       - name: Annotate

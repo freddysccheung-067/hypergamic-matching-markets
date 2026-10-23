@@ -46,11 +46,19 @@ endif()
 if(MSVC)
     add_compile_options(/O2 /W4 /permissive- /utf-8 /EHsc)
 else()
-    add_compile_options(-O3 -Wall -Wextra -Wpedantic)
-    include(CheckCXXCompilerFlag)
-    check_cxx_compiler_flag("-march=native" HAS_MARCH_NATIVE)
-    if(HAS_MARCH_NATIVE)
-        add_compile_options(-march=native)
+    # -ffp-contract=off: GCC fuses a*b+c into FMA by default where the target has it,
+    # MSVC does not. The pinned digests in tests/python are bitwise, so keep the two
+    # toolchains on the same arithmetic.
+    add_compile_options(-O3 -Wall -Wextra -Wpedantic -ffp-contract=off)
+    # -march=native is opt-in: a build tuned to one CPU dies with SIGILL on another
+    # (cached CI builds) and changes floating-point results.
+    option(HYPERGAMIC_NATIVE "Tune for the build machine's CPU (non-portable)" OFF)
+    if(HYPERGAMIC_NATIVE)
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag("-march=native" HAS_MARCH_NATIVE)
+        if(HAS_MARCH_NATIVE)
+            add_compile_options(-march=native)
+        endif()
     endif()
 endif()
 
