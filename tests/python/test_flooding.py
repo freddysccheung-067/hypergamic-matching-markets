@@ -63,10 +63,30 @@ def trajectory_digest(sim, frame) -> str:
 # a function of the C++ core and this orchestrator only. The single-epoch swipe
 # digests in test_heterogeneity.py and test_signal.py cannot catch a change to the
 # θ step, which runs after generate_swipes; a θ trajectory can.
-PINNED_TRAJECTORY = {
-    0.0: "8e8eb7d6bb6173d40974f6748b8dd0ef00c596e68819d6d4200d760c91584b0c",
-    1.0: "15d3958eff72036854aec994e888beda70dec340db8a6c99514d5738f422c623",
+#
+# The digest is bitwise, and the population sampler calls exp/log/pow, which MSVC's
+# CRT and glibc round differently in the last bit. The algorithm is the same; the
+# bytes are not. Each platform therefore has its own pin, captured from the same
+# code at the same commit: Windows/MSVC locally, Linux/GCC on the CI runner (stable
+# across the Intel and AMD runner CPUs it has landed on). Any other platform has no
+# pin and the digest tests skip rather than guess.
+_PINS = {
+    "win32": {
+        0.0: "8e8eb7d6bb6173d40974f6748b8dd0ef00c596e68819d6d4200d760c91584b0c",
+        1.0: "15d3958eff72036854aec994e888beda70dec340db8a6c99514d5738f422c623",
+    },
+    "linux": {
+        0.0: "62604ee9c4f627828d84c4414b7988fa0ca497f0de6402179000ac1fa1c1b3c3",
+        1.0: "c416889632c4b5ea27bf08d983a78755d28ce41a60d079e2e6462fa4c189e680",
+    },
 }
+
+
+def pinned_trajectory(cost):
+    pins = _PINS.get(sys.platform)
+    if pins is None:
+        pytest.skip(f"no pinned trajectory digest for platform {sys.platform!r}")
+    return pins[cost]
 
 
 @pytest.mark.parametrize("cost", [0.0, 1.0])
@@ -74,7 +94,7 @@ def test_zero_weight_reproduces_the_pre_flag_trajectory(cost):
     sim = Simulation(small_config(signal_cost=cost, flooding_weight=0.0), recommender="oracle")
     sim.record_states = True
     frame = sim.run(8)
-    assert trajectory_digest(sim, frame) == PINNED_TRAJECTORY[cost]
+    assert trajectory_digest(sim, frame) == pinned_trajectory(cost)
 
 
 @pytest.mark.parametrize("cost", [0.0, 1.0])
@@ -87,7 +107,8 @@ def test_record_market_changes_nothing(cost):
         sim.record_market = record
         frame = sim.run(8)
         runs.append(trajectory_digest(sim, frame))
-    assert runs[0] == runs[1] == PINNED_TRAJECTORY[cost]
+    assert runs[0] == runs[1]
+    assert runs[0] == pinned_trajectory(cost)
 
 
 def test_zero_weight_is_absent_from_the_config_dict():
@@ -246,12 +267,19 @@ def test_the_two_accounts_produce_opposite_signs():
 
     flooded = shipped.copy()
     flooded[:, 6] += flooding_delta(volume, intent, (np.arange(theta.size),), 0.2, 0.5)
-    b_vol_f, b_tau_f = _coefficients(flooded[:, 6] - theta, volume, intent)
+    b_vol_f, _ = _coefficients(flooded[:, 6] - theta, volume, intent)
+
+    # Intent enters the flooding term only through (V/V̄ - 1) * (1 - τ̄), which is
+    # orthogonal to τ̄ over the whole crossed grid, so the all-rows τ̄ coefficient is
+    # zero up to roundoff and its sign is noise. Among above-average-volume rows the
+    # factor (V/V̄ - 1) is positive, and there intent genuinely lowers the bar.
+    busy = volume > volume.mean()
+    _, b_tau_busy = _coefficients((flooded[:, 6] - theta)[busy], volume[busy], intent[busy])
 
     assert b_vol_y < 0.0                     # yield: more proposals, lower yield
     assert abs(b_tau_y) < 1e-12              # yield: intent is not read
     assert b_vol_f > 0.0                     # flooding: volume raises the bar
-    assert b_tau_f < 0.0                     # flooding: intent lowers it
+    assert b_tau_busy < -1e-3                # flooding: intent lowers it, where volume is high
 
 
 # ── w > 0 end to end ────────────────────────────────────────────────────────────
