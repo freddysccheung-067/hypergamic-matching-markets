@@ -41,6 +41,9 @@ jobs:
           cmake --build build --parallel
 
       # slow property tests are excluded from the default run
+      - name: Pins
+        if: always()
+        run: python .github/ci_pins.py
       # slow property tests are excluded from the default run
       - run: pytest tests/python/ -v --tb=short -m "not slow"
 
