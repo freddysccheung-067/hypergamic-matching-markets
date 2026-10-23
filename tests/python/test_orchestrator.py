@@ -9,7 +9,6 @@ import yaml
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "build" / "Release"))
 
 # The orchestrator imports the extension at module scope, so collection fails
 # without it. CI's test-python job does not build one (test-cpp does), and a

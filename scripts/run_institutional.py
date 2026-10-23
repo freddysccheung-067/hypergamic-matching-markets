@@ -37,7 +37,6 @@ import pathlib
 import sys
 import time
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))

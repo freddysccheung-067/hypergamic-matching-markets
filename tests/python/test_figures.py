@@ -284,15 +284,8 @@ try:
     import _hypergamic  # noqa: F401
     _HAVE_EXTENSION = True
 except ImportError:  # pragma: no cover
-    # The extension lands in build/Release, which is not on sys.path by default. Try
-    # that before concluding it is missing, or every test that needs it would skip on
-    # a checkout where it is built.
-    sys.path.insert(0, str(PROJECT_ROOT / "build" / "Release"))
-    try:
-        import _hypergamic  # noqa: F401
-        _HAVE_EXTENSION = True
-    except ImportError:
-        _HAVE_EXTENSION = False
+    # conftest.py puts build/ and build/Release/ on sys.path.
+    _HAVE_EXTENSION = False
 
 needs_extension = pytest.mark.skipif(
     not _HAVE_EXTENSION,

@@ -16,7 +16,6 @@ import yaml
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "build" / "Release"))
 
 try:
     import _hypergamic

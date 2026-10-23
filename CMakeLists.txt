@@ -60,6 +60,9 @@ list(FILTER CORE_SOURCES EXCLUDE REGEX ".*bindings\\.cpp$")
 
 add_library(hypergamic_core STATIC ${CORE_SOURCES})
 target_include_directories(hypergamic_core PUBLIC include)
+# The static core is linked into the _hypergamic shared module, so GCC/Clang need -fPIC.
+# No effect under MSVC, which has no such flag.
+set_target_properties(hypergamic_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(OpenMP_CXX_FOUND)
     target_link_libraries(hypergamic_core PUBLIC OpenMP::OpenMP_CXX)
 endif()

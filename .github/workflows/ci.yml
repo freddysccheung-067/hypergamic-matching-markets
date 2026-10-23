@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -19,19 +19,32 @@ jobs:
       - run: ruff check src/python/ scripts/ tests/python/
 
   test-python:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+      # CPU wheel: the default Linux torch wheel pulls gigabytes of CUDA libraries
+      - run: pip install torch==2.3.1 --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -r requirements.txt
+
+      # the tests import the compiled extension, so build it first
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+      - name: Build extension
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+
       # slow property tests are excluded from the default run
       - run: pytest tests/python/ -v --tb=short -m "not slow"
 
   test-cpp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
