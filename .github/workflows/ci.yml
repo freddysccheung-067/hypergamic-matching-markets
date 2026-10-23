@@ -41,22 +41,8 @@ jobs:
           cmake --build build --parallel
 
       # slow property tests are excluded from the default run
-      - name: Run pytest
-        shell: bash
-        run: pytest tests/python/ -v --tb=short -rfE -m "not slow" 2>&1 | tee pytest.log
-      - name: Diag
-        if: always()
-        shell: bash
-        run: |
-          export PYTHONPATH=build:tests/python
-          python .github/ci_diag.py 2>&1 | sed -n '/^shape/,$p' | cut -c1-170 | python .github/ci_diag_emit.py
-          echo "::notice::numpy $(python -c 'import numpy;print(numpy.__version__)') nproc $(nproc)"
-      # TEMPORARY: surface the failure summary as public annotations
-      - name: Annotate failures
-        if: always()
-        run: |
-          echo "::notice::cpu: $(grep -m1 'model name' /proc/cpuinfo)"
-          grep -E "^(FAILED|ERROR) |=+ .*(passed|failed|error)" pytest.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:480}"; done
+      # slow property tests are excluded from the default run
+      - run: pytest tests/python/ -v --tb=short -m "not slow"
 
   test-cpp:
     runs-on: ubuntu-24.04
@@ -81,11 +67,4 @@ jobs:
         run: cmake --build build --parallel
 
       - name: Test
-        shell: bash
-        run: ctest --test-dir build --output-on-failure 2>&1 | tee ctest.log
-      # TEMPORARY diagnostics
-      - name: Annotate
-        if: always()
-        run: |
-          echo "::notice::cpu: $(grep -m1 'model name' /proc/cpuinfo)"
-          grep -E "Failed|FAILED|SIGILL|Illegal|\*\*\*|tests passed|REQUIRE|CHECK|with expansion|==" ctest.log | head -30 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
+        run: ctest --test-dir build --output-on-failure
