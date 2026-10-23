@@ -41,7 +41,13 @@ jobs:
           cmake --build build --parallel
 
       # slow property tests are excluded from the default run
-      - run: pytest tests/python/ -v --tb=short -m "not slow"
+      - name: Run pytest
+        run: pytest tests/python/ -v --tb=short -rfE -m "not slow" 2>&1 | tee pytest.log
+      # TEMPORARY: surface the failure summary as public annotations
+      - name: Annotate failures
+        if: failure()
+        run: |
+          grep -E "^(FAILED|ERROR) |=+ .*(passed|failed|error)" pytest.log | head -40 | while IFS= read -r l; do echo "::error::${l:0:480}"; done
 
   test-cpp:
     runs-on: ubuntu-24.04
