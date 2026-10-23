@@ -33,3 +33,9 @@ print("yield", [repr(float(x)) for x in t._coefficients(shipped[:, 6] - theta, v
 fl = shipped.copy()
 fl[:, 6] += flooding_delta(volume, intent, (np.arange(theta.size),), 0.2, 0.5)
 print("flood", [repr(float(x)) for x in t._coefficients(fl[:, 6] - theta, volume, intent)])
+
+s0 = sim.states_seen[0]
+print("shape", s0.shape, s0.dtype)
+for c in range(s0.shape[1]):
+    col = np.ascontiguousarray(s0[:, c])
+    print(" col", c, hashlib.sha256(col.tobytes()).hexdigest()[:10], repr(float(col[0])), repr(float(col[5])), repr(float(col[100])))
