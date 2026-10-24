@@ -1,4 +1,4 @@
-"""Ablation-arm tests (docs/SPRINT_PROMPTS.md Session 3-C, item 4).
+"""Ablation-arm tests (THEORY.md §7.7).
 
 Two kinds of assertion, deliberately different in character:
 

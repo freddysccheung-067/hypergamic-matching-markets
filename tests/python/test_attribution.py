@@ -1,4 +1,4 @@
-"""Attribution tests (THEORY.md §9, docs/SPRINT_PROMPTS.md Session 3-D).
+"""Attribution tests (THEORY.md §9).
 
 What these tests are for, stated because two of them would otherwise look
 backwards:

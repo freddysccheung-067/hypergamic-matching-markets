@@ -1,4 +1,4 @@
-"""Run the four ablation arms across seeds (docs/SPRINT_PROMPTS.md Session 3-C).
+"""Run the four ablation arms across seeds (THEORY.md §7.7).
 
 What this produces, and what each output is for:
 

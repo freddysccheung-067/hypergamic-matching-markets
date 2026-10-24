@@ -1,4 +1,4 @@
-"""Generational turnover (docs/SPRINT_PROMPTS.md Session 4-A, THEORY.md §8).
+"""Generational turnover (THEORY.md §8).
 
 ``run_multigen`` drives ``run()`` one generation at a time and calls ``_turnover``
 between generations. These tests pin the replacement rules — who leaves, what a

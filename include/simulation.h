@@ -78,7 +78,7 @@ std::vector<std::array<std::int32_t, 3>> generate_swipes(const std::vector<Agent
 // Every θ-admissible candidate of the other side, per agent, in descending
 // utility (ties by ascending dense index). Not truncated at k.
 //
-// This exists for the ablation arms (docs/SPRINT_PROMPTS.md Session 3-C). Three
+// This exists for the ablation arms (THEORY.md §7.7). Three
 // of the four arms need the same underlying object and differ only in what they
 // draw from it:
 //

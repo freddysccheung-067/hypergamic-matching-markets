@@ -14,7 +14,7 @@ matching result feeds back into the swipe gate, so the market's history changes
 the market's behaviour.
 
 Steps 1-2 belong to the ``"ncf"`` arm only. The ablation arms of
-docs/SPRINT_PROMPTS.md Session 3-C replace *only* the rule that produces the
+THEORY.md §7.7 replace *only* the rule that produces the
 preference lists in step 3; the population, seed, θ, utility parameters and the
 deferred-acceptance call are held fixed across arms, because an arm-to-arm
 comparison in which any of those moved would be measuring the wrong thing.
@@ -141,7 +141,7 @@ COLUMNS = [
     "welfare_selection_artifact",
 ]
 
-# The four ablation arms of docs/SPRINT_PROMPTS.md Session 3-C. Only the rule
+# The four ablation arms of THEORY.md §7.7. Only the rule
 # that produces the preference lists differs; everything upstream is shared.
 RecommendArm = Literal["ncf", "random", "popularity", "oracle", "complete"]
 ARMS: tuple[str, ...] = ("ncf", "random", "popularity", "oracle", "complete")
@@ -213,7 +213,7 @@ class Simulation:
     one block (``scripts/run_sweep.py`` changes ``hypergamy.delta``) without
     rebuilding the object.
 
-    ``recommender`` selects the ablation arm (docs/SPRINT_PROMPTS.md 3-C):
+    ``recommender`` selects the ablation arm (THEORY.md §7.7):
 
     ``"ncf"``         swipe log -> NCF training -> top-k. The historical path; the
                       only arm in which anything is learned, and the only one that
