@@ -1,0 +1,2 @@
+quantity,regime,point,lo,hi,sd,n_seeds,n_seeds_positive,t,p,wilcoxon_p,window,epochs,method
+gap_asymptote_tail_mean,long300,0.00037421316039995653,1.3231985114038733e-05,0.0007351943356858743,0.0002907237189836592,5,5,2.878217393663596,0.04509391615552597,0.0625,50,250-299,"mean over last window, t interval over seeds"
