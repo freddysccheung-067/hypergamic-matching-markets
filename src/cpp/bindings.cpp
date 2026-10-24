@@ -696,7 +696,17 @@ PYBIND11_MODULE(_hypergamic, m) {
             double* m_out = means.mutable_data();
             double* c_out = counts.mutable_data();
 
-            for (int i = 0; i < n; ++i) {
+            // Rows are independent and each writes only its own slot, so the
+            // parallel loop is bitwise-identical to the serial one: every row's
+            // sum is accumulated in the same ascending candidate order either
+            // way. This matters because V̄ feeds the θ readout and the CSV is
+            // compared across runs; a reduction over threads would not be.
+            std::int64_t rows = static_cast<std::int64_t>(n);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+            for (std::int64_t row = 0; row < rows; ++row) {
+                const int i = static_cast<int>(row);
                 const Agent& self = pop[static_cast<std::size_t>(i)];
                 double sum = 0.0;
                 std::size_t k = 0;

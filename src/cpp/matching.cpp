@@ -116,18 +116,43 @@ std::int32_t count_blocking_pairs(const RankIndex& acc_index, const RankIndex& p
                                   const std::vector<std::vector<std::int32_t>>& acc_prefs,
                                   const std::vector<std::int32_t>& partner_prop,
                                   const std::vector<std::int32_t>& partner_acc) {
-    std::int32_t blocking = 0;
-    for (std::size_t a = 0; a < acc_prefs.size(); ++a) {
+    // A proposer's rank of his current partner depends only on the proposer, not
+    // on which acceptor is being examined, so it is hoisted: otherwise the same
+    // binary search repeats once for every acceptor who ranks him above her
+    // partner. -1 marks "no partner", which no real rank can be.
+    const std::size_t n_prop = partner_prop.size();
+    std::vector<std::int32_t> mate_rank(n_prop, -1);
+    for (std::size_t p = 0; p < n_prop; ++p) {
+        const std::int32_t partner = partner_prop[p];
+        if (partner >= 0) {
+            mate_rank[p] = prop_index.rank_of(static_cast<std::int32_t>(p), partner);
+        }
+    }
+
+    // Acceptors are independent and the shared structures are read-only, so the
+    // loop parallelises without changing a single comparison. `blocking` is an
+    // integer reduction, which is exact regardless of summation order.
+    std::int64_t blocking = 0;
+    const std::int64_t n_acc = static_cast<std::int64_t>(acc_prefs.size());
+#ifdef _OPENMP
+#pragma omp parallel for reduction(+ : blocking) schedule(static)
+#endif
+    for (std::int64_t a = 0; a < n_acc; ++a) {
         const std::int32_t ai = static_cast<std::int32_t>(a);
-        const std::int32_t partner = partner_acc[a];
+        const std::int32_t partner = partner_acc[static_cast<std::size_t>(a)];
         const std::int32_t partner_rank_w = (partner < 0) ? kRankUnmatched
                                                           : acc_index.rank_of(ai, partner);
-        for (const std::int32_t p : acc_prefs[a]) {
+        // rank_of(ai, acc_prefs[ai][r]) is r by construction: RankIndex stores
+        // each list's original positions. So the loop counter is her rank, and
+        // the binary search that would recover it can go.
+        const auto& list = acc_prefs[static_cast<std::size_t>(a)];
+        for (std::size_t r = 0; r < list.size(); ++r) {
+            const std::int32_t p = list[r];
             if (p == partner) {
                 continue;
             }
-            const std::int32_t rank_w = acc_index.rank_of(ai, p);
-            if (rank_w > partner_rank_w) {
+            // Same test as before, with r standing in for rank_of(ai, p).
+            if (static_cast<std::int32_t>(r) > partner_rank_w) {
                 continue;  // she does not prefer him
             }
             const std::int32_t rank_m = prop_index.rank_of(p, ai);
@@ -139,13 +164,12 @@ std::int32_t count_blocking_pairs(const RankIndex& acc_index, const RankIndex& p
                 ++blocking;  // he could only improve on being unmatched
                 continue;
             }
-            const std::int32_t his_partner_rank = prop_index.rank_of(p, his_partner);
-            if (rank_m < his_partner_rank) {
+            if (rank_m < mate_rank[static_cast<std::size_t>(p)]) {
                 ++blocking;
             }
         }
     }
-    return blocking;
+    return static_cast<std::int32_t>(blocking);
 }
 
 }  // namespace
