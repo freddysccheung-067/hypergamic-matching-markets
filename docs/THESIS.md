@@ -2,10 +2,14 @@
 
 ## What this project is, and what it is not
 
-This is a computational model of **matching-market institution design**. It asks a question that
-is well defined inside a specified model: when a matching market has a signaling cost `c`, an
-information asymmetry over intent, a network size `N`, and an enforcement penalty `d`, how does
-total welfare depend on those four parameters?
+This is a computational model of what happens to a matching market when a **recommender sits
+between its two sides**, and of how that market compares with a differently designed one. It asks
+two questions that are well defined inside a specified model. First: when an engagement-optimizing
+recommender decides which candidates anyone sees, what does that do to exposure, clearing and
+welfare? Second, and as the contrast that makes the first answerable: when a matching market has a
+signaling cost `c`, an information asymmetry over intent, a network size `N`, and an enforcement
+penalty `d`, how does total welfare depend on those four parameters? The first is Environment A
+and the second is the comparison between A and Environment B, below.
 
 It is not a proof about any real population. A simulation of a specified utility model
 demonstrates what follows from the assumptions; it cannot establish that the assumptions hold.
@@ -89,9 +93,22 @@ not do that.
 
 What the recommender does do, and what the ablation already measured, is **estimation-error
 concentration**: a recommender that only approximates preferences puts the agents it cannot
-represent into no shortlist at all. Measured at N=1000, k=20, five seeds: Gini 0.939 ± 0.006
-under the NCF against 0.664 for an oracle with the same objective. The loss of representational
-fidelity, not a status bias, is what concentrates exposure.
+represent into no shortlist at all. Measured at φ = 0.2 (`admissible_fraction`, the inert-loop
+regime), a 20-epoch horizon, k = 20, N = 1000, five seeds: Gini 0.939 ± 0.006 under the NCF against
+0.664 for an oracle with the same objective. The loss of representational fidelity, not a status
+bias, is what concentrates exposure. That is a statement about the first 20 epochs. The shipped
+config is φ = 0.02 with 100 epochs, and at that horizon the NCF–oracle gap falls to +0.025 ± 0.008
+(`data/processed/ablation_h100/`): the concentration is a cold-start property that relaxes as the
+filter learns coverage. H3 gives both horizons.
+
+**Closed-form results are stated, not re-derived.** For a single scalar status the equilibrium
+results are proved: E. Bilderbeek, *Hypergamy Is Solved* (23 October 2026), gives the deficit under
+a compatibility constraint (Theorem 2.2), its height form (Theorem 3.3) and assortative uniqueness
+(Theorem 5.1). This project therefore does not re-derive them. It reproduces them as checks
+(`docs/validation.md`, `tests/python/test_validation.py`) and works in the setting the paper's
+Section 9 names as open: a recommender-truncated visibility constraint over a multi-trait utility.
+The deficit checks are maximum-cardinality matchings and Theorem 5.1 is a Gale–Shapley stability
+check; they are different tests.
 
 ### Thin markets: the cost of Environment B
 
@@ -197,8 +214,24 @@ is what "`θ` rises" asserts. (Not exactly zero: `V/V̄ − 1` averages to zero 
 under 1% of the spread.) H2 as written is not a property of this model under either rule.
 
 **H3 — Algorithmic estimation error concentrates exposure.** `Gini(NCF) > Gini(oracle)` on a
-shared population and seed; already measured at 0.939 vs 0.664.
-*Killed if:* the NCF matches or beats the oracle. This one has already survived.
+shared population and seed.
+*Killed if:* the NCF matches or beats the oracle. This one has survived, at every horizon
+measured, but the size of the effect depends on the horizon and the claim must carry it. Five
+seeds, N = 1000, k = 20, final epoch:
+
+| regime | horizon | Gini NCF | Gini oracle | gap |
+|---|---|---|---|---|
+| φ = 0.2 (inert gate) | 20 epochs | 0.939 ± 0.006 | 0.664 | +0.285 ± 0.007 |
+| φ = 0.02 (live gate, shipped) | 20 epochs | 0.941 ± 0.003 | 0.655 | +0.287 ± 0.010 |
+| φ = 0.02 (live gate, shipped) | 100 epochs | 0.680 ± 0.018 | 0.655 | **+0.025 ± 0.008** |
+
+The gap peaks at +0.306 around epoch 5, is +0.287 at epoch 19 and +0.175 at epoch 49, and is
++0.025 at epoch 99, positive on all five seeds (0.015 to 0.034). So H3 holds in direction and
+nearly vanishes in size once the filter has had time to learn coverage (NCF reach 4% at epoch 0,
+17% at 19, 96% at 99). The honest statement is that estimation-error concentration is a
+cold-start property that relaxes, not a standing feature of the recommender. Sources:
+`data/processed/ablation/`, `ablation_live/` and `ablation_h100/`, each with a README naming its
+regime.
 
 **H4 — There is an interior optimum.** `welfare_common(B)` exceeds `welfare_common(A)` for
 `N_sub` above a critical size and falls below it for small `N_sub`, at fixed `c`.

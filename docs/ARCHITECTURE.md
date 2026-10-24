@@ -102,8 +102,8 @@ update_thresholds(states, n_prop, n_match, eta) -> None   // mutates states[:, 6
 Python passes NumPy arrays in and gets NumPy arrays out, using `py::array_t` with
 `py::array::c_style` so no copy is made at the boundary.
 
-The reason a separate file exists: the C++ and Python layers are written in different Claude Code
-sessions that share no context. The contract is the only thing keeping the two halves compatible.
+The reason a separate file exists: the C++ and Python layers are written in two development contexts
+that do not share state. The contract is the only thing keeping the two halves compatible.
 
 ## Scalability Targets
 

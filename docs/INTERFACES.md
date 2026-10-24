@@ -1,6 +1,6 @@
 # Interface Contract
 
-The C++ core and the Python layer are built in **separate Claude Code tabs that do not share context**. This file is the only synchronisation point between them. Freeze it before Day 2. If a signature has to change, change it here first, commit, and tell the other tab to re-read this file.
+The C++ core and the Python layer are built in **two development contexts that do not share state**. This file is the only synchronisation point between them. Freeze it before Day 2. If a signature has to change, change it here first, commit, and have the other side re-read this file.
 
 ## 1. State matrix
 
