@@ -978,6 +978,107 @@ def plot_attribution(
     return fig
 
 
+# ── 8. the notebook dashboard ────────────────────────────────────────────────
+
+def apply_style() -> None:
+    """Install ``_STYLE`` as the live rcParams, for a notebook's own ad-hoc axes.
+
+    Every figure in this module draws inside ``mpl.rc_context(_STYLE)``, which is the
+    right scope for a function that must not leak global state. A notebook is the
+    other case: its cells draw in whatever context the kernel has, so without this
+    call a notebook histogram is matplotlib's default while the saved figure beside
+    it is this module's. Idempotent, and it only sets keys this module already owns.
+    """
+    mpl.rcParams.update(_STYLE)
+
+
+def _dashboard_panels(metrics: pd.DataFrame) -> list[tuple[str, str, str, str]]:
+    """(column, panel title, y label, formatting) for the dashboard's four series.
+
+    ``welfare_full`` is deliberately absent: it is one number repeated on every row
+    of an A-side run (the benchmark depends on traits, which never move), so plotting
+    it would draw a flat line that looks like a measurement of the market rather than
+    a benchmark. ``algorithmic_loss`` carries the same comparison and does move.
+    """
+    return [
+        ("gini", "exposure Gini", "Gini", "{:.3f}"),
+        ("mcr", "market clearing rate", "MCR", "{:.3f}"),
+        ("reach", "reach", "share of agents", "{:.1%}"),
+        ("welfare_alg", "welfare, mediated", "W", "{:.0f}"),
+    ]
+
+
+def save_dashboard(
+    metrics: pd.DataFrame,
+    out_dir: pathlib.Path | str | None = None,
+    save: bool = True,
+    n_agents: int | None = None,
+) -> Figure:
+    """Four time-series panels from one ``Simulation.run()`` frame.
+
+    The dashboard is the one figure here that reads a frame the caller just produced
+    rather than a committed CSV, because its job is to make a notebook run legible
+    before anything is written to ``data/processed/``. It reads only §6 columns, and
+    it names the arm, seed and drift setting in the title because a dashboard without
+    those is a set of curves with no provenance.
+
+    Every panel is one measure on its own axis. The four do not share a scale — a Gini
+    and a welfare level on one axis would make three of them unreadable — so they are
+    small multiples rather than a dual-axis plot.
+
+    ``n_agents`` is optional because the §6 frame does not carry N: it can be recovered
+    from any row as ``n_matched / (mcr / 2)``, but not when the market matched nobody,
+    so a caller that knows the population size passes it and the title states it.
+    """
+    required = {"epoch", "gini", "mcr", "reach", "welfare_alg", "arm", "seed", "delta"}
+    missing = required - set(metrics.columns)
+    if missing:
+        raise KeyError(f"metrics frame is missing {sorted(missing)}; got {list(metrics)}")
+    if metrics.empty:
+        raise ValueError("metrics frame is empty: run() produced no epochs")
+
+    panels = _dashboard_panels(metrics)
+    arm = str(metrics["arm"].iloc[0])
+    seed = int(metrics["seed"].iloc[0])
+    delta = float(metrics["delta"].iloc[0])
+    population = f"N = {int(n_agents)}, " if n_agents is not None else ""
+
+    with mpl.rc_context(_STYLE):
+        fig = _new_figure(10.2, 6.4)
+        axes = fig.subplots(2, 2)
+
+        for ax, (col, title, ylabel, fmt) in zip(axes.ravel(), panels):
+            y = metrics[col].to_numpy(dtype=float)
+            x = metrics["epoch"].to_numpy(dtype=float)
+            ax.fill_between(x, 0.0, y, color=BLUE, alpha=0.10, lw=0)
+            ax.plot(x, y, color=BLUE, lw=2.0, solid_capstyle="round", zorder=3)
+            # Endpoint only: a value on every epoch is the anti-pattern this figure
+            # would otherwise fall into, and the axis carries the rest.
+            ax.plot([x[-1]], [y[-1]], marker="o", ms=5.5, color=BLUE,
+                    markeredgecolor="white", markeredgewidth=1.6, zorder=4)
+            ax.annotate(fmt.format(y[-1]), xy=(x[-1], y[-1]), xytext=(5, 0),
+                        textcoords="offset points", va="center", ha="left",
+                        fontsize=9, color=INK)
+            ax.set_title(title, loc="left")
+            ax.set_xlabel("epoch")
+            ax.set_ylabel(ylabel)
+            ax.set_xlim(x[0], x[-1] + max(2.0, 0.06 * (x[-1] - x[0])))
+            lo = min(0.0, float(y.min()))
+            ax.set_ylim(lo, float(y.max()) * 1.12 if y.max() > 0 else 1.0)
+            ax.grid(axis="x", visible=False)
+
+        fig.suptitle(
+            f"{arm} arm, {population}seed {seed}, delta {delta:g}: "
+            f"{len(metrics)} epochs",
+            x=0.01, ha="left", fontsize=11.5,
+        )
+        fig.tight_layout()
+
+    if save:
+        _save(fig, "dashboard", out_dir)
+    return fig
+
+
 def make_all(out_dir: pathlib.Path | str | None = None) -> dict[str, Figure]:
     return {
         "separating_curve": separating_curve(out_dir=out_dir),
