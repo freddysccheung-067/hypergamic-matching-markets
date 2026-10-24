@@ -286,6 +286,9 @@ visibility is a truncated top-k list over an estimated utility and no closed for
 - [docs/INTERFACES.md](docs/INTERFACES.md) — the authoritative C++/Python contract, including §5 on proposer direction
 - [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — toolchain setup, Windows-first
 
+## Zenodo
+[![DOI](https://zenodo.org/badge/1424441739.svg)](https://doi.org/10.5281/zenodo.23620786)
+
 ## License
 
 MIT
