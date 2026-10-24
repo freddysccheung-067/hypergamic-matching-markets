@@ -55,10 +55,20 @@ docs/figures/*.svg
 !docs/figures/gini_evolution.png
 !docs/figures/matthew_effect.png
 !docs/figures/attribution.png
+# The demo notebook's figures. dashboard, matthew and sweep are the three the README
+# embeds, so they are tracked for the same reason as the seven above; population and
+# pareto exist only inline in notebooks/demo.ipynb and stay ignored.
+!docs/figures/dashboard.png
+!docs/figures/matthew.png
+!docs/figures/sweep.png
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Profiling scratch: timing harnesses and per-run dumps. docs/PERFORMANCE.md describes
+# them; they are not part of the repository and would fail the lint job.
+data/perf/
 
 # Session prompt log: a record of how the work was done, kept outside the repository.
 docs/SPRINT_PROMPTS.md
