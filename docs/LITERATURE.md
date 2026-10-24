@@ -1,0 +1,616 @@
+# Literature
+
+Thirty-five sources, ordered by how much they bear on this project rather than alphabetically.
+The five marked **★ load-bearing** are the entries a reviewer would use to decide whether the
+work is novel, correct, or redundant.
+
+Every entry below was verified in this session: bibliographic data against the Crossref or
+OpenAlex record for the DOI, and the claim against the abstract, landing page, or full text.
+Where an abstract was unavailable from the publisher, the entry says so. One entry
+(Bilderbeek, 2026) is not indexed anywhere and was verified by reading the document itself.
+
+---
+
+## ★ E. Bilderbeek (2026). *Hypergamy Is Solved: Feasibility, Deficit, and Equilibrium in Status-Ordered Matching Markets, with an Application to the Six-Foot Rule*. Self-published, University of Chicago, 23 October 2026. No DOI; circulated as a PDF.
+
+**Claim.** For any marriage market with continuous status distributions, universal hypergamy is
+feasible exactly when one side's status distribution first-order stochastically dominates the
+other's; when it is not, the minimal unmatched mass is the Hypergamy Deficit
+`D = sup_t (G_W(t) − G_M(t))₊`; no behavioural strategy changes either fact; and under
+status-ranked preferences or supermodular transferable utility the equilibrium is the comonotone
+coupling, whose hypergamy index is `H* = Leb{F_M⁻¹ > F_W⁻¹}`.
+
+**Method.** Proof, in the language of optimal transport: a continuum Hall marriage theorem
+(Theorem 2.2), a Gaussian closed form for a required status gap (Theorem 3.3), a Strassen
+feasibility condition (Theorem 2.1), invariance results (Theorems 4.3 and 4.5), and a
+Gale–Shapley uniqueness result (Theorem 5.1). Calibrated to NHANES 2015–2018 US adult heights.
+
+**Relevance.** The immediate predecessor and the reason this project does not re-derive
+anything. `docs/validation.md` checks Theorem 2.2, Theorem 3.3 and Theorem 5.1 against the
+simulator; §9 is the source of the project's stated contribution. All of it is one-dimensional
+in a scalar status functional.
+
+**What we add.** For a single scalar status, nothing: Theorem 8.1 subsumes every closed-form
+claim this repository could make, and the repository is a check on it rather than an extension.
+What the paper does not cover is a finite population whose visibility is a learned ranker's
+top-k list over a multi-attribute utility; we compute that numerically and offer no closed form.
+
+---
+
+## ★ K.-M. Chen, Y.-W. Hsieh & M.-J. Lin (2023). *Reducing Recommendation Inequality via Two-Sided Matching: A Field Experiment of Online Dating*. International Economic Review 64(3), 1201–1221. DOI 10.1111/iere.12631
+
+**Claim.** Recommenders that rank only on popularity and similarity produce recommendation
+inequality, and modifying the ranking with a stylized economic matching model reduces that
+inequality while increasing predictive accuracy and producing substantially more matched couples
+than the competing algorithms.
+
+**Method.** Field experiment on a live dating platform, with a matching-model-based ranker
+compared against production-style baselines on platform outcomes.
+
+**Relevance.** The closest existing work to this project's central object: a ranker that mediates
+who sees whom in a two-sided market, evaluated on match formation. It is the strongest constraint
+on any novelty claim here.
+
+**What we add.** Chen et al. change the ranker and measure realised matches on a platform; they
+do not characterise the *unmatched mass* as a function of the visibility constraint, do not
+compare a mediated institution against a non-mediated one on a common welfare basis, and do not
+report a horizon-dependent effect. Their setting is an intervention, ours is a comparative
+static. That is a difference of question, not of quality, and it is narrower than "the gap
+Bilderbeek leaves open".
+
+---
+
+## ★ D. Gale & L. S. Shapley (1962). *College Admissions and the Stability of Marriage*. The American Mathematical Monthly 69(1), 9–15. DOI 10.1080/00029890.1962.11989827
+
+**Claim.** Every finite two-sided market with strict preferences admits a stable matching, and
+the deferred-acceptance procedure constructs one.
+
+**Method.** Proof, plus the algorithm.
+
+**Relevance.** The clearing step of Environment A and the engine of the Theorem 5.1 check. The
+truncated variant in `THEORY.md` §6.2 is this procedure run on top-k lists instead of full lists.
+
+**What we add.** Nothing to the theory. The project uses the algorithm as a component and
+inherits its properties, including the proposer bias that `README.md` records as a limitation.
+
+---
+
+## ★ A. J. B. Chaney, B. M. Stewart & B. E. Engelhardt (2018). *How Algorithmic Confounding in Recommendation Systems Increases Homogeneity and Decreases Utility*. Proceedings of the 12th ACM Conference on Recommender Systems, 224–232. DOI 10.1145/3240323.3240370
+
+**Claim.** When a recommender is trained on data generated by its own past recommendations, the
+resulting feedback loop homogenises user behaviour without increasing utility.
+
+**Method.** Simulation of users and a learned recommender, with the confounded and unconfounded
+training data compared.
+
+**Relevance.** The competing explanation for H3. If concentration in this project came from a
+confounded loop rather than from estimation error, this is the paper that predicts it — and it
+predicts the effect *persists*, which the project's own horizon data contradict.
+
+**What we add.** A matching market with an explicit clearing step, where the loop runs through
+visibility and acceptance rather than through preference formation; and a measured horizon
+profile, in which the concentration relaxes (+0.287 Gini gap at epoch 19, +0.025 at epoch 99)
+rather than compounding.
+
+---
+
+## ★ B. Mansoury, H. Abdollahpouri, M. Pechenizkiy, B. Mobasher & R. Burke (2020). *Feedback Loop and Bias Amplification in Recommender Systems*. Proceedings of the 29th ACM International Conference on Information and Knowledge Management, 2145–2148. DOI 10.1145/3340531.3412152
+
+**Claim.** A feedback loop amplifies popularity bias, reduces aggregate diversity, shifts the
+representation of user taste over time, and homogenises users — with the effect generally
+stronger for users in the minority group.
+
+**Method.** Offline simulation of user interaction with several recommendation algorithms,
+comparing bias before and after looping.
+
+**Relevance.** H3's mechanism and its distributional reading: "the agents it cannot represent
+end up in no shortlist at all" is the matching-market form of minority-group amplification. The
+exposure Gini is the metric this paper would predict to rise monotonically.
+
+**What we add.** The measured non-monotonicity. Concentration here peaks near epoch 5 and decays
+as the filter learns coverage, so a single-horizon Gini cannot distinguish a standing bias from
+a transient — which is the difference between this result and the bias-amplification literature.
+
+---
+
+## G. J. Hitsch, A. Hortaçsu & D. Ariely (2010). *Matching and Sorting in Online Dating*. American Economic Review 100(1), 130–163. DOI 10.1257/aer.100.1.130
+
+**Claim.** Mate preferences estimated from online-dating interactions, fed into Gale–Shapley,
+predict observed matches well and reproduce the assortative patterns seen in real marriages,
+which implies preferences rather than search frictions explain most of the sorting.
+
+**Method.** Structural estimation on a large online-dating dataset, then counterfactual matching.
+
+**Relevance.** The empirical benchmark for the claim that a *model* is the right instrument for
+a mechanism question, and the closest empirical analogue of Environment A. Also the standing
+counter-argument to any claim that frictions are what produce sorting.
+
+**What we add.** Hitsch et al. give agents the true preference lists; the question here is what
+happens when the list itself is the output of an estimator that is wrong about some agents. That
+is not a question their design can pose, because their preferences are observed up to parameters
+rather than predicted per agent.
+
+---
+
+## Y. Kanoria & D. Saban (2021). *Facilitating the Search for Partners on Matching Platforms*. Management Science 67(10), 5990–6029. DOI 10.1287/mnsc.2020.3794
+
+**Claim.** A platform that restricts agents' actions — forcing the short side to initiate contact,
+hiding information about partner quality — can raise welfare, and under vertical differentiation
+can do so even as screening costs vanish.
+
+**Method.** Dynamic two-sided search model with strategic agents bearing discovery costs;
+characterisation of evolutionarily stable stationary equilibria.
+
+**Relevance.** The theoretical counterpart of the project's institutional comparison, and a
+warning against reading Environment B's restrictions as pure cost. It also supplies the
+welfare-standard logic behind A-vs-B: restricting choice can raise or lower welfare depending on
+which side is restricted.
+
+**What we add.** Mediation by a *learned* ranker rather than by a designed rule, and a finite
+population with a multi-attribute utility where the restriction is an estimation artefact rather
+than a policy.
+
+---
+
+## G. A. Akerlof (1970). *The Market for "Lemons": Quality Uncertainty and the Market Mechanism*. The Quarterly Journal of Economics 84(3), 488–500. DOI 10.2307/1879431
+
+**Claim.** When sellers know quality and buyers do not, the market can unravel toward a pooling
+outcome in which price reflects only average quality.
+
+**Method.** Model, with the used-car market as the worked example and counteracting institutions
+discussed.
+
+**Relevance.** Environment A's `c = 0` regime is stated in `THESIS.md` as Akerlof's pooling
+outcome reached through a cost channel rather than a quality channel. That identification is the
+project's own move and should be attributed as an analogy, not as an application of the theorem.
+
+**What we add.** The pooling/separating boundary is produced as the `c → 0` limit of a two-regime
+model, so A and B are two settings of one parameter rather than two theories.
+
+---
+
+## M. Spence (1973). *Job Market Signaling*. The Quarterly Journal of Economics 87(3), 355–374. DOI 10.2307/1882010
+
+**Claim.** When the cost of a signal is negatively correlated with the hidden type, the signal
+can separate types in equilibrium even though it is intrinsically unproductive.
+
+**Method.** Model: signalling equilibria under uncertainty, with the education example.
+
+**Relevance.** The `c > 0` regime. The separating threshold `τ*(c) = c / (V̄ · p)` in
+`THESIS.md` §10.2 is a single-crossing condition in Spence's sense applied to a commitment type.
+
+**What we add.** Nothing to the theory. The model instantiates a one-dimensional version and
+measures what it does to a clearing market, which Spence's setting does not contain.
+
+---
+
+## A. E. Roth & U. G. Rothblum (1999). *Truncation Strategies in Matching Markets — in Search of Advice for Participants*. Econometrica 67(1), 21–43. DOI 10.1111/1468-0262.00002
+
+**Claim.** In a low-information environment, misreporting by reversing preferences is not
+profitable, but submitting a truncation of the true list can be; truncation is therefore a real
+strategic object in deferred acceptance.
+
+**Method.** Proof, within the strategic analysis of deferred-acceptance mechanisms.
+
+**Relevance.** Directly relevant to the model's core architecture: the recommender's top-k list
+*is* a truncation, imposed by the platform instead of chosen by the agent. This paper is the
+established result that truncation changes outcomes, and `README.md:11` asserts it without
+attribution.
+
+**What we add.** Truncation that is agent-specific, estimated, and endogenous to a learner,
+rather than a uniform strategic choice by the participant.
+
+---
+
+## I. Ashlagi, Y. Kanoria & J. D. Leshno (2017). *Unbalanced Random Matching Markets: The Stark Effect of Competition*. Journal of Political Economy 125(1), 69–98. DOI 10.1086/689869
+
+**Claim.** Even a slight imbalance in a random matching market yields an essentially unique
+stable matching, with the short side matched near the top of its list and the long side matched
+near randomly.
+
+**Method.** Proof for random preference markets, plus a tight characterisation of stable outcomes.
+
+**Relevance.** Bounds what the A/B comparison can attribute to institutions. Environment A's
+clearing rate falls roughly as `1/N` at fixed `k` (`README.md` limitations); some of that is
+competition, not mediation, and this paper is the reason to say so.
+
+**What we add.** Mediation as a second source of the same asymmetry, in a balanced market where
+the imbalance effect is held at zero.
+
+---
+
+## H. C. Hoppe, B. Moldovanu & A. Sela (2009). *The Theory of Assortative Matching Based on Costly Signals*. The Review of Economic Studies 76(1), 253–281. DOI 10.1111/j.1467-937x.2008.00517.x
+
+**Claim.** In two-sided markets with two-sided incomplete information, agents match assortatively
+on costly signals, and there are general conditions under which the output gain from assortative
+matching is exactly offset by signalling costs.
+
+**Method.** Proof, using stochastic order relations among differences of order statistics, with a
+continuum limit.
+
+**Relevance.** The nearest theoretical relative of Environment B, and the sharpest constraint on
+H4. It says the interior optimum the project looks for is not automatic: signalling costs can
+consume the entire assortative gain, which is what H4's failure at `c_B ≥ 0.05` looks like.
+
+**What we add.** A welfare comparison against a *different institution* rather than against random
+matching, and a network-size dimension that the continuum limit removes.
+
+---
+
+## A. E. Roth (1982). *The Economics of Matching: Stability and Incentives*. Mathematics of Operations Research 7(4), 617–628. DOI 10.1287/moor.7.4.617
+
+**Claim.** No matching procedure is both always stable and always strategy-proof, though some are
+stable and give one side the incentive to report truthfully.
+
+**Method.** Proof.
+
+**Relevance.** The proposer-optimal / acceptor-pessimal asymmetry that `README.md:235` records as
+a limitation of the W-side rank-satisfaction metric.
+
+**What we add.** Nothing. The project inherits the result and uses it to bound an interpretation.
+
+---
+
+## D. E. Knuth (1996). *Stable Marriage and Its Relation to Other Combinatorial Problems*. CRM Proceedings and Lecture Notes 10, American Mathematical Society. DOI 10.1090/crmp/010
+
+**Claim.** The set of stable matchings of a marriage instance forms a distributive lattice under
+a suitable order, with a proposer-optimal and an acceptor-optimal element.
+
+**Method.** Monograph, presenting Conway's lattice theorem with proofs and exercises.
+
+**Relevance.** The structural reason the M-proposing and W-proposing runs in
+`docs/validation.md` §3 can be compared at all, and the reason "proposer-optimal" and
+"acceptor-pessimal" are the same statement.
+
+**What we add.** Nothing.
+
+---
+
+## A. S. Kelso & V. P. Crawford (1982). *Job Matching, Coalition Formation, and Gross Substitutes*. Econometrica 50(6), 1483–1504. DOI 10.2307/1913392
+
+**Claim.** With heterogeneous firms and workers and gross substitutability, competitive
+equilibrium in the labour market exists and is stable, and the adjustment process converges to
+an outcome biased toward the side that makes offers.
+
+**Method.** Proof, generalising Shapley–Shubik and Crawford–Knoer.
+
+**Relevance.** The many-to-one, wage-forming counterpart of the project's one-to-one NTU market;
+relevant for arguing that the clearing bias is a property of the procedure class rather than of
+Gale–Shapley specifically.
+
+**What we add.** A non-transferable-utility market where the bias lands on the side the
+substantive question is about.
+
+---
+
+## V. P. Crawford (1991). *Comparative Statics in Matching Markets*. Journal of Economic Theory 54(2), 389–400. DOI 10.1016/0022-0531(91)90129-r
+
+**Claim.** Adding agents to one side of a matching market has monotone welfare effects that go
+the expected way: the enlarged side is weakly worse off and the other side weakly better off.
+
+**Method.** Proof. *(The publisher exposes no abstract and the full text is closed; the claim as
+stated is the one the citing literature consistently attributes to the paper. Treated here as
+verified metadata plus a secondary-characterisation claim.)*
+
+**Relevance.** The comparative-statics tradition the project's H4 and H5 sit in, and the reason
+`size_fraction` is the right experimental knob: changing `N_sub` is exactly a change in the size
+of one side.
+
+**What we add.** A comparative static in an *institution* parameter at fixed population, which
+this literature does not treat.
+
+---
+
+## G. S. Becker (1973). *A Theory of Marriage: Part I*. Journal of Political Economy 81(4), 813–846. DOI 10.1086/260084
+
+**Claim.** If the marital surplus is supermodular in traits, competitive marriage markets sort
+positively on those traits; the gain to marriage depends on incomes, human capital, and relative
+wage rates.
+
+**Method.** Model: household production with a market-clearing condition.
+
+**Relevance.** The complementarity condition behind all positive-assortative-matching results,
+and the reason `THEORY.md` §9.3 has to treat matched-pair correlation as a selection artefact
+rather than as evidence of the utility's shape.
+
+**What we add.** Assortative matching measured under a visibility constraint that is not a
+price and not a preference.
+
+---
+
+## E. Choo & A. Siow (2006). *Who Marries Whom and Why*. Journal of Political Economy 114(1), 175–201. DOI 10.1086/498585
+
+**Claim.** A static transferable-utility marriage market with idiosyncratic tastes generates a
+marriage matching function with spillovers, which rationalises — and limits — the standard
+interpretation of marriage-rate regressions.
+
+**Method.** Model plus nonparametric estimation on US data for 1971/72 and 1981/82.
+
+**Relevance.** The entropic relaxation Bilderbeek's §7 uses, and the standard way to add taste
+heterogeneity to a matching model — the analogue of this project's `taste_sigma`.
+
+**What we add.** Taste heterogeneity as a *knob whose value changes the headline result*
+(`README.md`: at zero taste variance only 6.9% of agents appear on any shortlist), reported as a
+function rather than estimated.
+
+---
+
+## A. Galichon & B. Salanié (2022). *Cupid's Invisible Hand: Social Surplus and Identification in Matching Models*. The Review of Economic Studies 89(5), 2600–2629. DOI 10.1093/restud/rdab090
+
+**Claim.** Under a separability assumption generalising Choo–Siow, the equilibrium matching
+maximises a social gain function trading off observable complementarities against matching on
+unobservables, which yields closed-form identification of the surplus and equilibrium utilities.
+
+**Method.** Proof plus efficient computation, with an empirical revisit of Choo–Siow.
+
+**Relevance.** The identification result that a welfare comparison across institutions would need
+if it were ever taken to data; cited by Bilderbeek as the taste-heterogeneity foundation.
+
+**What we add.** Nothing on identification. The project declines the empirical question
+explicitly and reports welfare only inside the model.
+
+---
+
+## E. E. Bruch & M. E. J. Newman (2018). *Aspirational Pursuit of Mates in Online Dating Markets*. Science Advances 4(8), eaap9815. DOI 10.1126/sciadv.aap9815
+
+**Claim.** Competition for mates in online dating produces a pronounced desirability hierarchy
+that is consistent across cities; both sexes pursue partners roughly 25% more desirable than
+themselves, and reply probability falls sharply with the desirability gap.
+
+**Method.** Empirical analysis of messaging data from a large free dating service in four US cities.
+
+**Relevance.** The empirical form of the project's central asymmetry: aspiration plus a
+reciprocity penalty is what produces a truncated feasible set even without a recommender.
+
+**What we add.** A ranker as a *second* truncation layered on the first, and a decomposition
+that separates what aspiration does from what mediation does.
+
+---
+
+## L. Pizzato, T. Rej, T. Chung, I. Koprinska, K. Yacef & J. Kay (2010). *RECON: A Reciprocal Recommender for Online Dating*. Proceedings of the 4th ACM Conference on Recommender Systems, 207–214. DOI 10.1145/1864708.1864747
+
+**Claim.** A reciprocal recommender that accounts for both sides' preferences improves top-ten
+success from 23% to 42% and helps with cold start, relative to one-sided recommendation.
+
+**Method.** System plus offline evaluation on a large Australian dating-site dataset.
+
+**Relevance.** Establishes that reciprocity-aware ranking is a solved engineering problem, which
+means the project's NCF cannot claim novelty as a ranker. It also shows the cold-start problem
+this project measures is a known recommender phenomenon.
+
+**What we add.** The market-level consequence of the ranker rather than its predictive accuracy:
+what the reciprocal ranking does to unmatched mass and welfare, not to hit rate.
+
+---
+
+## Y. Tomita, R. Togashi & D. Moriwaki (2022). *Matching Theory-based Recommender Systems in Online Dating*. Proceedings of the 16th ACM Conference on Recommender Systems, 538–541. DOI 10.1145/3523227.3547406
+
+**Claim.** Reciprocal recommender systems and matching theory can be combined, and a
+matching-theory-based recommender is deployable on a real dating platform.
+
+**Method.** Position/deployment paper describing an ongoing industrial project.
+
+**Relevance.** Evidence that the intersection this project claims is being actively worked in
+industry, which is the strongest argument against treating "recommender-mediated matching" alone
+as a contribution.
+
+**What we add.** An evaluative framework — welfare on a common basis, against an alternative
+institution — rather than an existence proof that the combination can be built.
+
+---
+
+## X. He, L. Liao, H. Zhang, L. Nie, X. Hu & T.-S. Chua (2017). *Neural Collaborative Filtering*. Proceedings of the 26th International Conference on World Wide Web, 173–182. DOI 10.1145/3038912.3052569
+
+**Claim.** Replacing the inner product of matrix factorisation with a neural architecture over
+user and item embeddings improves collaborative filtering on implicit feedback.
+
+**Method.** Model plus experiments on implicit-feedback benchmarks.
+
+**Relevance.** The architecture of the recommender layer (GMF + MLP). Cited for the estimator,
+not for a result about markets.
+
+**What we add.** Nothing. The ranker is off-the-shelf by design; the contribution would be void
+if it depended on a novel architecture.
+
+---
+
+## R. Jiang, S. Chiappa, T. Lattimore, A. György & P. Kohli (2019). *Degenerate Feedback Loops in Recommender Systems*. Proceedings of the 2019 AAAI/ACM Conference on AI, Ethics, and Society, 383–390. DOI 10.1145/3306618.3314288
+
+**Claim.** User dynamics and recommender behaviour interact to produce degeneracy, and the echo
+chamber and the filter bubble are distinct effects that can be disentangled theoretically.
+
+**Method.** Theoretical analysis plus proposed mitigations.
+
+**Relevance.** Supplies the vocabulary for the one loop this project does have — the acceptance
+threshold `θ` gating the next epoch's swipe set — and for the honest statement that the
+preference loop is absent.
+
+**What we add.** A loop that runs through clearing outcomes rather than preference updates, and a
+measurement of whether it binds: at `φ = 0.02` with `k = 20, N = 1000` it binds for roughly four
+epochs.
+
+---
+
+## H. Abdollahpouri (2019). *Popularity Bias in Ranking and Recommendation*. Proceedings of the 2019 AAAI/ACM Conference on AI, Ethics, and Society, 529–530. DOI 10.1145/3306618.3314309
+
+**Claim.** Popularity bias concentrates recommendation on a few items and starves the long tail,
+and it is a fairness problem as well as a business one.
+
+**Method.** Position paper with algorithmic proposals.
+
+**Relevance.** The "who is excluded when a ranker mediates visibility" question, in its item form.
+The exposure Gini and top-1% share in `THEORY.md` §7.1 and §7.6 are the agent-form of the same
+measurement.
+
+**What we add.** Exclusion measured through *match outcomes* rather than exposure counts, which
+is what makes the welfare claim possible.
+
+---
+
+## N. Sonboli, R. Burke, M. Ekstrand & R. Mehrotra (2022). *The Multisided Complexity of Fairness in Recommender Systems*. AI Magazine 43(2), 164–176. DOI 10.1002/aaai.12054
+
+**Claim.** In multisided platforms, fairness is not a single objective: personalisation and
+multisidedness interact so that satisfying one stakeholder's fairness criterion can violate
+another's.
+
+**Method.** Survey and synthesis of measurement and algorithmic approaches.
+
+**Relevance.** Frames the project's refusal to name either environment as ethically superior, and
+the choice to report both `welfare_common` and `welfare_selected`.
+
+**What we add.** A setting where the two sides are the two *populations*, not two stakeholder
+groups, and where the excluded set is priced rather than optimised against.
+
+---
+
+## A. E. Roth & E. Peranson (1999). *The Redesign of the Matching Market for American Physicians: Some Engineering Aspects of Economic Design*. American Economic Review 89(4), 748–780. DOI 10.1257/aer.89.4.748
+
+**Claim.** Where complementarities break the simple theory, computational experiments show the
+theory still approximates well, and the set of stable matchings and the scope for manipulation
+are surprisingly small because each applicant interviews only a small fraction of positions.
+
+**Method.** Design and deployment of the NRMP clearinghouse, with computational experiments.
+
+**Relevance.** The precedent for the methodological move this project makes: when the closed form
+does not apply, compute. Also the source of the "small core" observation that makes truncation
+less damaging than it looks.
+
+**What we add.** Computational evaluation of a market where the truncation is imposed by an
+estimator and its error is the object of study.
+
+---
+
+## H. Halaburda, M. J. Piskorski & P. Yıldırım (2018). *Competing by Restricting Choice: The Case of Matching Platforms*. Management Science 64(8), 3574–3594. DOI 10.1287/mnsc.2017.2797
+
+**Claim.** A matching platform can compete successfully by limiting the choices it offers,
+because restricting one agent's choice set also restricts their competitors'; agents with poor
+outside options prefer the restricted platform.
+
+**Method.** Stylized model of online dating with indirect network effects derived from
+microfoundations.
+
+**Relevance.** A competing explanation for the `size_fraction` result in H4. Environment B
+restricts choice and excludes agents, and this paper says restriction can *raise* welfare for the
+agents inside it — which is exactly the selection artefact `THESIS.md` guards against with
+`welfare_common`.
+
+**What we add.** The excluded agents are scored rather than removed, so the restriction's cost to
+non-participants enters the comparison.
+
+---
+
+## A. Esteve, C. R. Schwartz, J. Van Bavel, I. Permanyer, M. Klesment & J. García-Román (2016). *The End of Hypergamy: Global Trends and Implications*. Population and Development Review 42(4), 615–625. DOI 10.1111/padr.12012
+
+**Claim.** The reversal of the educational gender gap has shifted marriage patterns globally from
+educational hypergamy toward hypogamy, independent of any change in preferences.
+
+**Method.** Administrative and survey data across countries and cohorts.
+
+**Relevance.** The empirical basis for the project's exogenous-drift channel and for Bilderbeek's
+Remark 8.2: measured hypergamy can fall with no behavioural change. Directly relevant to the
+factorial decomposition's `ΔW_exogenous` term.
+
+**What we add.** The decomposition that asks whether an algorithm amplifies that shift, and the
+prior that it does not.
+
+---
+
+## C. R. Schwartz & R. D. Mare (2005). *Trends in Educational Assortative Marriage from 1940 to 2003*. Demography 42(4), 621–646. DOI 10.1353/dem.2005.0036
+
+**Claim.** Educational homogamy in the US fell from 1940 to 1960, then rose through 2003, driven
+first by college graduates marrying each other and later by declining intermarriage at both tails.
+
+**Method.** Census and Current Population Survey data, log-linear models.
+
+**Relevance.** The empirical trend the model's `δ` sweep is a stylised version of, and the reason
+the drift channel is modelled as a change in marginals rather than in preferences.
+
+**What we add.** A mechanism question — whether a ranker amplifies the trend — that trend
+estimation cannot answer.
+
+---
+
+## L. Eika, M. Mogstad & B. Zafar (2019). *Educational Assortative Mating and Household Income Inequality*. Journal of Political Economy 127(6), 2795–2835. DOI 10.1086/702018
+
+**Claim.** Assortative mating accounts for a non-negligible share of cross-sectional household
+income inequality in five countries, but changes in assortative mating over time barely move
+inequality trends.
+
+**Method.** Administrative and survey data for Denmark, Germany, Norway, the UK and the US, with
+a decomposition of household income distribution.
+
+**Relevance.** A direct empirical warning about the project's welfare interpretation: a level
+effect and a trend effect are different claims, and the literature finds the first without the
+second.
+
+**What we add.** An institutional parameter that could in principle move the trend, tested
+against a null.
+
+---
+
+## R. Fisman, S. S. Iyengar, E. Kamenica & I. Simonson (2006). *Gender Differences in Mate Selection: Evidence From a Speed Dating Experiment*. The Quarterly Journal of Economics 121(2), 673–697. DOI 10.1162/qjec.2006.121.2.673
+
+**Claim.** In a speed-dating experiment with random matching, women weight intelligence and race
+more and men weight physical attractiveness more; men do not value women's intelligence when it
+exceeds their own; and female selectivity rises strongly with group size while male selectivity
+does not.
+
+**Method.** Randomised field experiment with random variation in the number of potential partners.
+
+**Relevance.** The multi-trait weights the model has to invent (`α, β, γ, λ`), and the
+group-size effect that Environment B's `N_sub` manipulation is a coarse version of.
+
+**What we add.** The group-size effect on the *market* rather than on individual selectivity, in a
+setting where the group is a visibility set rather than a room.
+
+---
+
+## J. Lin & J. Lundquist (2013). *Mate Selection in Cyberspace: The Intersection of Race, Gender, and Education*. American Journal of Sociology 119(1), 183–215. DOI 10.1086/673129
+
+**Claim.** Racial homophily dominates online mate search, a racial hierarchy appears in
+reciprocation, and education does not mediate the racial preferences of white daters.
+
+**Method.** Observational analysis of messaging and reciprocation on a large dating site.
+
+**Relevance.** Trait salience is not separable: the multi-trait utility this project assumes
+additively is, empirically, an approximation that fails at intersections. A limitation on the
+`α/β/γ/λ` parameterisation.
+
+**What we add.** Nothing on the empirical structure. The model deliberately works in a
+single-population synthetic setting with no race, and says so.
+
+---
+
+## P. Windrum, G. Fagiolo & A. Moneta (2007). *Empirical Validation of Agent-Based Models: Alternatives and Prospects*. Journal of Artificial Societies and Social Simulation 10(2), 8. https://www.jasss.org/10/2/8.html
+
+**Claim.** Validating an agent-based model is not a single test but a family of practices, and the
+field's approaches — indirect calibration, the Werker–Brenner approach, history-friendly
+modelling — differ along dimensions the paper taxonomises, with unresolved issues remaining.
+
+**Method.** Methodological review and taxonomy.
+
+**Relevance.** The standard against which this project's validation claim must be judged:
+reproducing a closed form is *verification*, not validation, and `docs/validation.md` is careful
+to say it establishes nothing about the recommender.
+
+**What we add.** A validation target that is unusually strong for an ABM — exact agreement with
+proved results on five seeds — combined with an explicit refusal to claim empirical validity.
+
+---
+
+## G. Fagiolo, A. Moneta & P. Windrum (2007). *A Critical Guide to Empirical Validation of Agent-Based Models in Economics: Methodologies, Procedures, and Open Problems*. Computational Economics 30(3), 195–226. DOI 10.1007/s10614-007-9104-4
+
+**Claim.** Empirical validation of agent-based models in economics faces methodological problems
+that are not resolved by calibration alone, and the available procedures must be chosen with the
+model's purpose in view.
+
+**Method.** Critical review with a procedure-by-procedure assessment. *(Publisher exposes no
+abstract; the claim is taken from the paper's stated scope and keywords — methodology,
+calibration, empirical validation — and is deliberately general.)*
+
+**Relevance.** The calibration problem the project names as its largest limitation: no parameter
+here is anchored to data, so the comparative statics are claims about the model and nothing else.
+
+**What we add.** A model whose results are reported as a function of the unanchored knobs rather
+than at a single setting, which is the mitigation this literature recommends and few papers
+implement.
