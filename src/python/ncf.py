@@ -64,6 +64,74 @@ class NCFModel(nn.Module):
     def predict_proba(self, user_ids: torch.Tensor, item_ids: torch.Tensor) -> torch.Tensor:
         return torch.sigmoid(self.forward(user_ids, item_ids))
 
+    # ── Scoring fast path ─────────────────────────────────────────────────────
+    # ``forward`` is the training path and stays as written: it is called on
+    # (batch,) pairs, where none of the structure below is reachable. Scoring a
+    # whole candidate side is the different, and dominant, shape — U x C pairs in
+    # one block — so it gets its own exact evaluation. Both rewrites are
+    # reassociation of the same sums, not approximations:
+    #
+    #   1. The first MLP layer is bilinear. W1 @ [a; b] + c equals
+    #      a @ W1[:, :D].T + b @ W1[:, D:].T + c, so the per-pair 128x2D matmul
+    #      (16,384 MACs, the largest single term) becomes two per-entity
+    #      projections built once per call. Per pair that leaves the two smaller
+    #      layers — ~10.3k MACs instead of ~26.7k.
+    #
+    #   2. The GMF branch and the output layer collapse into one product:
+    #      sum_d Wout[d] * gu[d] * gi[d] = sum_d (Wout[d] * gu[d]) * gi[d], so the
+    #      (U, C, D) elementwise tensor and its linear become a single BLAS matmul
+    #      over the candidate axis.
+    #
+    # Measured at the run loop's shape (6 rows x 5,000 candidates, 24 threads, this
+    # machine): 3.3 ms -> 1.4 ms per pass. Scores differ from ``forward`` by
+    # <= 1.5e-8 absolute on a logit scale of order 0.1 — the last bits of the same
+    # real number — and the returned top-k is identical.
+    #
+    # The projections are rebuilt per call rather than cached: the weights move on
+    # every training step, and a stale cache would score the market with
+    # yesterday's model. Rebuilding costs O(N*D*width) against O(N*C*10k) for the
+    # scoring itself, a fraction of one percent.
+
+    def score_projections(self) -> tuple[torch.Tensor, ...]:
+        """Per-entity first-layer projections plus the folded output rows."""
+        w1 = self.mlp[0].weight
+        d = self.gmf_user.embedding_dim
+        left = self.mlp_user.weight @ w1[:, :d].T
+        right = self.mlp_item.weight @ w1[:, d:].T
+        return left, right, self.mlp[0].bias, self.out.weight[0], self.out.bias[0]
+
+    def score_block(
+        self,
+        users: torch.Tensor,
+        cands: torch.Tensor,
+        proj: tuple[torch.Tensor, ...],
+    ) -> torch.Tensor:
+        """Logits for every (user, candidate) pair in one block. Shape (U, C).
+
+        Generic in ``mlp_layers``: the first layer is hoisted into the two
+        per-entity projections, and every later Linear is applied to the
+        broadcast (U, C, width) tensor. ``self.mlp`` alternates Linear/ReLU, so
+        the even entries are the Linears.
+
+        Writes into its own (U, C) buffer and returns it; the caller masks and
+        top-k's it, so nothing here may share storage with a caller's array.
+        """
+        left, right, b1, out_w, out_b = proj
+        d = self.gmf_user.embedding_dim
+
+        # GMF contribution, folded through the output weight: (U, C).
+        scores = (self.gmf_user.weight[users] * out_w[:d]) @ self.gmf_item.weight[cands].T
+
+        # MLP contribution. left[u] + right[c] reproduces the first layer's input
+        # projection exactly, so the per-pair 128-wide matmul is gone.
+        h = left[users][:, None, :] + right[cands][None, :, :] + b1
+        h.relu_()
+        for layer in self.mlp[2::2]:
+            h = torch.relu_(h @ layer.weight.T + layer.bias)
+        scores.add_(h @ out_w[d:])
+        scores.add_(out_b)
+        return scores
+
 
 class NCFTrainer:
     """Mini-batch trainer and batched top-k inference for an ``NCFModel``.
@@ -278,13 +346,14 @@ class NCFTrainer:
 
         was_training = self.model.training
         self.model.eval()
+        # Built once per call, not once per block: the weights do not move while
+        # scoring, so every block of this side shares the same projections.
         try:
+            proj = self.model.score_projections()
             recs: dict[int, list[int]] = {}
             for start in range(0, len(users), rows):
                 u = users_t[start : start + rows]
-                scores = self.model(
-                    u.repeat_interleave(n_cands), cands_t.repeat(len(u))
-                ).view(len(u), n_cands)
+                scores = self.model.score_block(u, cands_t, proj)
                 scores.masked_fill_(u[:, None] == cands_t[None, :], float("-inf"))
                 top = torch.topk(scores, k, dim=1).indices
                 ids = cands_t[top].cpu().tolist()

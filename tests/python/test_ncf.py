@@ -132,3 +132,60 @@ def test_top_k_chunking_matches_single_pass():
 
 def test_same_seed_gives_identical_recommendations():
     assert _recommend(123) == _recommend(123)
+
+
+@pytest.mark.parametrize("layers", [(32, 16), (128, 64, 32), (256,), (64, 32, 16, 8)])
+def test_score_block_agrees_with_forward(layers):
+    """The scoring fast path is the same function as ``forward``.
+
+    It reassociates two sums (the first layer's bilinear form, and the GMF
+    branch folded through the output weight), so it is exact in real arithmetic
+    and differs only in the last bits in float. That is close enough to reorder a
+    shortlist, which is the thing the run actually reads, so this pins the top-k
+    rather than only the values — and pins it across layer shapes, because the
+    loop that applies the later layers walks ``mlp_layers`` and a hardcoded
+    3-layer assumption would pass at the base config and break on a sweep.
+    """
+    torch.manual_seed(0)
+    model = NCFModel(N_AGENTS, N_AGENTS, embed_dim=16, mlp_layers=layers).eval()
+    users = torch.arange(N_AGENTS)
+    cands = torch.arange(N_AGENTS)
+
+    reference = model(
+        users.repeat_interleave(N_AGENTS), cands.repeat(N_AGENTS)
+    ).view(N_AGENTS, N_AGENTS)
+    fast = model.score_block(users, cands, model.score_projections())
+
+    assert fast.shape == reference.shape
+    assert torch.allclose(fast, reference, atol=1e-6, rtol=1e-5)
+    k = 5
+    assert torch.equal(
+        torch.topk(fast, k, dim=1).indices, torch.topk(reference, k, dim=1).indices
+    )
+
+
+def test_score_block_does_not_alias_the_projection_tensors():
+    """Scoring writes into its own buffer, so masking one block cannot corrupt the next.
+
+    ``score_block`` starts from a fresh matmul and adds in place; if it ever
+    returned a view of a projection, the masked_fill the caller applies would
+    write through to shared state and every block after the first would be
+    scored against a corrupted model.
+    """
+    torch.manual_seed(0)
+    model = NCFModel(N_AGENTS, N_AGENTS, embed_dim=16, mlp_layers=(32, 16)).eval()
+    proj = model.score_projections()
+    before = [t.clone() for t in proj]
+    users, cands = torch.arange(8), torch.arange(N_AGENTS)
+
+    reference = model.score_block(users, cands, proj).clone()
+    # Mask and perturb the returned block the way the caller does; if it aliased
+    # a projection, the next call would come back changed.
+    block = model.score_block(users, cands, proj)
+    block.masked_fill_(torch.eye(8, N_AGENTS, dtype=torch.bool), float("-inf"))
+    again = model.score_block(users, cands, proj)
+
+    assert torch.equal(reference, again), "masking one block changed the next"
+    assert torch.isneginf(block[0, 0]) and torch.isfinite(reference[0, 0])
+    for original, current in zip(before, proj):
+        assert torch.equal(original, current), "score_block mutated the projections"
