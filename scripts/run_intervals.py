@@ -114,15 +114,17 @@ def _interval_rows(
     note: str = "",
     n_units: int | None = None,
     unit: str = "seed",
+    n_seeds: int | None = None,
 ) -> dict:
     """One CSV row: BCa as the headline, the percentile and t intervals beside it.
 
-    `n_seeds` is the number of *independent populations* behind the row and
-    `n_units` the number of resampling units, which differ when the row pools
-    cells: the institutional grid has 40 cells over 5 seeds, so a pooled row was
-    resampled over its 40 cells while resting on 5 populations. Both are written
-    because a reader needs the second to judge the interval and the first to
-    judge the replication.
+    `n_seeds` is the number of *independent populations* behind the row, while
+    `n_units` is the number of resampling units, and the two differ whenever the
+    row pools design cells: the institutional grid has 40 cells over 5 seeds, so a
+    pooled row was resampled over its 40 cells while resting on 5 populations.
+    `n_seeds` therefore defaults to the interval's own count but must be
+    overridden to the grid's seed count wherever the row is pooled -- 40 is not a
+    seed count and reporting it as one would misstate the replication.
 
     The t columns are filled by the caller, which has the raw series; they are
     present and NaN here so the column order is fixed even for a row that came
@@ -139,7 +141,7 @@ def _interval_rows(
         "hi_percentile": iv.hi_percentile,
         "lo_t": float("nan"),
         "hi_t": float("nan"),
-        "n_seeds": iv.n_seeds,
+        "n_seeds": n_seeds if n_seeds is not None else iv.n_seeds,
         "n_units": n_units if n_units is not None else iv.n_seeds,
         "unit": unit,
         "n_resamples": iv.n_resamples,
@@ -227,7 +229,8 @@ def build(regimes: list[str]) -> pd.DataFrame:
                          "size_fraction, so this is one run repeated — zero width is structural")
             r = _interval_rows(
                 "welfare_common", "grid_pooled", iv, environment=env,
-                n_units=int(cell_means.size), unit="cell", note=note)
+                n_units=int(cell_means.size), unit="cell", n_seeds=n_seeds,
+                note=note)
             r["lo_t"], r["hi_t"] = lo_t, hi_t
             rows.append(r)
 
@@ -255,7 +258,7 @@ def build(regimes: list[str]) -> pd.DataFrame:
                           rng=BOOTSTRAP_SEED)
         _, lo_t, hi_t = t_interval(cell_means.to_numpy())
         r = _interval_rows("welfare_diff_residual", "grid_pooled", iv, environment="B-A",
-                           n_units=int(cell_means.size), unit="cell",
+                           n_units=int(cell_means.size), unit="cell", n_seeds=n_seeds,
                            note=f"40 cells over {n_seeds} seeds; the distribution §5 corrects within")
         r["lo_t"], r["hi_t"] = lo_t, hi_t
         rows.append(r)

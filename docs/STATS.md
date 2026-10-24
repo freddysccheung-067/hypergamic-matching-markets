@@ -37,9 +37,9 @@ Source: `data/processed/rigor/intervals.csv`. Regimes as named in
 | 3 | clearing rate, NCF | live100 | 5 | 0.2404 | [0.2324, 0.2528] | [0.2324, 0.2528] | 0.77 |
 | 4 | rank satisfaction, NCF | live100 | 5 | 0.4502 | [0.4362, 0.4633] | [0.4390, 0.4650] | 0.74 |
 | 5 | algorithmic loss, NCF | base20 | 20 | 0.6627 | [0.6508, 0.6741] | [0.6508, 0.6741] | 0.43 |
-| 6 | welfare_common, A | grid_pooled | 5 | 973.70 | [973.70, 973.70] | [973.70, 973.70] | — |
-| 6b | welfare_common, B | grid_pooled | 5 | 787.50 | [618.0, 884.9] | [628.2, 878.8] | — |
-| 7 | welfare_diff_residual | grid_pooled | 5 | −245.8 | [−421.3, −145.5] | [−400.6, −155.3] | — |
+| 6 | welfare_common, A | grid_pooled | 5 (40 cells) | 973.70 | [973.70, 973.70] | [973.70, 973.70] | — |
+| 6b | welfare_common, B | grid_pooled | 5 (40 cells) | 787.50 | [618.0, 884.9] | [628.2, 878.8] | — |
+| 7 | welfare_diff_residual | grid_pooled | 5 (40 cells) | −245.8 | [−421.3, −145.5] | [−400.6, −155.3] | — |
 | 7b | welfare_diff_residual, optimum cell | c=0.01, sf=0.65 | 5 | +64.62 | [+57.47, +73.17] | [+57.47, +72.53] | 0.80 |
 
 ### The t intervals, which are the ones to read at five seeds
@@ -129,7 +129,9 @@ interval here rests on 20 seeds for that reason.
 therefore structural, not a failure, and A's row is one measurement over five
 seeds rather than forty over five. B's welfare varies across cells by design; its
 interval resamples the 40 design cells, and the five seeds inside a cell are
-replicates of one cell rather than 200 independent draws.
+replicates of one cell rather than 200 independent draws. In `intervals.csv` these
+rows carry `n_seeds = 5` and `n_units = 40, unit = cell` — read the first as the
+replication and the second as what the interval was computed over.
 
 **Row 7 (residual welfare difference).** Pooled over the grid, B loses to A by
 246 welfare units [−421, −146]. This is the *pooled* figure and is not the H4
