@@ -38,7 +38,6 @@ Everything is written to `data/processed/rigor/power_analysis.csv` and
 from __future__ import annotations
 
 import argparse
-import itertools
 import pathlib
 import sys
 

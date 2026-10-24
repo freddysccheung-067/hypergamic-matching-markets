@@ -284,8 +284,6 @@ def stationarity(directory: pathlib.Path, arm: str = "ncf") -> dict:
     tail = (frame[frame.epoch >= last_epoch - 10]
             .groupby("epoch").gini.mean().sort_index())
     steps = tail.diff().dropna()
-    total = (frame[(frame.epoch >= last_epoch - 19) & (frame.epoch <= last_epoch - 10)]
-             .groupby("epoch").gini.mean().sort_index())
     sd_final = float(frame[frame.epoch == last_epoch].gini.std(ddof=1))
 
     return {
