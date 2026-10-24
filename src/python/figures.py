@@ -134,8 +134,9 @@ CAPTIONS = {
         "population. The bars are a ranking-rule comparison inside a specified model "
         "with no empirical calibration, at one admissible fraction (0.2, at which the θ "
         "gate never binds) and one horizon (20 epochs, at which the ncf arm is still "
-        "moving — over 100 epochs it falls to 0.673 and the ncf-minus-oracle gap shrinks "
-        "to +0.019 ± 0.006). The Gini values are about exposure, not about welfare or "
+        "moving — at the shipped admissible fraction of 0.02, over 100 epochs, it falls to "
+        "0.680 and the ncf-minus-oracle gap shrinks to +0.025 ± 0.008; see "
+        "data/processed/ablation_h100/). The Gini values are about exposure, not about welfare or "
         "about anyone's experience of the market."
     ),
     "gini_evolution": (
