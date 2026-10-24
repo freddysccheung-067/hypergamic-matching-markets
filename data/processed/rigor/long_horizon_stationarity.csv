@@ -1,0 +1,2 @@
+arm,last_epoch,n_seeds,window_early,window_late,mean_early,mean_late,paired_diff,paired_sd,paired_t_p,wilcoxon_p,n_seeds_late_gt_early,max_abs_step_last10,max_step_epoch,mean_abs_step_last10,seed_sd_final,max_step_over_seed_sd,gini_final_mean
+ncf,299,5,280-289,290-299,0.6547169480000001,0.6548209940000002,0.00010404600000004648,0.00020686674196200534,0.32365654984187425,0.3125,3,0.0004149400000000858,297,0.00018280400000000307,0.011130844490648549,0.03727839341827953,0.6548981
