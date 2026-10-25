@@ -199,3 +199,96 @@ This does not change any conclusion, because every thread-count variation moves 
 values inside the seed intervals already reported. It does mean the reproducibility
 claim in the shipped documentation was stronger than the code supported, which is
 the kind of error a review is for and this one did not catch.
+
+---
+
+## A3 — three values for one horizon: diagnosis
+
+**Date:** 2026-10-25. **Branch:** `rev/revision`. **Diagnosis only; no published
+number changed.**
+
+### The three values
+
+| source | NCF Gini, seed 42, epoch 99 | gap over five seeds |
+|---|---|---|
+| `data/processed/ablation_h100/` (24 threads, verified) | 0.6935411 | **+0.0251** |
+| `data/processed/rigor/long_horizon/`, epoch 99 row | 0.6967353 | **+0.0241** |
+| `sensitivity.csv`, shipped cell (repeated across three axes) | — | **+0.0260** |
+
+The oracle arm is bit-identical across the first two (`0.6642505920886874` at
+every epoch from 14 on), so the difference is entirely in the NCF arm.
+
+### What was tested, and what it ruled out
+
+**(1) A source change to `ncf.py` between the two runs — ruled out.** The last
+change to `src/python/ncf.py` is `af24bc5` (2026-10-24 19:04:10). `ablation_h100`
+was generated after it (committed `a065cc3`, 2026-10-24 20:04). `git diff --stat
+a065cc3 070e137 -- src/` shows no change to `ncf.py`, `orchestrator.py` or
+`config.py` between the two data commits. And running the *pre*-`af24bc5`
+`ncf.py` (from `9dc3bf6`) at 24 threads reproduces 0.6935411 exactly, the same as
+current code — so the perf commit is numerically inert here and is not the cause.
+
+**(2) A different generation schedule from `n_epochs` — ruled out.** `epochs_per_gen
+= n_epochs // n_generations` (orchestrator.py:1228), so a 300-epoch config would
+put turnover at epochs 60/120/180/240 rather than 20/40/60/80. This was tested
+directly: seed 42 at 24 threads, 300 epochs, with `simulation.n_epochs` set to
+300 (epochs_per_gen 60) and with it left at 100 (epochs_per_gen 20). Both give
+0.6935411 at epoch 99 and 0.6651935 at epoch 299 — identical. The schedule is
+not the cause.
+
+**(3) Thread count — this is the mechanism, but the long run does not land on any
+count tested.** Seed 42, 100 epochs, NCF arm, final-epoch Gini:
+
+| threads | Gini | matches |
+|---|---|---|
+| 1 | 0.6976498 | `thread_sensitivity.csv`, `rigor/base` (0.6973985 — close, not equal) |
+| 2 | 0.7037464 | — |
+| 4 | 0.6922273 | — |
+| 8 | 0.7075976 | `thread_sensitivity.csv` |
+| 16 | 0.7037017 | — |
+| 24 | 0.6935411 | `ablation_h100`, exactly |
+
+The long-horizon value at epoch 99 is **0.6967353**, which matches none of these.
+A 300-epoch rerun at 24 threads reaches 0.6651935 at epoch 299 against the
+committed 0.6648466 — close, not equal.
+
+### The divergence signature
+
+The two directories' NCF arms are **bit-identical through epoch 4**, diverge by
+$1.0\times10^{-7}$ at epoch 5, $2.3\times10^{-5}$ at epoch 12, $6.1\times10^{-4}$
+at epoch 15 and $2.8\times10^{-4}$ at epoch 19. The other three arms are
+bit-identical at every epoch checked. A divergence that starts at the seventh
+decimal and compounds through the feedback loop is the signature of a different
+floating-point reduction order — a different BLAS/threading path — not of a code
+change, which would move the first tracked epoch grossly.
+
+### Which branch, and what it means
+
+**Branch (a) applies to the sentence, branch (b) applies to the trajectory.**
+
+The sentence in `design.tex` 38–39 — the first 100 epochs are "identical row for
+row" — is **false** and is corrected. The two runs differ from epoch 5.
+
+The trajectory is the more serious half, and it is (b) in substance: the
+300-epoch NCF arm **cannot be reproduced from the shipped code at any thread
+count tested (1, 2, 4, 8, 16, 24) nor from the pre-perf code at 24**. It is the
+output of a numerical environment this repository no longer has, and every
+derived quantity (decay fit, asymptote, stationarity, the abstract's
+"+0.3055 peak" and "below 0.001 from about epoch 250") inherits that provenance.
+The oracle arm reproduces, so whatever differs is confined to the torch training
+path.
+
+**Not changed here.** Re-running the 300-epoch horizon is a decision, not an
+edit: it is ~25 minutes of compute at 1 thread for five seeds and would replace
+the series every convergence claim rests on. It is escalated rather than taken.
+`docs/REVIEW_RESPONSE.md` records it; the paper's numbers are left as committed
+until that decision is made.
+
+### An incidental finding: `rigor/base` is not reproducible either
+
+Seed 42 in `rigor/base/` reads 0.6973985; a fresh 1-thread run today reads
+0.6976498. The difference is 2.5e-4 — small, same thread count, same regime. So
+the twenty-seed `base20` intervals that §2 and §4 quote rest on a directory that
+no longer regenerates bit for bit either. This is why C1 compares against
+`exploratory_1t` (seeds 42–61 regenerated today, 1 thread, same session) rather
+than against `base/`.
