@@ -390,14 +390,19 @@ at +0.0470 [+0.0192, +0.0665]. A factor of five in size, no change in sign.
 | 1.5 (shipped) | +0.0260 [+0.0164, +0.0348] | 0.9566 | 0.2380 |
 | 3.0 | +0.0470 [+0.0192, +0.0665] | 0.9976 | 0.3512 |
 
-At `shock_scale` 0.5 the filter never learns coverage. The gap is small there
-too — smaller than at the shipped setting — but for the opposite reason: both
-arms concentrate, and the NCF has not caught up. THESIS H3 attributes the gap's
-closure to reach climbing from 4% to 96%. In this cell reach does not climb, so
-the explanation does not apply, and the same gap number would be reached by a
-different route. **A conclusion reverses here: "the gap is a cold-start effect
-that relaxes as the filter learns who it can represent" is conditional on
-`shock_scale` being high enough for the filter to learn.**
+At `shock_scale` 0.5 reach is 0.4616 at **epoch 99**, smaller than the shipped
+setting's 0.9566, and the gap is small there too. On the reading above, that would
+mean the filter never learns coverage and the mechanism is absent.
+
+**That reading was tested and it is wrong.** `data/processed/rigor/c4_shock0.5/`
+runs the same cell to 300 epochs, five seeds, 1 thread. Reach climbs 0.041 →
+0.269 (epoch 49) → 0.457 (epoch 99) → **0.490 (epoch 299)**, and the gap peaks at
++0.0565 and decays to −0.0012. So 0.4616 was reach at epoch 99, not a ceiling,
+and this cell is a slower instance of the same process rather than an exception to
+it. **The conclusion-reversing claim this section previously made is withdrawn:**
+the cell does not isolate a market without coverage learning, so it neither
+confirms nor refutes the explanation. The 100-epoch sweep establishes only that
+the filter learns coverage in every cell, at rates spanning a factor of two.
 
 ### §4.2 The β/α axis, where the documented guardrail does not hold
 
@@ -441,8 +446,12 @@ flat."**
   holds in every cell and reverses nowhere.
 - Its size is not stable. Quote +0.010 to +0.047, or quote the shipped cell with
   its regime; do not quote +0.025 as "the" gap.
-- One mechanism claim is conditional: the cold-start explanation requires the
-  filter to learn coverage, and at `shock_scale` 0.5 it does not.
+- One mechanism claim remains **untested**, not conditional: the cold-start
+  explanation says the filter learns whom it can represent, and nothing in the
+  sweep tests that against an alternative. The `shock_scale` 0.5 cell was the
+  candidate test and it fails, because reach reaches 0.49 by epoch 299 there.
+  `docs/PREREGISTRATION.md` E3 records the two interventions that were meant to
+  replace it and why neither works in this model.
 - The β/α condition as written in `experiments/base.yaml` is not supported at the
   shipped settings. This contradiction is recorded here rather than silently
   resolving either side; `experiments/base.yaml` and
