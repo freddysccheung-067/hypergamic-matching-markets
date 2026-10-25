@@ -132,6 +132,12 @@ ncf:
   # config["ncf"]["n_negatives"]; defaults to 4 when absent. Changing it changes
   # NCF training hardness, which is the point — it is a sweep knob.
   n_negatives: 4
+  # Torch intra-op threads. Part of the reproducibility contract, not a
+  # performance knob: threaded reductions are not bitwise associative, so 1 and 8
+  # threads give different numbers from the same seed, and over 100 epochs the
+  # divergence reaches 0.007-0.015 in exposure Gini. Keep at 1 for any run whose
+  # output is quoted. See docs/INTERFACES.md §3.
+  num_threads: 1
 
 simulation:
   n_epochs: 100

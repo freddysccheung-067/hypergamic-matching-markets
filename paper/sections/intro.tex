@@ -1,0 +1,113 @@
+% ---------------------------------------------------------------------------
+% Section 1: Introduction (target 800 words).
+% ---------------------------------------------------------------------------
+
+\section{Introduction}
+\label{sec:intro}
+
+When a recommender sits between the two sides of a matching market, it decides
+which candidates anyone ever sees. The consequence is easy to state and awkward
+to price: a preference expressed over a truncated list is not the same
+preference that operates over the whole population. The agent on nobody's list
+is not rejected; she is never considered, and no preference data will record the
+difference. This paper asks what happens to a matching market under that
+arrangement, and how it compares with a differently designed market that trades
+liquidity for information.
+
+For a single scalar notion of status the aggregate questions have closed-form
+answers, and they have recently been settled. When unions must be hypergamous
+--- when a partner must rank at or above rather than beside --- the minimal
+unmatched mass is a functional of the two marginal status distributions alone,
+and no behavioural strategy changes it. Two things the literature treated as
+substantive, the feasibility of a status requirement and the size of the
+resulting deficit, turn out to be properties of histograms, and any new work in
+that setting is at best a check on a theorem.
+
+This paper works where that theorem does not reach. The constraint here is
+\emph{visibility}, not compatibility: the feasible set is the top-$k$ of an
+estimated multi-attribute utility, lists differ by agent, and estimator error is
+correlated in a way no marginal captures. The closed-form result relies on the
+constraint being a nested upper set, which is exactly what makes the deficit a
+one-dimensional supremum. Truncated lists from a learned ranker are not nested,
+and their error depends on how long the ranker has trained. The structure that
+makes the deficit tractable is absent rather than merely harder, so the question
+must be answered numerically.
+
+The answer depends on \emph{when} you ask. That is the paper's central finding
+and its central methodological warning.
+
+\subsection*{What was done}
+
+A finite two-sided market of a thousand agents carries a four-dimensional trait
+vector and a private commitment type. A neural collaborative filter trained on
+the swipe log produces a top-20 shortlist per agent, and a truncated
+deferred-acceptance pass clears the market over those shortlists and nothing
+else. In parallel, a second institution is modelled as a subgraph of the same
+population, with complete visibility inside it and a positive signalling cost:
+information instead of liquidity, where the global market has liquidity instead
+of information. Welfare is scored on a common basis, so agents the subgraph
+excludes are priced at their counterfactual outcome rather than deleted ---
+otherwise an entry filter improves its own arithmetic by removing the agents it
+cannot serve.
+
+Six hypotheses were posed in advance, each with a stated kill condition, and four
+kinds of test applied: seed-bootstrapped intervals, a horizon extended to
+convergence, a twelve-cell parameter sweep with its claim thresholds fixed before
+the cells were read, and multiplicity correction over the forty institutional
+cells the headline optimum was selected from. \S\ref{sec:design} states the
+sample sizes so the numbers can be checked.
+
+\subsection*{What was found}
+
+\textbf{Estimation error concentrates exposure, and the concentration is a
+transient.} The learned ranker's exposure Gini exceeds an oracle's by $+0.0251$
+at the shipped horizon, positive on all five seeds. Extending the run to 300
+epochs shows this is not a floor but a decay: the gap peaks shortly after the
+start, is $+0.0241$ at epoch 99, and is below $0.001$ from about epoch 250,
+where it stops being distinguishable from flat at five seeds. That is a bounded
+residual rather than a demonstrated limit --- a flat tail is also what a very
+slow decay looks like, and this design cannot separate the two. A hundred-epoch
+measurement of this quantity describes a transient, and every number quoted at
+that horizon carries it.
+
+\textbf{The concentration is real everywhere, but its size is not constant.} The
+gap is positive with an interval excluding zero in all twelve sweep cells and
+reverses nowhere, while its magnitude varies fivefold. A reader should quote the
+range with its condition, or the shipped cell with its regime, never one number
+as ``the'' gap.
+
+\textbf{The explanation is conditional.} The mechanism offered --- the filter
+learning whom it can represent --- holds where coverage climbs and fails in the
+one cell where it does not. There the gap is also small, but because both arms
+concentrate rather than because the ranker caught up. Convergence to zero is
+established at one point in parameter space, not as a general property of
+mediation.
+
+\textbf{An interior institutional optimum exists, and it is narrow.} At a
+signalling cost low enough that entry screens little, welfare under the subgraph
+institution exceeds the global oracle's by $+64.62$ at subgraph size $0.65$, and
+survives correction for the forty cells it was chosen from. Only two cells
+survive that correction, so the optimum is a two-cell feature rather than a
+region.
+
+Three of six hypotheses are qualified. One is untestable because the mechanism
+it names is absent from the shipped rule, one holds at a single cost level, and
+one cannot be tested at all because the model has no attrition margin. They are
+reported at the same length as the results that worked, because a paper that
+reports only its successes reads as advocacy.
+
+\subsection*{Why it matters, and what it does not claim}
+
+That mediation's effect is horizon-dependent is absent from the recommender-loop
+literature, which predicts homogenisation that persists or compounds, and from
+the closed-form literature, which has no horizon argument. Had the effect been
+measured only at the shipped horizon --- or at twenty epochs, as an earlier
+version of this work was --- the paper would have reported a standing deficiency
+of learned rankers where the truth is a start-up cost. The general lesson is that
+a single-horizon inequality cannot distinguish a standing bias from a transient,
+and that the distinction is measurable.
+
+Nothing here is a claim about a population. Every parameter is a modelling
+choice, nothing is calibrated, five seeds carry every headline, and one
+population size carries it. The results bound what this mechanism can do under a
+stated utility; \S\ref{sec:limits} says so at length rather than in a footnote.

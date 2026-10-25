@@ -275,6 +275,17 @@ class NCFConfig:
     pos_weight: float = 4.0
     top_k: int = 20
     n_negatives: int = 4
+    # Torch intra-op threads. 1 is the default because torch's threaded
+    # reductions are not bitwise associative: the same seed and the same data
+    # give slightly different floats at different thread counts (measured at
+    # ~2e-7 relative after twenty training steps), and over a hundred epochs of
+    # the feedback loop that compounds into a Gini spread of 0.007-0.015 -- as
+    # large as the between-seed sd, and as large as the headline effect this
+    # project reports. See docs/INTERFACES.md §3. Raise it to trade
+    # reproducibility for speed (about 2x at 8 threads on this machine) and say
+    # so wherever the output is quoted, because runs at different counts are not
+    # comparable.
+    num_threads: int = 1
 
     def __post_init__(self) -> None:
         if self.top_k < 1:
@@ -283,6 +294,8 @@ class NCFConfig:
             raise ValueError(f"ncf.n_negatives must be >= 0; got {self.n_negatives}")
         if not self.mlp_layers:
             raise ValueError("ncf.mlp_layers must contain at least one width")
+        if self.num_threads < 1:
+            raise ValueError(f"ncf.num_threads must be >= 1; got {self.num_threads}")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -293,6 +306,7 @@ class NCFConfig:
             "pos_weight": self.pos_weight,
             "top_k": self.top_k,
             "n_negatives": self.n_negatives,
+            "num_threads": self.num_threads,
         }
 
 

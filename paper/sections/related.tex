@@ -1,0 +1,147 @@
+% ---------------------------------------------------------------------------
+% Section 2: Related work (target 1,000 words). Adapted from
+% docs/RELATED_WORK.md. Two sources discussed there are not cited here because
+% they are absent from docs/LITERATURE.md.
+% ---------------------------------------------------------------------------
+
+\section{Related work}
+\label{sec:related}
+
+\subsection{The closed-form result, and what it settles}
+
+For a marriage market where status is a single scalar and unions must be
+hypergamous, the aggregate questions have closed-form answers.
+\citet{bilderbeek2026} proves the picture: universal hypergamy is feasible
+exactly when one side's status distribution first-order stochastically dominates
+the other's, and when it is not, the minimal unmatched mass is the hypergamy
+deficit $D = \sup_t\,(G_W(t) - G_M(t))_+$, by a continuum Hall marriage theorem.
+No behavioural strategy changes either fact, status gains are transfers of rank
+rather than creations of it, and under status-ranked preferences the stable
+matching is unique and positive assortative --- the Gale--Shapley result of
+\citet{gale1962} on the continuum.
+
+The consequences for anyone modelling this are severe. Unmatched mass is a
+functional of the two marginal status distributions alone, so interventions that
+rearrange who meets whom without changing those marginals cannot move it. This
+paper does not re-derive the result; it reproduces it against the simulator
+(\S\ref{sec:validation-design}) and then changes the constraint.
+
+\subsection{The empirical record, and why a model is the instrument}
+
+The empirical literature is consistent and mostly about marginals.
+\citet{becker1973} supplies the complementarity condition: supermodular surplus
+implies positive assortative matching, so measured sorting is evidence about the
+surplus function. \citet{schwartz2005} trace US educational homogamy from 1940 to
+2003, falling then rising. \citet{eika2019} find assortative mating accounts for
+a non-negligible share of cross-sectional household income inequality while
+\emph{changes} in assortative mating barely move trends --- a level effect
+without a trend effect, and a warning about which one a cross-sectional model
+can speak to. \citet{esteve2016} show the educational gender-gap reversal
+shifting marriage patterns toward hypogamy with no preference change required.
+
+On the micro side, \citet{fisman2006} randomise speed-dating encounters and find
+trait weights differing by sex and selectivity rising with group size;
+\citet{lin2013} show trait salience is not separable, which bounds the additive
+utility used here. In online settings, \citet{hitsch2010} estimate mate
+preferences, feed them into deferred acceptance, and find predicted stable
+matches track observed ones closely, concluding that preferences rather than
+frictions explain most sorting. \citet{bruch2018} find a desirability hierarchy
+consistent across cities, with reply probability falling sharply in the
+desirability gap.
+
+Why model rather than estimate? Because every instrument above observes
+\emph{realised} matches inside one institution, and none can answer a
+counterfactual about a different one. The question here is institutional: what
+happens when the list an agent sees is produced by an engagement-optimising
+estimator rather than given. \citet{kanoria2021} and \citet{halaburda2018} take
+the same view from the design side, deriving platform welfare from a model of
+restricted choice rather than estimating it. \citet{galichon2022} make the
+structural position precise for identification, which is why this paper reports
+welfare only inside the model. The precedent for computing when the closed form
+does not apply is the clearinghouse work of \citet{roth1999peranson}.
+
+\subsection{Rankers, feedback loops, and the visibility constraint}
+
+\citet{he2017} establish the collaborative-filtering architecture used here and
+make no claim about markets. \citet{pizzato2010} introduce the reciprocal
+recommender and show that accounting for both sides lifts top-ten success
+substantially; \citet{tomita2022} describe deploying a matching-theory-based
+recommender on a live platform. Reciprocity-aware ranking is solved engineering,
+and a paper claiming novelty for its ranker would be claiming novelty for
+something built in 2010. \citet{chen2023} go further, running a
+matching-model-based ranker on a live platform and measuring realised matches ---
+the strongest constraint on any novelty claim here: same intersection, different
+question.
+
+The loop literature is more directly adversarial. \citet{chaney2018} show that
+training on data confounded by the system's own recommendations homogenises users
+without raising utility. \citet{mansoury2020} show a loop amplifying popularity
+bias and hitting minority-group users hardest. \citet{jiang2019} separate the
+echo chamber from the filter bubble. \citet{abdollahpouri2019} frames popularity
+bias as a fairness problem, and \citet{sonboli2022} show that in multisided
+settings fairness criteria for different stakeholders conflict.
+
+Every one of these predicts a loop that \emph{persists or compounds}. The result
+here points the other way, and the explanation is that the ranker's deficiency is
+coverage, which training fixes, rather than preference distortion, which it does
+not. That distinction is not in the loop literature and is the claim a reader
+should check hardest --- which is why \S\ref{sec:sensitivity} tests it across the
+parameter grid and reports the cell where it fails.
+
+Two further results bound what mediation can be credited with.
+\citet{roth1999} show truncating a preference list changes outcomes
+strategically, so a top-$k$ list is not a neutral convenience.
+\citet{ashlagi2017} show that in an unbalanced random market even a slight
+imbalance produces an essentially unique stable matching with the long side
+matched near-randomly, so some measured asymmetry is competition rather than
+curation. Both cautions apply: the truncation here is imposed rather than
+chosen, and the market is balanced, so the competition channel is held at zero by
+design rather than measured away.
+
+\subsection{Institutional design and the selection problem}
+
+\citet{kanoria2021} show a platform that restricts agents' actions can raise
+welfare. \citet{halaburda2018} show a platform can compete by limiting the
+choices it offers, because restricting one agent's choice also restricts her
+competitors'. \citet{hoppe2009} give the sharpest constraint on the interior
+optimum sought here: with two-sided incomplete information the output gain from
+assortative matching can be exactly offset by signalling costs, which is what
+failure at high signalling cost looks like.
+
+That literature also names the objection this paper had to design around. If an
+institution excludes agents, its measured welfare improves for the arithmetic
+reason that excluded agents are no longer counted. The comparability rule of
+\S\ref{sec:model} is therefore a response to a known objection, not a safeguard
+invented here, and both accountings are reported so the artefact is visible.
+
+Two results bound any $W$-side number. \citet{roth1982} establishes that no
+procedure is both always stable and always strategy-proof, with the
+proposer-optimal matching simultaneously the acceptor-pessimal one;
+\citet{knuth1996} supplies the lattice structure that makes those one statement.
+Since hypergamy lives in the acceptor's utility, this bias lands where the
+paper's question is, and every acceptor-side level reported is a lower bound
+across stable matchings.
+
+\subsection{What is new here}
+
+Thirty-five sources were examined for whether any already does
+recommender-mediated matching on multiple traits. Thirty-three do not. Three
+require the claim restated: \citet{chen2023}, \citet{pizzato2010} and
+\citet{tomita2022} between them rule out any novelty claim resting on the ranker.
+The gap that survives is narrower than ``recommender-mediated matching'' and is a
+conjunction of three specific absences: no characterisation of unmatched mass
+against the visibility constraint, no institutional comparison on a common
+welfare basis, and no horizon. What this paper adds is the
+recommender-intermediated setting in which visibility is a truncated top-$k$ list
+over an estimated multi-attribute utility and no closed form is known. It claims
+nothing for its ranker, and no progress on the multidimensional-status,
+search-friction or endogenous-status problems the closed-form literature names as
+open.
+
+\subsection*{A note on verification}
+
+Reproducing a closed form is verification: it establishes that the machinery is
+correct, not that the model describes anything. \citet{windrum2007} and
+\citet{fagiolo2007} set out why empirical validation of an agent-based model is a
+family of practices rather than a single test, and why calibration alone does not
+resolve it. This paper claims verification and declines the validation question.
