@@ -296,3 +296,62 @@ What that means: the tail is equivalent to zero, and the trajectory takes about
 "below 0.002 from about epoch 200 to 270 depending on seed", not "from about epoch
 200". E5's window was a guess about where the crossing would fall; the measurement
 is the finding, and it is reported as a miss.
+
+---
+
+## E3c — the E3b prediction was met for a structural reason, and E4 failed
+
+**Written:** 2026-10-25, after the E3b and C4 runs, before either is written into
+the paper.
+
+### E3b: the frozen arms are constant by construction
+
+E3b predicted that a frozen ranker's gap would stay within one seed sd of its
+value at the freeze epoch. It did, exactly — the gap is constant to every decimal
+at both freeze points (frozen20: 0.939596 Gini at epochs 21 through 99,
+identically; frozen40: 0.883149 from epoch 41 on). **The sd across seeds of the
+within-arm change is exactly zero.**
+
+That is not a mechanism finding. Freezing the weights freezes the score matrix,
+which freezes the top-$k$ shortlists, which freezes exposure, which fixes the Gini
+apart from the oracle arm's own (already stationary) value. **Any freeze point
+produces a flat arm by construction**, so a within-arm test cannot distinguish
+"training drives the decay" from "nothing in this model moves without training".
+E3b was pre-registered as the informative version of E3(i) and it is not: the
+degeneracy is structural, not a matter of the freeze landing too early.
+
+What the two freeze points *do* show, cross-sectionally, is the thing worth
+reporting: at the freeze epoch the gap was +0.27534 (epoch 20, reach 0.182) and
++0.21890 (epoch 40, reach 0.607). A ranker frozen at higher reach sits at a lower
+gap, in the right order and at the right magnitude relative to the control's own
+trajectory. That is consistent with the coverage story and is not a test of it.
+
+**Conclusion, stated plainly: this session did not succeed in manipulating
+training independently of reach.** The honest summary for the paper is that the
+frozen-ranker intervention is uninformative in this model, and that the mechanism
+claim remains conditional and untested rather than tested and supported.
+
+### E4: the gap converges at `shock_scale` 0.5 too — prediction failed
+
+E4 predicted no comparable decay at `shock_scale` 0.5, on the reasoning that
+reach never climbs there. Measured, 300 epochs, five seeds, 1 thread:
+
+| epoch | 0 | 6 | 19 | 49 | 99 | 199 | 299 |
+|---|---|---|---|---|---|---|---|
+| gap | +0.0246 | +0.0578 | +0.0520 | +0.0350 | +0.0111 | −0.0009 | −0.0012 |
+| reach | 0.041 | — | 0.073 | 0.269 | 0.457 | 0.488 | 0.490 |
+
+**Reach does climb here — from 0.041 to 0.490 over 300 epochs.** The 0.4616 in
+`sensitivity.csv` is reach at epoch 99; it is not a ceiling. So the premise of E4
+("the cell where reach never climbs") is false once the horizon is extended, and
+the cell is not the mechanism-free control the paper treats it as.
+
+The prediction as stated (ratio of the epoch-99 gap to the epoch-299 gap below 10)
+fails: the epoch-299 gap is negative, so the ratio is undefined, and the gap decayed
+from a peak of +0.0565 (epoch 9) to −0.0012 — proportionally as complete a decay
+as the shipped cell's. **The mechanism story is not rescued by this cell and not
+contradicted by it; the cell turns out not to test it either way.**
+
+This has a consequence for the paper: `\S`~sensitivity's "the explanation is
+conditional, and here is the cell where it fails" must be rewritten. The condition
+that fails is reach at *100 epochs*, not reach at all.
