@@ -49,3 +49,9 @@ describes rather than a contradiction of it.
 
 `metrics_seed<seed>.csv`, one per seed, all four arms, every column of
 `docs/INTERFACES.md` §6.
+
+## Thread count
+
+**1.** Pinned in the run and in the comparison set, so both arms of the C1
+comparison share a count. `data/processed/rigor/thread_sensitivity.csv` shows what
+happens when they do not.

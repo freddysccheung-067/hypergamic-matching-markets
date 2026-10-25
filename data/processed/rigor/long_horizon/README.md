@@ -67,3 +67,25 @@ Every figure is a mean over five seeds. The tail interval rests on five
 independent populations, and five is enough to say "small" but only marginally
 enough to say "positive". Quote the interval, not the point. See
 `docs/STATS.md` §3.
+
+## Thread count
+
+**24, and not reproducible at any count tested.** This directory predates
+`ncf.num_threads`. Re-running seed 42 today at 1, 2, 4, 8, 16 or 24 threads gives
+epoch-99 NCF Ginis of 0.6976498, 0.7037464, 0.6922273, 0.7075976, 0.7037017 and
+0.6935411 respectively; the committed epoch-99 value is **0.6967353**, which
+matches none of them. A 300-epoch rerun at 24 threads reaches 0.6651935 at epoch
+299 against the committed 0.6648466.
+
+The divergence signature identifies the cause as a different floating-point
+reduction order rather than a code change: the NCF arm is bit-identical to
+`../ablation_h100/` through epoch 4 and then diverges by 1e-7 at epoch 5,
+compounding to 3e-4 by epoch 19, while the other three arms stay bit-identical at
+every epoch. No change to `src/python/ncf.py` sits between the two runs, and the
+pre-`af24bc5` version reproduces the 24-thread number exactly.
+
+**Consequence:** every quantity derived from this directory — the decay fit, the
+asymptote, the stationarity tests and the trajectory table — inherits a
+provenance this repository can no longer regenerate. See
+`docs/REVIEW_RESPONSE.md` A3. Re-running the horizon is an owner decision, not an
+edit, and has not been taken.

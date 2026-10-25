@@ -37,3 +37,10 @@ See `../fresh/README.md` for the side-by-side table. Headlines at n = 20:
 
 `metrics_seed<seed>.csv`, one per seed, all four arms, every column of
 `docs/INTERFACES.md` §6.
+
+## Thread count
+
+**1.** This is the whole point of the directory: the committed `../base/` was
+generated at 1 thread before the current code, and a fresh run at the same count
+disagrees with it in the fourth decimal, so neither is comparable to the other.
+Both arms of the C1 comparison were therefore generated in one session at 1.

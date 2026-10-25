@@ -110,3 +110,11 @@ Every cell is a mean over five seeds with a BCa interval, in
 `../sensitivity.csv`. The seed spread says the simulation is stable, not that the
 result generalizes: the model has no empirical calibration. See
 `docs/STATS.md` §4.
+
+## Thread count
+
+**1, for the NCF arm.** Generated on 2026-10-25 after `ncf.num_threads` existed,
+at its default. The thread count is part of a run's identity
+(`docs/INTERFACES.md` §3.1b), which is why the shipped cell here reads
++0.025973 rather than the 24-thread +0.0251 in `../../ablation_h100/`: same
+configuration, different reduction order.
