@@ -30,6 +30,7 @@ others are cheap because they use a small population.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import sys
 
@@ -123,7 +124,15 @@ def test_threaded_reduction_is_not_bitwise_associative():
     point the pin in ``experiments/base.yaml`` and the §3 contract can be
     relaxed. It should not be silenced by widening a tolerance: that would hide
     exactly the thing it is checking.
+
+    Skipped on a single-core machine, where torch clamps every thread count to 1
+    and there is nothing to compare. Two threads is enough to show the effect, so
+    the comparison uses the smallest count that works rather than 8 — CI runners
+    are not always wide.
     """
+    if (os.cpu_count() or 1) < 2:
+        pytest.skip("single-core machine: torch clamps every thread count to 1")
+
     torch.manual_seed(0)
     left = torch.randn(512, 512, dtype=torch.float64)
     right = torch.randn(512, 512, dtype=torch.float64)
@@ -131,7 +140,7 @@ def test_threaded_reduction_is_not_bitwise_associative():
     try:
         torch.set_num_threads(1)
         one = (left @ right).sum().item()
-        torch.set_num_threads(8)
+        torch.set_num_threads(2)
         many = (left @ right).sum().item()
     finally:
         torch.set_num_threads(before)
