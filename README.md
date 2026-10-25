@@ -135,8 +135,13 @@ Headline numbers, read off the committed output:
 - **The NCF–oracle exposure gap is a cold-start effect.** At N = 1000, k = 20, five seeds, the
   shipped regime (`admissible_fraction = 0.02`): the Gini gap is +0.287 ± 0.010 at epoch 19 and
   +0.025 ± 0.008 at epoch 99, positive on every seed (`data/processed/ablation_live/` and
-  `ablation_h100/`). The 20-epoch figure of +0.285 measured at `admissible_fraction = 0.2`
-  (`data/processed/ablation/`) is the same effect in the inert regime. Quote the horizon with it.
+  `ablation_h100/`). Extended to 300 epochs it peaks at +0.306 and its tail is indistinguishable
+  from zero (`data/processed/rigor/long_horizon_1t/`), so the 100-epoch figure describes a
+  transient rather than a floor. The 20-epoch figure of +0.285 measured at
+  `admissible_fraction = 0.2` (`data/processed/ablation/`) is the same quantity in the inert
+  regime. The mechanism that would explain the decay — the filter learning coverage — is **not
+  established**: the two interventions meant to test it do not (`docs/PREREGISTRATION.md` E3).
+  Quote the horizon with the number.
 - **`δ` moves matching without moving concentration.** Across `δ = 0 → 1.5` the final-epoch Gini
   stays inside a 0.007 band (0.8334–0.8405), shortlist overlap against `δ = 0` falls to 0.8528
   (about three entries of a twenty-item list turn over), and rank satisfaction runs 0.4769 at `δ = 0`
