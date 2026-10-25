@@ -355,3 +355,53 @@ contradicted by it; the cell turns out not to test it either way.**
 This has a consequence for the paper: `\S`~sensitivity's "the explanation is
 conditional, and here is the cell where it fails" must be rewritten. The condition
 that fails is reach at *100 epochs*, not reach at all.
+
+---
+
+## E2b — result of the corrected C2, appended after the run
+
+**Written:** 2026-10-25, after seeds 100--119 were run at the inert gate and
+before any of it was written into the paper.
+
+**Design as pre-registered in E2a:** ten `size_fraction` levels at `c = 0.01`,
+seeds 100--119, `admissible_fraction: 0.2`, the regime the committed grid was
+measured in.
+
+| rank | size_fraction | mean residual welfare diff | sd (20 seeds) |
+|---|---|---|---|
+| 1 | **0.65** | **+54.45** | 46.42 |
+| 2 | 0.80 | +39.64 | 40.91 |
+| 3 | 0.50 | +37.43 | 45.92 |
+| 4 | 0.35 | +14.27 | 26.30 |
+| 5 | 1.00 | +2.90 | 28.14 |
+| 6--10 | 0.25, 0.02, 0.05, 0.10, 0.15 | +1.73 to −14.69 | |
+
+**Prediction (i), the point estimate falls by less than one seed sd: FAILED, just.**
+The fresh estimate is +54.45 against the original +64.62, a fall of 10.17 against
+the exploratory seed sd of 9.86. The prediction is narrowly missed. It is worth
+saying what "narrowly" means: 10.17 against 9.86 is a 3% margin, well inside the
+uncertainty on either number, and the sd that the criterion uses (9.86) is itself
+now known to be a five-seed underestimate of the population's — the fresh sd at
+the same cell is 46.42, 4.7 times larger. A criterion built on the wrong scale was
+missed by an amount that scale cannot resolve.
+
+**Prediction (ii), still top five of ten: HELD.** The cell ranks first, which is
+where it ranked in the original grid, and the shape is preserved: positive at
+0.35--1.00 with a maximum at 0.65 and negative below 0.25.
+
+**Added prediction from E2a ("will rank first or near-first"): HELD.**
+
+**What this does not fix.** The cell still survives at five seeds and at twenty,
+and its fresh twenty-seed interval [+32.72, +76.17] still excludes zero
+(t = 5.25, p = 4.6e-5). But the selection problem E2 existed to address is
+*worse* than the original analysis suggested rather than better: the original
+five-seed sd (9.86) was 4.7 times too small, which is the same pathology
+`docs/STATS.md` §2.2 found for `algorithmic_loss` and `mcr`. The optimum was
+selected partly on a low-variance accident, and the fresh sd confirms it.
+
+**Conclusion for the paper.** H4's location replicates; its magnitude does not,
+and its precision was overstated by a factor of nearly five. Combined with E2a's
+gate finding, the H4 result is: an interior optimum at `size_fraction` 0.65 that
+replicates on fresh seeds, in a regime where the market does not learn, with a
+magnitude of roughly +54 rather than +65 and a much wider uncertainty than the
+published interval carries.
