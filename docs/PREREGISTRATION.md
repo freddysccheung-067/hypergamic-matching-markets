@@ -503,3 +503,38 @@ quoted in `docs/STATS.md` §3 and in the paper's earlier drafts came from a run 
 repository cannot regenerate. Replacing them changes which numbers the paper
 claims; it does not change the fact that A3 happened, and A3 is recorded
 separately and stays recorded.
+
+---
+
+## E7a — result: branch 1
+
+**Written:** 2026-10-25, after the run, applying E7's rule mechanically via
+`scripts/_compare_long_horizon.py`.
+
+| | committed `long_horizon` | regenerated `long_horizon_1t` |
+|---|---|---|
+| peak | +0.30554 at epoch 6 | +0.30554 at epoch 6 |
+| epoch 99 | +0.02414, sd 0.00544 | +0.02240, sd 0.00831 |
+| final | +0.00044, sd 0.00090 | +0.00010, sd 0.00042 |
+| tail 250–299 | +0.000374, sd 0.000291 | +0.000231, sd 0.000340 |
+
+**Rule applied.** Tail difference 0.000144, well inside the 0.001 threshold. Epoch-99
+difference 0.001748, inside one committed seed sd (0.005439). **Branch 1: the two
+agree at the resolution the paper claims.**
+
+**What the agreement does and does not mean.** The paper's *qualitative* claims —
+a peak at epoch 6, a decay to a tail equivalent to zero, a hundred-epoch figure
+that describes a transient — hold on both series. Its *quoted figures* differ in
+the third decimal: epoch 99 is +0.0241 committed against +0.0224 regenerated, and
+the tail is +0.000374 against +0.000231.
+
+Two things follow. **The paper switches its quoted trajectory to
+`long_horizon_1t`**, because that is the directory a reader can regenerate, and
+says in the text that the committed one differs at that magnitude. And **A3 stands
+unchanged**: the fact that the committed directory cannot be regenerated is still a
+fact, and switching which numbers are quoted does not repair it.
+
+One difference is worth noting because it cuts against the paper's rhetoric: the
+regenerated epoch-99 gap is *smaller* (+0.0224 against +0.0241), which weakens
+rather than strengthens the "the hundred-epoch number is far from where it settles"
+contrast. The paper reports the regenerated value, not the larger one.
