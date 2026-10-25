@@ -608,3 +608,35 @@ row is still quoted in §3.2 for the five-versus-twenty width comparison, and th
 row comes from a directory that no longer regenerates. It is quoted because it is
 the only twenty-seed run at 24 threads, and the width comparison is about seed
 count rather than about the value, but a reader deserves to know the provenance.
+
+---
+
+## E8a — supersedes E8: the headline follows the brief's seed rule
+
+**Written:** 2026-10-25, after E8, before the text is changed.
+
+E8 kept the five-seed `live100` value (+0.0251) as the paper's headline on the
+ground that its directory reproduces exactly. That conflicts with an instruction
+the revision was given and E8 did not weigh: **100-epoch claims quote the
+twenty-seed interval and say "twenty seeds"; horizon and sweep claims keep five
+and say so.** E8 chose provenance over that rule without saying it was overriding
+a rule. This entry corrects that.
+
+**The change.** Every 100-epoch headline — abstract, introduction, conclusion, and
+H3's opening — now quotes `base20`: **+0.0237 [+0.0199, +0.0274], twenty seeds
+(42–61), positive on all twenty** (checked from `rigor/base/` directly: 20 of 20
+final-epoch gaps positive). The five-seed +0.0251 stays in the ledger row it has
+always occupied, labelled five seeds, and in H3 as the comparison the width
+statement needs.
+
+**The provenance caveat travels with it rather than deciding it.** `rigor/base/`
+does not regenerate bit-for-bit (seed 42: 0.6973985 committed against 0.6976498
+today, same thread count), and the paper says so in H3's four-measurements
+paragraph. That caveat is a fourth-decimal one; the brief's rule is about not
+letting a five-seed number stand where a twenty-seed one exists, which is a
+first-order question about precision. The rule wins.
+
+**What does not change.** The fresh confirmation set (+0.0253) is still not the
+headline, for E8's reason: it would replace a committed artefact's value with one
+generated in the session that is also testing it. It is reported beside the
+headline as the replication.
