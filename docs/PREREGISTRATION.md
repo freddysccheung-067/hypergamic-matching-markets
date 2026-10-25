@@ -462,3 +462,44 @@ paper actually runs.
 which B wins; that would be the move this file exists to prevent. The result is
 reported as a refutation in a regime, and the inert-regime result is reported
 beside it as a fact about that regime.
+
+---
+
+## E7 — regenerating the 300-epoch trajectory at 1 thread
+
+**Written:** 2026-10-25, after the run was started and **before its output
+exists.** The run is `data/processed/rigor/long_horizon_1t/`; the config is
+`experiments/long_horizon_1t.yaml`. This entry fixes the decision rule in advance
+because the temptation, once numbers are on screen, is to prefer whichever set
+agrees with the paper.
+
+**Why.** `docs/REVIEW_RESPONSE.md` A3 records that the committed
+`rigor/long_horizon/` NCF arm does not reproduce from this code at any thread
+count tested (1, 2, 4, 8, 16, 24), nor from the pre-`af24bc5` source at 24. Its
+oracle, random and popularity arms reproduce exactly. The paper's central claim
+rests on that directory's trajectory.
+
+**Design.** Shipped configuration, `simulation.n_epochs: 300`,
+`ncf.num_threads: 1`, seeds 42–46, four arms, written to
+`data/processed/rigor/long_horizon_1t/`. Same seeds, same horizon, one thread
+count, generated today.
+
+**Decision rule, fixed now.**
+
+1. If the new tail mean (epochs 250–299) is within **0.001** of the committed
+   `+0.000374` in absolute value, and the epoch-99 gap is within **one seed sd**
+   of the committed value, the two agree at the resolution the paper claims, and
+   the paper switches its quoted trajectory to the reproducible directory while
+   saying that the committed one differs.
+2. Otherwise the two disagree materially. The paper then reports the new
+   trajectory as the measurement, states that the committed one cannot be
+   reproduced and disagrees, and does **not** average them or choose the one that
+   supports a conclusion.
+3. In both cases the old directory stays in the repository, unedited, with its
+   README's A3 note intact. Nothing is deleted to make the record tidy.
+
+**What this cannot fix.** Whatever the outcome, the committed long-horizon numbers
+quoted in `docs/STATS.md` §3 and in the paper's earlier drafts came from a run this
+repository cannot regenerate. Replacing them changes which numbers the paper
+claims; it does not change the fact that A3 happened, and A3 is recorded
+separately and stays recorded.
