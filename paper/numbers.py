@@ -112,7 +112,7 @@ def gap_series() -> dict[int, float]:
     return {int(r["epoch"]): float(r["gap_mean"]) for r in rows}
 
 
-def twenty_seed(directory: str) -> dict[str, tuple[float, float, float]]:
+def twenty_seed(directory: str) -> dict[str, dict[str, float]]:
     """Mean, sd and 95% t bounds over the twenty seeds in a rigor subdirectory.
 
     Reads the per-seed ``metrics_seed<N>.csv`` files written by
@@ -121,9 +121,10 @@ def twenty_seed(directory: str) -> dict[str, tuple[float, float, float]]:
     arms inside one file share a population, so pairing is what makes the gap an
     observation rather than a comparison of two independent samples.
 
-    Returns ``{quantity: (mean, lo, hi)}`` for the three quantities the fresh-seed
-    paragraph quotes. The t interval is the one to read at n = 20
-    (``docs/STATS.md`` §1), so only that construction is returned.
+    Returns ``{quantity: {"mean", "sd", "lo", "hi"}}``. The t interval is the one
+    to read at n = 20 (``docs/STATS.md`` §1), so only that construction is
+    returned; the sd is included because the fresh-seed paragraph compares spreads
+    between the two sets and that comparison should not be a hand-typed number.
     """
     files = sorted((RIGOR / directory).glob("metrics_seed*.csv"))
     if not files:
@@ -132,27 +133,33 @@ def twenty_seed(directory: str) -> dict[str, tuple[float, float, float]]:
             f"scripts/run_rigor_base.py for that directory first"
         )
 
-    per_seed: dict[str, list[float]] = {"gini_ncf": [], "gini_oracle": [],
-                                        "gini_gap": []}
+    per_seed: dict[str, list[float]] = {
+        "gini_ncf": [], "gini_oracle": [], "gini_gap": [], "alg_loss": [],
+    }
     for path in files:
-        last = None
         rows = read_csv(path)
-        epochs = {int(r["epoch"]) for r in rows}
-        last = max(epochs)
-        final = {r["arm"]: float(r["gini"]) for r in rows if int(r["epoch"]) == last}
-        per_seed["gini_ncf"].append(final["ncf"])
-        per_seed["gini_oracle"].append(final["oracle"])
-        per_seed["gini_gap"].append(final["ncf"] - final["oracle"])
+        last = max(int(r["epoch"]) for r in rows)
+        final = {r["arm"]: r for r in rows if int(r["epoch"]) == last}
+        ncf = float(final["ncf"]["gini"])
+        oracle = float(final["oracle"]["gini"])
+        per_seed["gini_ncf"].append(ncf)
+        per_seed["gini_oracle"].append(oracle)
+        per_seed["gini_gap"].append(ncf - oracle)
+        if "algorithmic_loss" in final["ncf"]:
+            per_seed["alg_loss"].append(float(final["ncf"]["algorithmic_loss"]))
 
     # Two-sided 95% t at n = 20 (19 df).
     tcrit = 2.093
-    out: dict[str, tuple[float, float, float]] = {}
+    out: dict[str, dict[str, float]] = {}
     for key, values in per_seed.items():
+        if not values:
+            continue
         n = len(values)
         m = sum(values) / n
         var = sum((v - m) ** 2 for v in values) / (n - 1)
         se = (var / n) ** 0.5
-        out[key] = (m, m - tcrit * se, m + tcrit * se)
+        out[key] = {"mean": m, "sd": var ** 0.5,
+                    "lo": m - tcrit * se, "hi": m + tcrit * se}
     return out
 
 
@@ -298,16 +305,22 @@ def main() -> None:
     expl = twenty_seed("exploratory_1t")
     lines += [
         "% ── The fresh-seed replication (rigor/fresh, rigor/exploratory_1t) ──────",
-        rf"\newcommand{{\gapFresh}}{{{f(fresh['gini_gap'][0], 4, True)}}}",
-        rf"\newcommand{{\gapFreshLo}}{{{f(fresh['gini_gap'][1], 4, True)}}}",
-        rf"\newcommand{{\gapFreshHi}}{{{f(fresh['gini_gap'][2], 4, True)}}}",
-        rf"\newcommand{{\gapExploratory}}{{{f(expl['gini_gap'][0], 4, True)}}}",
-        rf"\newcommand{{\gapExploratoryLo}}{{{f(expl['gini_gap'][1], 4, True)}}}",
-        rf"\newcommand{{\gapExploratoryHi}}{{{f(expl['gini_gap'][2], 4, True)}}}",
-        rf"\newcommand{{\giniNcfFresh}}{{{f(fresh['gini_ncf'][0], 4)}}}",
-        rf"\newcommand{{\giniNcfExploratory}}{{{f(expl['gini_ncf'][0], 4)}}}",
-        rf"\newcommand{{\giniOracleFresh}}{{{f(fresh['gini_oracle'][0], 4)}}}",
-        rf"\newcommand{{\giniOracleExploratory}}{{{f(expl['gini_oracle'][0], 4)}}}",
+        rf"\newcommand{{\gapFresh}}{{{f(fresh['gini_gap']['mean'], 4, True)}}}",
+        rf"\newcommand{{\gapFreshLo}}{{{f(fresh['gini_gap']['lo'], 4, True)}}}",
+        rf"\newcommand{{\gapFreshHi}}{{{f(fresh['gini_gap']['hi'], 4, True)}}}",
+        rf"\newcommand{{\gapExploratory}}{{{f(expl['gini_gap']['mean'], 4, True)}}}",
+        rf"\newcommand{{\gapExploratoryLo}}{{{f(expl['gini_gap']['lo'], 4, True)}}}",
+        rf"\newcommand{{\gapExploratoryHi}}{{{f(expl['gini_gap']['hi'], 4, True)}}}",
+        rf"\newcommand{{\giniNcfFresh}}{{{f(fresh['gini_ncf']['mean'], 4)}}}",
+        rf"\newcommand{{\giniNcfExploratory}}{{{f(expl['gini_ncf']['mean'], 4)}}}",
+        rf"\newcommand{{\giniOracleFresh}}{{{f(fresh['gini_oracle']['mean'], 4)}}}",
+        rf"\newcommand{{\giniOracleExploratory}}{{{f(expl['gini_oracle']['mean'], 4)}}}",
+        "% The spreads the fresh/exploratory comparison quotes, so the contrast",
+        "% between them is a computed difference rather than a typed one.",
+        rf"\newcommand{{\giniNcfSdFresh}}{{{f(fresh['gini_ncf']['sd'], 4)}}}",
+        rf"\newcommand{{\giniNcfSdExploratory}}{{{f(expl['gini_ncf']['sd'], 4)}}}",
+        rf"\newcommand{{\algLossSdFresh}}{{{f(fresh['alg_loss']['sd'], 4)}}}",
+        rf"\newcommand{{\algLossSdExploratory}}{{{f(expl['alg_loss']['sd'], 4)}}}",
         "",
     ]
 

@@ -46,42 +46,29 @@ else.
 \textbf{The gap is a transient.} The learned ranker's exposure Gini exceeds an
 oracle's by $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$ at the shipped
 hundred-epoch horizon, positive on all five seeds and on all twenty of a fresh
-set. Extended to three hundred epochs, the same quantity peaks at $\gapPeak$
-shortly after the start, is $+0.0241$ at epoch 99, and is below $0.002$ from
-about epoch 200 to 270 depending on seed. A pre-declared equivalence test at a
-$0.002$ margin puts the tail inside the margin ($t = 18.3$ and $12.5$ on four
-degrees of freedom), which is a stronger statement than an interval that happens
-to include zero. What is not established is the limit: a flat tail is also what a
-very slow decay looks like, and this design does not separate the two.
+set. Extended to three hundred epochs it peaks at $\gapPeak$ shortly after the
+start, is $+0.0241$ at epoch 99, and is below $0.002$ from about epoch 200 to 270
+depending on seed; a pre-declared equivalence test at that margin puts the tail
+inside it. What is not established is the limit, since a flat tail is also what a
+very slow decay looks like (\S\ref{sec:coldstart}, \S\ref{sec:equivalence}).
 
 \textbf{It is real everywhere but not constant in size.} The gap is positive with
 an interval excluding zero in all \nSweepCells{} sweep cells, on both interval
-constructions, and reverses nowhere. Its magnitude varies fivefold, so no single
-number is ``the'' gap: quote the range with its condition, or the shipped cell
-with its regime.
+constructions, and reverses nowhere; its magnitude varies fivefold, so no single
+number is ``the'' gap (\S\ref{sec:sensitivity}).
 
-\textbf{The explanation is a hypothesis, and this study does not establish it.}
-The mechanism offered is that the filter is learning whom it can represent. That
-is consistent with the trajectory and it is not tested here: the cell meant to
-isolate a market without coverage learning turns out, at 300 epochs, to be the
-same process running more slowly (reach $0.49$ against $0.46$ at epoch 99), and
-freezing the ranker's weights freezes its shortlists, which makes any frozen arm
-constant by construction. Both failures are reported as failures of the design
-(\texttt{docs/PREREGISTRATION.md} E3).
+\textbf{The explanation is a hypothesis this study does not establish.} The
+mechanism offered is that the filter learns whom it can represent. That is
+consistent with the trajectory and untested here: the cell meant to isolate a
+market without coverage learning turns out to be the same process running more
+slowly, and freezing the ranker freezes its shortlists, so any frozen arm is
+constant by construction (\texttt{docs/PREREGISTRATION.md} E3).
 
-\textbf{The institutional companion is narrower than it looked, and in the
-configuration this paper runs it is negative.} A second institution — a subgraph
-with complete visibility inside it and a positive signalling cost — is modeled
-beside the global market, and welfare is scored on a common basis so agents it
-excludes are priced at their counterfactual outcome rather than deleted. In the
-gate regime that does not respond to the market, an interior optimum exists at
-subgraph size $0.65$, and on twenty fresh seeds that took no part in choosing the
-cell it still ranks first. Re-run at the shipped gate, **no cell of the forty
-beats the global market at any size or cost**, and the difference is close to
-monotone decreasing in size: the thin-market penalty dominates the information
-gain everywhere. The interior optimum is therefore a property of a regime the rest
-of the paper does not use, and the paper reports both rather than the flattering
-one (\S\ref{sec:h4regime}, Appendix~\ref{app:hypotheses}).
+\textbf{The institutional companion does not survive where the paper runs.} An
+interior welfare optimum exists in the gate regime that ignores the market's own
+outcomes, and replicates its location on fresh seeds; re-run at the shipped gate,
+no cell of the forty beats the global market at any size or cost
+(\S\ref{sec:h4regime}, Appendix~\ref{app:hypotheses}).
 
 \subsection*{What is new}
 

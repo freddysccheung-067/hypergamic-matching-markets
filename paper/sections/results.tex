@@ -137,9 +137,9 @@ holds on all twenty seeds. No quantity moved outside its interval and no orderin
 reversed, which is what E1 predicted.
 
 Two differences are worth naming because they bear on how much the seeds were
-worth. The fresh set has a smaller spread on the Gini quantities (sd $0.0111$
-against $0.0143$ for the NCF level) and a larger one on algorithmic loss
-($0.0266$ against $0.0222$), which is the same quantity-specific behavior
+worth. The fresh set has a smaller spread on the Gini quantities (sd $\giniNcfSdFresh$
+against $\giniNcfSdExploratory$ for the NCF level) and a larger one on algorithmic loss
+($lgLossSdFresh$ against $lgLossSdExploratory$), which is the same quantity-specific behavior
 \S2.2 describes rather than a contradiction of it. And the exploratory set
 re-derived here is not bit-identical to the committed \texttt{rigor/base/}: the
 seed-42 epoch-99 Gini differs in the fourth decimal. That directory predates the
@@ -179,7 +179,7 @@ imprecise enough that the ratio is an order of magnitude, not a measured
 constant (\texttt{docs/STATS.md} \S3.2).
 
 Two cautions on reading the table. The points after epoch 124 are all within one
-final-epoch seed standard deviation of each other ($inalEpochSd$), so the decay is
+final-epoch seed standard deviation of each other ($\finalEpochSd$), so the decay is
 established to about epoch 124 and the later entries are ordered noise rather
 than a measured continuation: the claim that the series is \emph{monotone} holds
 only of the points printed, not of the underlying trajectory. And the entries at
@@ -382,18 +382,13 @@ and $0.490$ at epoch 299. The gap peaks at $+0.0565$ at epoch 9 and decays to
 $-0.0012$ at epoch 299 — proportionally as complete a decay as the shipped cell's,
 from a peak a fifth as large.
 
-So $0.4616$ was reach at \emph{epoch 99}, not a ceiling. The 100-epoch sweep
-therefore does not identify a cell where the mechanism is absent; it identifies a
-cell where the same mechanism runs more slowly. That cuts both ways. It withdraws
-the sweep's conclusion-reversing claim, which this paper reported as a finding,
-and it leaves the mechanism claim untested rather than vindicated: a cell where
-reach climbs slowly is not a cell where reach is held fixed, and only the latter
-would separate the mechanism from the correlation.
-
-The condition the sweep establishes is weaker than the earlier draft stated: at
-100 epochs the filter learns coverage everywhere, at rates spanning a factor of
-two, and no cell in the twelve was run long enough to show where the convergence
-it drives stops.
+So $0.4616$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
+does not identify a cell where the mechanism is absent, only one where it runs
+more slowly — which withdraws the conclusion-reversing claim this paper made and
+leaves the mechanism untested rather than vindicated, since a cell where reach
+climbs slowly is not a cell where reach is held fixed. At 100 epochs the filter
+learns coverage in every cell, at rates spanning a factor of two, and none was run
+long enough to show where the convergence it drives stops.
 
 \emph{How large.} The gap ranges from $+0.0097$ to $+0.0470$, a factor of about
 five, with no change in sign; the shipped cell sits mid-range. Quote the range

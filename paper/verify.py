@@ -31,6 +31,14 @@ LABEL_RE = re.compile(r"\\label\{([^}]+)\}")
 CITE_RE = re.compile(r"\\cite[a-zA-Z]*\{([^}]+)\}")
 BIBKEY_RE = re.compile(r"@\w+\{([^,]+),")
 GRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
+# \newcommand{\gapShipped}{...} -> gapShipped
+MACRO_DEF_RE = re.compile(r"\\newcommand\{\\([A-Za-z0-9]+)\}")
+# A macro used as $...\name...$ in the prose. Restricted to the names numbers.py
+# can emit, so ordinary formatting macros (\emph, \texttt, \S) are not flagged.
+MACRO_USE_RE = re.compile(
+    r"\\((?:gap|gini|mcr|rsi|reach|opt|hFive|tail|stat|nSweep|nInstitutional"
+    r"|nReject|fwer|algLoss|finalEpoch)[A-Za-z0-9]*)"
+)
 
 
 def strip_comments(text: str) -> str:
@@ -169,6 +177,31 @@ def main() -> int:
         if status != "ok":
             notes.append(f"{path.name}: brace depth ends at {depth}, min {low}")
         print(f"  {status:10s} {path.name} (final depth {depth})")
+
+    # 8. number macros: every \foo used in the prose must be defined in
+    # tables/numbers.tex, and every macro defined there should be used. An
+    # undefined one compiles to nothing or to an error depending on the engine;
+    # either way the paper would silently lose a number.
+    numbers_path = PAPER / "tables" / "numbers.tex"
+    print("\n[8] number macros")
+    if not numbers_path.exists():
+        failures.append("tables/numbers.tex is missing; run python paper/numbers.py")
+        print("  MISSING tables/numbers.tex")
+    else:
+        defined = set(MACRO_DEF_RE.findall(numbers_path.read_text(encoding="utf-8")))
+        used: set[str] = set()
+        for _path, text in combined:
+            used |= set(MACRO_USE_RE.findall(text))
+        undefined = sorted(used - defined)
+        for name in undefined:
+            failures.append(f"\\{name} is used but not defined in tables/numbers.tex")
+            print(f"  MISSING  \\{name}")
+        unused = sorted(defined - used)
+        if unused:
+            notes.append(f"{len(unused)} number macros defined but unused: "
+                         + ", ".join(unused))
+        print(f"  {len(defined)} defined, {len(used)} used, "
+              f"{len(undefined)} undefined, {len(unused)} unused")
 
     print("\n" + "=" * 60)
     if failures:
