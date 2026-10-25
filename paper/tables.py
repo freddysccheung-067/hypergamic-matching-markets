@@ -125,12 +125,12 @@ def table_ledger() -> None:
         ),
         (
             "H4",
-            "welfare B $-$ A (c=0.01, sf=0.65)",
+            "welfare B $-$ A (c=0.01, sf=0.65; $\\phi=0.2$ inert gate)",
             fmt(mc["optimum_mean"], 2, True),
             f"[{mc['named_cell_lo_t_bonferroni']:+.2f}, {mc['named_cell_hi_t_bonferroni']:+.2f}]",
             f"[{mc['named_cell_lo_bonferroni']:+.2f}, {mc['named_cell_hi_bonferroni']:+.2f}]",
             "Bonferroni $t$",
-            "survives Bonferroni and Holm; best of 40 cells",
+            "survives in this regime only; refuted at the shipped gate",
         ),
         (
             "H5",
