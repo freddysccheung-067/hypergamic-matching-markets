@@ -275,6 +275,18 @@ smallest of the forty, at a little under a third of the median cell's spread, so
 it is a cell where five seeds happened to agree --- which is why the $t$ interval
 is the one to read.
 
+\emph{What the correction does not fix.} Bonferroni and Holm widen an interval for
+having searched a family; they do not undo the fact that the cell was selected on
+low variance as well as high mean. The interval above is therefore an honest width
+around a point that may be biased upward by the selection itself, and the two are
+not the same problem. The clean answer is to re-estimate the optimum on seeds that
+took no part in choosing it, which this study does not have: the twenty-seed run
+covers seeds 42--61 and the optimum was chosen from the same five that the rest of
+the paper uses. The per-cell seed sd spans a wide range
+(\texttt{intervals.csv}, \texttt{welfare\_diff\_residual\_within\_cell\_sd}), so a
+reader should treat $+64.62$ as an upper estimate of the interior gain rather than
+a central one.
+
 \emph{Killed elsewhere.} At $c_B \geq 0.05$ B always loses: no size beats A
 beyond seed noise (\texttt{data/processed/institutional/}). Against an
 NCF-mediated A rather than an oracle A the ordering reverses and B always wins,

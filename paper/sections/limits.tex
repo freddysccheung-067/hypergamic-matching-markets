@@ -36,6 +36,11 @@ honest reading is that the two affected quantities --- algorithmic loss and
 clearing rate --- carry no headline here, and that a future study should choose
 seeds for the purpose rather than inherit them.
 
+The same caution applies to the H4 optimum without the review's help being
+needed: it was selected from forty cells on mean \emph{and} low variance, and
+Bonferroni corrects the first without undoing the second
+(\S\ref{sec:h4}).
+
 \textbf{The thread count is part of the run's identity, and that was found late.}
 Torch's intra-op reductions are not bitwise associative, so the same seed at one
 thread and at eight gives different numbers; across a hundred epochs of this
