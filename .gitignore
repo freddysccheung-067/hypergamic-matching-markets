@@ -72,3 +72,13 @@ data/perf/
 
 # Session prompt log: a record of how the work was done, kept outside the repository.
 docs/SPRINT_PROMPTS.md
+
+# Paper build artefacts. main.pdf is tracked deliberately -- it is the artefact
+# an adviser or reviewer reads, and it cannot be regenerated without a TeX
+# installation. The tarball is tracked for the same reason: it is what arXiv
+# accepts, and its correctness is verified by extracting and compiling it.
+paper/main.aux
+paper/main.log
+paper/main.out
+paper/main.bbl
+paper/main.blg

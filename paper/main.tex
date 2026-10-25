@@ -20,6 +20,13 @@
 \usepackage[utf8]{inputenc}
 \usepackage{microtype}
 
+% Long \texttt{} paths and identifiers cannot hyphenate, and a few of them
+% (data/processed/rigor/..., welfare_diff_residual_within_cell_sd) are wider
+% than the text block. The alternative is \sloppy, which stretches every
+% paragraph in the document to fix three of them. This gives TeX a third
+% chance to break before it complains, and only where it must.
+\setlength{\emergencystretch}{3em}
+
 \hypersetup{
   colorlinks=true,
   linkcolor=black,
