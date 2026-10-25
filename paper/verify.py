@@ -203,6 +203,19 @@ def main() -> int:
         print(f"  {len(defined)} defined, {len(used)} used, "
               f"{len(undefined)} undefined, {len(unused)} unused")
 
+    print("\n[10] control characters")
+    contro = 0
+    for path, text in combined:
+        for char in text:
+            if ord(char) < 32 and char not in "\n\t":
+                contro += 1
+                failures.append(
+                    f"{path.name}: control character U+{ord(char):04X} in source "
+                    f"(a backslash was eaten by a text tool; the macro name that "
+                    f"follows it is broken)"
+                )
+    print(f"  {contro} found")
+
     print("\n" + "=" * 60)
     if failures:
         print(f"FAILED with {len(failures)} structural problem(s):")
