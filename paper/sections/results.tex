@@ -55,8 +55,7 @@ them; see \S\ref{sec:limits}.}
 \emph{Under test.} Mean received intent rises with the signalling cost $c$, and
 low-intent proposers exit. Kill condition: the mean intent is flat in $c$.
 
-\emph{Measured.} The direction holds --- mean received intent is monotone
-increasing over the swept grid (Figure~\ref{fig:h1}) --- so the kill condition is
+\emph{Measured.} The direction holds: mean received intent is monotone increasing over the swept grid (Figure~\ref{fig:h1}), so the kill condition is
 not met. The figure also shows the real finding. The analytic threshold
 $\tau^*(c) = c/(\bar V p)$ is evaluated at a prior success probability, while the
 reciprocity the market delivers is a small fraction of that prior. A threshold
@@ -71,7 +70,7 @@ short way above the bottom of the grid (\texttt{docs/THESIS.md}, H1 caveat;
 \texttt{docs/THEORY.md} \S10.2), so the surviving statement is narrower than the
 one posed.
 
-\emph{Refuted?} No --- flatness is required and there is none. What is refuted is
+\emph{Refuted?} No. Flatness is required and there is none. What is refuted is
 the implied magnitude. No interval is registered for this quantity.
 
 \begin{figure}[t]
@@ -94,9 +93,7 @@ curve. No interval is registered for this quantity.}
 the signal informative. Kill conditions: unrelated to volume, or still rising at
 high $c$.
 
-\emph{Measured: there is no instrument.} The shipped $\theta$ update reads one
-thing --- the count of proposals received through clearing --- and reads it only
-as a yield denominator. It never reads received intent. The count is bounded
+\emph{Measured: there is no instrument.} The shipped $\theta$ update reads one thing, the count of proposals received through clearing, and reads it only as a yield denominator. It never reads received intent. The count is bounded
 above by one per proposer while $\theta$ starts far above the unit interval a
 yield can occupy, so when the update fires it can only lower $\theta$, for a
 minority of acceptors, by a fixed step. No path exists by which a net-of-intent
@@ -107,8 +104,8 @@ acceptors the update reaches, and holding reach fixed the association vanishes.
 \emph{Would it survive if the mechanism existed?} Partly, and self-defeatingly.
 Lengthening the shortlist scales volume but also moves the gate, so it is not a
 clean instrument. A flooding term added by hand does produce the predicted sign,
-but only at the largest weight tested and the smaller shortlist --- and at that
-weight it raises the most-swiped acceptors' thresholds until reciprocity falls to
+but only at the largest weight tested and the smaller shortlist, and at that weight it
+raises the most-swiped acceptors' thresholds until reciprocity falls to
 zero and the market closes (\texttt{data/processed/flooding/};
 \texttt{docs/THESIS.md}, H2). A defence against pooling that empties the market
 is not a defence.
@@ -132,8 +129,8 @@ seeds (\texttt{docs/STATS.md} \S1, row 2; \texttt{intervals.csv}). The twenty-se
 run gives $+0.0237$ $[+0.0204, +0.0271]$, which is the same quantity on a
 superset of the same seeds: seeds 42--46 are the first five of 42--61, so the two
 figures agreeing is expected and is not a test of anything. What it does
-establish is the interval's width --- 0.0035 on the BCa construction at twenty
-seeds against 0.0121 at five --- and that the point estimate moves by less than
+establish is the interval's width, 0.0035 on the BCa construction at twenty seeds
+against 0.0121 at five, and that the point estimate moves by less than
 its own five-seed interval when the other fifteen seeds are added. A reader who
 wants the five-seed accident ruled out should read the sensitivity sweep below,
 where the same ordering is measured on twelve independently varied
@@ -141,10 +138,9 @@ configurations, rather than the overlapping-sample agreement. The gap is positiv
 with an interval excluding zero in all twelve sweep cells and reverses nowhere
 (\S\ref{sec:sensitivity}).
 
-\emph{Refuted?} No in direction; the substantive version --- that estimation
-error is a \emph{standing} source of concentration --- is refuted by
-\S\ref{sec:coldstart}. The inequality is robust; the mechanism attributed to it
-is not.
+\emph{Refuted?} No in direction; the substantive version, that estimation error is
+a \emph{standing} source of concentration, is refuted by \S\ref{sec:coldstart}.
+The inequality holds; the mechanism attributed to it does not.
 
 \emph{What it is not.} The oracle ranks by true utility under the same direction
 and shortlist length: an upper bound on what this architecture could achieve, not
@@ -210,7 +206,7 @@ $+0.00010$ ($p = 0.324$; Wilcoxon $0.313$; three of five seeds higher). The
 largest single step in the last ten epochs is $0.00041$, or $3.7\%$ of the
 final-epoch seed standard deviation (\texttt{long\_horizon\_stationarity.csv}).
 The trajectory has stopped resolving above population noise, so 300 epochs
-suffices here and 100 does not --- but "stops resolving" is a statement about
+suffices here and 100 does not. But "stops resolving" is a statement about
 the measurement, not about the process.
 
 \emph{The curve fit, reported and not trusted.} AIC and BIC prefer
@@ -248,8 +244,8 @@ diagnostic and are what \S\ref{sec:sensitivity} interrogates. Source:
 
 \emph{Under test.} Welfare under Environment B exceeds welfare under A for
 subgraph sizes above a critical mass and falls below it for small sizes, at fixed
-cost. Kill condition: the ordering is monotone in size --- B always wins (the
-thin-market penalty does nothing) or always loses (the information gain does
+cost. Kill condition: the ordering is monotone in size: B always wins, so the
+thin-market penalty does nothing, or always loses (the information gain does
 nothing). Welfare is scored on a common basis, with agents B excludes priced at
 their counterfactual A outcome.
 
@@ -272,8 +268,8 @@ correction ($0.65$ and $0.50$). The optimum is a two-cell feature, not a region;
 the curve beyond those cells is indistinguishable from zero. A caution the
 correction does not address: the optimum's standard deviation is the ninth
 smallest of the forty, at a little under a third of the median cell's spread, so
-it is a cell where five seeds happened to agree --- which is why the $t$ interval
-is the one to read.
+it is a cell where five seeds happened to agree, which is why the $t$ interval is the
+one to read.
 
 \emph{What the correction does not fix.} Bonferroni and Holm widen an interval for
 having searched a family; they do not undo the fact that the cell was selected on
@@ -304,8 +300,8 @@ cells wide.
 B, at two signalling costs, with Environment A as a horizontal line. Earns its
 place because one frame carries all three elements of the verdict: the
 non-monotone shape at the low cost, the monotone collapse at the high cost where
-no size beats A, and the gap between selected and common accounting --- dashed
-against solid --- which is the selection artefact the comparability rule exists
+no size beats A, and the gap between selected and common accounting (dashed against
+solid), which is the selection artefact the comparability rule exists
 to price. Vertical rules mark analytic critical masses; they serve the
 thin-market penalty and do not explain the right-hand slope, which
 \texttt{data/processed/THIN\_MARKET\_README.md} attributes to top-$k$
@@ -329,7 +325,7 @@ over the three terms is $0.407$ and it is not rejected (\texttt{docs/STATS.md}
 \emph{The terms that are not zero.} The algorithmic term is $-717.61$
 $[-795.77, -651.37]$ and dominates: mediation costs an order of magnitude more
 welfare than the demographic shift moves it. The exogenous term is $-21.10$, and
-it is where the two methods disagree --- its BCa interval $[-41.13, -3.42]$
+it is where the two methods disagree: its BCa interval $[-41.13, -3.42]$
 excludes zero while its $t$ interval $[-52.53, +10.32]$ and $q$-value of $0.204$
 do not. At five seeds with this skew the BCa interval is optimistic, so the
 defensible reading is a negative sign with unresolved magnitude.
@@ -345,9 +341,9 @@ that the algorithm amplifies the shift has no support.
 \centering
 \includegraphics[width=\linewidth]{figures/decomposition}
 \caption{H5: the four factorial levels and the three decomposed terms. Earns its
-place because the left panel shows the decomposition's arithmetic --- the
-interaction is the residual closing the gap between the marginal effects and the
-joint effect --- while the right panel puts the three terms on their own scale
+place because the left panel shows the decomposition's arithmetic, with the interaction
+as the residual closing the gap between the marginal effects and the joint effect, while
+the right panel puts the three terms on their own scale
 with per-seed points, which is what makes the scale difference between the
 algorithmic term and the other two visible. Without the left panel the terms
 cannot be checked to add up; without the right panel the interaction looks
@@ -370,8 +366,8 @@ exists for this hypothesis and no quantity is registered, so no number is quoted
 \emph{What can be said without one.} The sign of any measured correlation is
 determined by the exit rule imposed, and the two examined point opposite ways:
 keying exit on being unmatched yields no association, since matching does not
-depend on $\tau$; keying it on net payoff yields a strong positive one, but by
-cost burn rather than rejection --- high-intent agents propose far more often and
+depend on $\tau$; keying it on net payoff yields a strong positive one, but by cost burn
+rather than rejection: high-intent agents propose far more often and
 are matched at the same rate (\texttt{docs/THESIS.md}, H6). Neither tests the
 hypothesis, which is about a market with an exit margin.
 
@@ -383,7 +379,7 @@ cost.
 \label{sec:sensitivity}
 
 The hypotheses above were each measured at one setting of four modelling knobs.
-This subsection asks where they hold --- which is why the paper can report a size
+This subsection asks where they hold, which is why the paper can report a size
 for the exposure gap at all, since one cell cannot separate a property of the
 mechanism from a property of its corner. Twelve cells, one knob moving at a time,
 four claims fixed with their thresholds before the cells were read
@@ -442,8 +438,8 @@ What the sweep does show is that $\delta$ moves no headline: the gap is $+0.0229
 at $0$, $+0.0260$ at $0.5$ and $+0.0263$ at $1.0$, a spread of $0.0034$ against
 intervals about $0.012$ wide, while the weight ratio moves it twice as far and
 chemistry noise four times as far. The defensible statement is that no claim here
-rests on $\delta$ at any weight ratio tested --- not that the results require
-$\beta/\alpha \geq 2$.
+rests on $\delta$ at any weight ratio tested, not that the results require $\beta/\alpha
+\geq 2$.
 
 \emph{Refuted?} The sweep refutes the unconditional form of the cold-start
 explanation and the stated $\beta/\alpha$ condition. It does not refute H3's

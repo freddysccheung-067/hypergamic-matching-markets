@@ -38,8 +38,8 @@ value compatibility and enters the dissolution hazard rather than the utility.
 \subsection{The recommender layer}
 
 A neural collaborative filter with a generalised matrix factorisation path and
-an MLP path is trained on the swipe log --- the record of which pairs were
-liked --- and scores every unseen pair. Each agent then keeps a top-$k$
+an MLP path is trained on the swipe log, the record of which pairs were liked, and
+scores every unseen pair. Each agent then keeps a top-$k$
 shortlist of length $k = 20$ from those scores, and \emph{nothing outside that
 shortlist is visible to the matching step}. This is the architectural commitment
 the paper rests on: the filter is not a convenience wrapper around a preference
@@ -78,15 +78,15 @@ never be compared against a $W$-proposing baseline without saying so.
 
 Utility is additive over four terms: a status term, an attractiveness term, a
 distance penalty, and an indicator bonus for a status surplus. The bonus is what
-makes the model hypergamic rather than merely assortative --- it rewards a
-partner at or above the agent's own status by a margin $\delta$, and is the
+makes the model hypergamic rather than merely assortative. It rewards a partner at or
+above the agent's own status by a margin $\delta$, and is the
 model's operationalisation of the requirement that a partner rank at or above
 you rather than beside you.
 
 Two parameters modify the utility's realised shape. A per-agent lognormal
 multiplier with coefficient of variation $\sigma_{\text{taste}}$ introduces taste
-heterogeneity, so different agents weight the same traits differently --- the
-same device by which idiosyncratic tastes are added to a transferable-utility
+heterogeneity, so different agents weight the same traits differently, which is the same
+device by which idiosyncratic tastes are added to a transferable-utility
 marriage model \citep{choo2006}. A persistent pairwise chemistry shock with
 standard deviation $\sigma_{\text{shock}}$, drawn once per ordered pair and held
 across epochs, enters in absolute utility units. Neither has an empirical
@@ -100,8 +100,8 @@ globally by the learned ranker, no signalling cost, no entry filter.
 
 Environment B is a subgraph of the \emph{same} population. Agents are drawn into
 a pool of size at most $\phi N$, filtered on an observable value score, and
-within the pool visibility is complete --- every entrant sees every other --- so
-B has information and no liquidity where A has liquidity and no information.
+within the pool visibility is complete, since every entrant sees every other, so B has
+information and no liquidity where A has liquidity and no information.
 The comparison is therefore a comparative static in an \emph{institutional}
 parameter at a fixed population, which is a different exercise from the
 comparative statics in market size that the matching literature already treats
@@ -146,9 +146,9 @@ not dropped: every agent appears in the welfare sum exactly once, and an agent B
 excludes is scored at whatever A would have given them. Without this rule an
 entry filter would look like a gain for the purely arithmetic reason that it
 removes the agents it cannot serve. This is a response to a known objection
-rather than a safeguard the project devised --- restricting choice can raise the
-welfare of those inside the restriction \citep{halaburda2018} --- and the model
-prices the cost to non-participants instead of ignoring it.
+rather than a safeguard the project devised, since restricting choice can raise the
+welfare of those inside the restriction \citep{halaburda2018}, and the model prices the
+cost to non-participants instead of ignoring it.
 
 Both accountings are computed. The common one, over all $N$ agents, is the
 number the paper reports. The selected one, over entrants only, is computed so
@@ -165,8 +165,8 @@ her admissible set and lowering it lengthens it.
 
 The gate binds only under a condition that is worth stating exactly, because
 several results below are regime-specific and the regime is set by it. Let
-$\phi$ be the target admissible fraction --- the share of candidates an agent
-finds admissible at epoch 0 --- and let $k$ be the shortlist length. An agent's
+$\phi$ be the target admissible fraction, the share of candidates an agent finds
+admissible at epoch 0, and let $k$ be the shortlist length. An agent's
 admissible set at epoch 0 has about $\phi N$ members. The gate can only truncate
 an agent's visibility if that set is \emph{shorter} than the shortlist, since
 otherwise she takes the top $k$ of a larger pool wherever $\theta$ sits and the
@@ -188,7 +188,7 @@ lowering $\phi$ to keep the gate live, and the configuration validator warns
 when the rule is broken. Second, the difference between an inert run and a live
 run is a statement about whether the market responds to its own clearing
 outcomes, so an ablation measured at $\phi = 0.2$ is not a noisy version of one
-measured at $0.02$ --- it is a different dynamical system. Third, the gate's
+measured at $0.02$; it is a different dynamical system. Third, the gate's
 liveness is a property of one epoch's calibration, and it relaxes: the update
 pulls $\theta$ toward a yield in the unit interval from an initial value far
 above it, so the gate truncates at the start and stops truncating within a few

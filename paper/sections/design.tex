@@ -46,12 +46,12 @@ set, so differences are attributable to the visibility rule rather than to
 sampling:
 
 \begin{itemize}
-\item \textbf{ncf} --- the learned ranker. The treatment arm.
-\item \textbf{oracle} --- ranks by true utility under the same proposer
+\item \textbf{ncf}, the learned ranker. The treatment arm.
+\item \textbf{oracle}, which ranks by true utility under the same proposer
   direction and shortlist length. The benchmark, not a deployable institution.
-\item \textbf{popularity} --- ranks by aggregate engagement; its exposure Gini
+\item \textbf{popularity}, which ranks by aggregate engagement; its exposure Gini
   sits at the analytic closed form, which checks the exposure machinery.
-\item \textbf{random} --- ranks uniformly, because distance from uniformity is
+\item \textbf{random}, which ranks uniformly, because distance from uniformity is
   not a measure of harm and without it a reader cannot tell whether the ranker's
   concentration is unusual or what any non-personalised rule does.
 \end{itemize}
@@ -62,8 +62,8 @@ The institutional comparison adds Environment B at four signalling costs
 forty cells, five seeds, both accountings. Environment A there is the
 \emph{oracle} arm, so nothing is estimated in either environment; the
 NCF-mediated comparison is reported separately and reverses the ordering. The
-drift decomposition is a $2\times2$ factorial --- exogenous drift on or off,
-algorithmic mediation on or off --- from which the three terms are estimated.
+drift decomposition is a $2\times2$ factorial over exogenous drift and algorithmic
+mediation, each on or off, from which the three terms are estimated.
 
 \subsection{Sampling and what counts as a replicate}
 
@@ -98,8 +98,8 @@ Two families are corrected. The institutional grid holds 200 rows but 40 distinc
 cells (ten sizes by four costs), each replicated over five seeds; a cell is what
 was selected over, so its seeds are replicates rather than five further chances
 to win, and the family is 40. Uncorrected family-wise error under independence
-would be 0.871, but the cells are not independent --- adjacent sizes share
-populations and the same seeds are reused --- so the realised rate is lower and is
+would be 0.871, but the cells are not independent, since adjacent sizes share
+populations and the same seeds are reused, so the realised rate is lower and is
 not claimed; the nominal figure is quoted as an upper bound. The decomposition
 corrects over its three terms.
 
@@ -107,8 +107,8 @@ Every committed result sits at one setting of four knobs, each swept at three
 levels with the others shipped: taste heterogeneity
 $\sigma_{\text{taste}} \in \{0.2, 0.5, 1.0\}$, chemistry noise
 $\sigma_{\text{shock}} \in \{0.5, 1.5, 3.0\}$, the weight ratio
-$\beta/\alpha \in \{1, 2, 3\}$ and the hypergamy margin $\delta \in \{0, 0.5, 1\}$
---- twelve cells, five seeds, 100 epochs. Four claims were fixed with their
+$\beta/\alpha \in \{1, 2, 3\}$ and the hypergamy margin $\delta \in \{0, 0.5, 1\}$:
+twelve cells, five seeds, 100 epochs. Four claims were fixed with their
 thresholds before the cells were read, so a reader can disagree with the
 thresholds rather than only with the verdicts: that the gap excludes zero and is
 positive (C1), that its point estimate is at most 0.05 (C2), that the ranker
@@ -134,8 +134,8 @@ stability question and is tested with deferred acceptance.
 
 Table~\ref{tab:validation} reports both. The most informative check is the last:
 adding noise of order one percent of the status scale to each agent's own view of
-the other side leaves stability intact --- zero blocking pairs in both proposer
-directions --- while uniqueness fails. The theorem's conclusion therefore rests
+the other side leaves stability intact, with zero blocking pairs in both proposer
+directions, while uniqueness fails. The theorem's conclusion therefore rests
 on the lists being \emph{common}, not merely correlated with status.
 
 \input{tables/validation}
@@ -155,7 +155,7 @@ table. Every other table is generated from committed CSVs by
 
 What this licenses is narrow: it shows the deficit and stability machinery is
 correct, and does not show the recommender's unmatched mass has a closed form.
-The reasons are structural --- the deficit is a supremum because the
+The reasons are structural. The deficit is a supremum because the
 compatibility constraint is a nested upper set on a single scalar, and a top-$k$
 list from an estimated multi-attribute utility has neither property.
 

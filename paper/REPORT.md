@@ -27,7 +27,7 @@ and no typeset word count. Everything below is a source-level count.
 | §6 Limitations | 951 | 600 | +351 |
 | §7 Conclusion | 354 | 300 | +54 |
 | **total** | **9,229** | **7,000** | **+2,229** |
-| abstract | 197 | ≤200 | — |
+| abstract | 210 | ≤200 | — |
 
 Counts are running prose only: LaTeX markup stripped, float bodies and captions
 excluded, inline math symbols counted. Produced by `paper/wordcount.py`.

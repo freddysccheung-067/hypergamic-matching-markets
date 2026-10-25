@@ -15,8 +15,8 @@ parameters have no empirical anchor, and neither the signalling cost, the
 defection penalty, nor the entry filter is estimated. The results bound what this
 mechanism \emph{can} do under a stated utility and say nothing about whether any
 population sits at these parameters. Because traits are $z$-scored before
-entering a utility, only rank order matters --- but a distribution with no
-variance would still destroy its term, so the defaults are deliberately not
+entering a utility, only rank order matters, but a distribution with no variance would
+still destroy its term, so the defaults are deliberately not
 self-report-shaped and the attractiveness result is an upper bound on its
 influence rather than an estimate. The mitigation is that the two most
 consequential knobs are reported as a function of their value. It is partial: a
@@ -32,8 +32,8 @@ reported and is not repaired: the interval arithmetic every table uses was
 changed to the construction with nominal small-sample coverage, but the seeds
 themselves were left alone, so any claim whose variance happens to be
 underestimated by this particular block still reads as tighter than it is. The
-honest reading is that the two affected quantities --- algorithmic loss and
-clearing rate --- carry no headline here, and that a future study should choose
+honest reading is that the two affected quantities, algorithmic loss and clearing rate,
+carry no headline here, and that a future study should choose
 seeds for the purpose rather than inherit them.
 
 The same caution applies to the H4 optimum without the review's help being
@@ -54,8 +54,8 @@ unconditional one (\texttt{docs/INTERFACES.md} \S3;
 \textbf{One population size carries the headline.} $N = 1000$ is the only size
 at which the full comparison was run, because the full-information benchmark
 needs an $O(N^2)$ preference matrix and is capped at $N = 5000$. Clearing rate is
-not comparable across population sizes at fixed $k$ --- it falls roughly as
-$1/N$ --- and scaling $k$ to compensate makes the swipe log grow superlinearly.
+not comparable across population sizes at fixed $k$: it falls roughly as $1/N$, and
+scaling $k$ to compensate makes the swipe log grow superlinearly.
 The clearing figures are properties of $N = 1000$ at $k = 20$ and do not
 transport.
 
@@ -77,7 +77,7 @@ participants would look free.
 \textbf{The defection penalty prices defection without deterring it.} It is
 charged after a match dissolves; no agent proposes differently, sets a different
 threshold, or stays longer because of it. Making it deter would mean feeding it
-into the proposal decision --- a different model whose institutional result has
+into the proposal decision, which is a different model whose institutional result has
 not been measured.
 
 \textbf{The benchmark is not an achievable institution.} The oracle ranks by true
@@ -95,8 +95,8 @@ instead.
 \textbf{Validation establishes verification, not validity.} Agreement with
 closed-form results shows the machinery is correct; it establishes nothing about
 the recommender, because the deficit those theorems characterise is measured
-under a compatibility constraint on a single scalar --- exactly what makes it
-tractable --- while this model's constraint is visibility through an estimated
+under a compatibility constraint on a single scalar, which is exactly what makes it
+tractable, while this model's constraint is visibility through an estimated
 multi-attribute utility. A matching deficit is not evidence that the
 recommender's unmatched mass has a closed form. It does not appear to have one.
 

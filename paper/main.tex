@@ -63,22 +63,23 @@
 
 \begin{abstract}
 \noindent
-When a recommender decides which candidates a matching market's agents ever
-see, what does it do to exposure, and for how long? A finite two-sided market of
+A recommender that decides which candidates a matching market's agents ever see
+changes what a preference list means, because a preference over a truncated list
+is not the preference that operates over the whole population. This paper
+measures how far that goes and how long it lasts. A finite two-sided market of
 1000 agents carries a four-dimensional trait vector and a private commitment
 type; a neural collaborative filter produces top-20 shortlists; truncated
-deferred acceptance clears the market over those shortlists and nothing else.
-Exposure Gini under the learned ranker exceeds an oracle's by $+0.0251$
-$[+0.0155, +0.0347]$ over five seeds at a hundred epochs. Extending to three
-hundred shows that is not a floor: the gap peaks at $+0.3055$ and is below
-$0.001$ from about epoch 250, where it stops being distinguishable from flat.
-That is a bounded residual rather than a demonstrated limit --- a flat tail is
-also what a very slow decay looks like. The ordering is positive in all twelve
-cells of a parameter sweep, but its size varies fivefold, and the attribution to
-the filter learning coverage fails in the one cell where coverage never climbs,
-so the mechanism is established at one point, not as a general property. A
-companion institutional comparison yields an interior welfare optimum. Every
-parameter is uncalibrated and five seeds carry every headline.
+deferred acceptance clears the market over those alone. Exposure Gini under the
+learned ranker exceeds an oracle's by $+0.0251$ $[+0.0155, +0.0347]$ over five
+seeds at a hundred epochs. Extending to three hundred shows that is not a floor:
+the gap peaks at $+0.3055$ and is below $0.001$ from about epoch 250, where it
+stops being distinguishable from flat. That is a bounded residual, since a flat
+tail is also what a very slow decay looks like. The ordering is positive in all
+twelve cells of a parameter sweep, but its size varies fivefold, and the
+attribution to the filter learning coverage fails in the one cell where coverage
+never climbs, so the mechanism holds at one point, not generally. A companion
+institutional comparison yields an interior welfare optimum. Five seeds carry
+every headline and no parameter is calibrated.
 \end{abstract}
 
 \input{sections/intro}
