@@ -269,6 +269,15 @@ class Simulation:
         # initial weights outside the run's reproducibility guarantee.
         torch.manual_seed(self.rng_seed)
 
+        # The thread count is part of the reproducibility contract, not a
+        # performance knob to leave to the environment. torch's threaded
+        # reductions are not bitwise associative, so the same seed at 1 and 8
+        # threads diverges at ~2e-7 per training step; across a hundred epochs
+        # of this feedback loop that reaches a Gini spread of 0.007-0.015,
+        # which is the size of the effects the project reports. `ncf.num_threads`
+        # defaults to 1 and docs/INTERFACES.md §3 states the contract.
+        torch.set_num_threads(int(self.config.ncf.num_threads))
+
         self.states = sample_population(self.n, self.config_dict, self.rng_seed)
         self._split_sides()
         self._log_noise_ratio()
