@@ -220,6 +220,7 @@ DATA_DIRS = [
     "rigor/c2_fresh_inert",
     "rigor/c2_fresh_institutional",
     "rigor/h4_shipped_gate",
+    "rigor/long_horizon_1t",
 ]
 
 

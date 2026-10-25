@@ -10,7 +10,6 @@ comparison is mechanical rather than a matter of reading two series side by side
 from __future__ import annotations
 
 import csv
-import math
 from pathlib import Path
 from statistics import mean, stdev
 

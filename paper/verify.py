@@ -216,6 +216,29 @@ def main() -> int:
                 )
     print(f"  {contro} found")
 
+    print("\n[11] backslash-stripped commands")
+    # A text tool that eats "\" before a letter leaves the command name bare, or
+    # leaves the letter as a control character. Check 10 catches the latter; this
+    # catches "ef{...}" at the start of a line, where "\ref" lost its backslash
+    # and the first letter with it.
+    # Requires the opening brace: the point is a command whose name survived and
+    # whose backslash did not. Without the brace, ordinary prose ("end of a
+    # different one") would trip it, and a checker that cries wolf gets ignored.
+    stripped = re.compile(
+        r"(?m)^(?:ef|exttt|extbf|emph|site|ection|ubsection|label|eqref|itemize|"
+        r"begin|end|input|includegraphics|frac|sqrt|times|quad|hline)\{"
+    )
+    bare = 0
+    for path, text in combined:
+        for match in stripped.finditer(text):
+            bare += 1
+            line = text.count("\n", 0, match.start()) + 1
+            failures.append(
+                f"{path.name}:{line}: '{match.group(0)}' at line start — a command "
+                f"lost its backslash"
+            )
+    print(f"  {bare} found")
+
     print("\n" + "=" * 60)
     if failures:
         print(f"FAILED with {len(failures)} structural problem(s):")
