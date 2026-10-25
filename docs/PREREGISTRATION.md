@@ -538,3 +538,37 @@ One difference is worth noting because it cuts against the paper's rhetoric: the
 regenerated epoch-99 gap is *smaller* (+0.0224 against +0.0241), which weakens
 rather than strengthens the "the hundred-epoch number is far from where it settles"
 contrast. The paper reports the regenerated value, not the larger one.
+
+## E7b — what changes when the regenerated series is quoted
+
+**Written:** 2026-10-25, after E7a, before the paper is edited.
+
+E7a said the two series agree at the tolerance fixed in advance. They do, and
+switching which one the paper quotes still changes three sentences:
+
+| quantity | committed | regenerated | consequence |
+|---|---|---|---|
+| epoch-99 gap | +0.02414 | **+0.02240** | the "fifty-five times the tail" contrast shrinks to about 97× on the ratio of means, and the ratio was never a measured quantity anyway |
+| tail mean | +0.000374 [+0.000013, +0.000735] | **+0.000231 [−0.000192, +0.000653]** | the interval **includes zero**; 3 of 5 seeds positive, p = 0.204 |
+| first epoch with the mean below 0.002 | 249 | **211** | the transient ends sooner on this series |
+
+**The tail interval changing from excluding to including zero is the substantive
+one.** The paper says the tail is "small and positive but barely distinguishable
+from zero" and leans on the t test excluding zero. On the regenerated series it
+does not: the same test gives p = 0.204. The honest statement becomes that the
+tail is indistinguishable from zero on this series, which is *closer* to what the
+paper's own caution ("a flat tail is also what a very slow decay looks like")
+already said.
+
+**The TOST still passes** at the pre-declared 0.002 margin (t = 14.66 and 11.63
+against 2.132), so the equivalence claim is unaffected and is now the only tail
+claim the data support. The paper drops the "all five seeds positive, t test
+excludes zero" sentence and quotes the equivalence test alone.
+
+**Which series the rest of the paper now uses.** The gap-over-time claims, the
+trajectory table and the tail statistics switch to `long_horizon_1t`.
+`intervals.csv`'s `long300` row is **not** regenerated: it is a bootstrap product
+over the committed directory, and rebuilding the whole interval pipeline to move
+one row is a larger change than this session should make unannounced. The ledger
+therefore carries the committed row and says which directory it is from, and the
+text quotes the regenerated series beside it.
