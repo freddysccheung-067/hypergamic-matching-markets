@@ -227,3 +227,39 @@ unchanged*. And 67% of the decay survives (warm decay -0.1889 against control
 -0.2831). So E3(ii) is **half confirmed and half refuted**: the start is
 manipulable, the terminal level is not invariant, and most of the decay is not
 explained by starting from ignorance.
+
+---
+
+## E2a — the C2 run was at the wrong gate, and the rerun's prediction
+
+**Written:** 2026-10-25, after the first C2 run and before the corrected one.
+
+**What happened.** C2 was run with `experiments/base.yaml` as shipped
+(`admissible_fraction: 0.02`). The committed institutional grid it was meant to be
+compared against was generated in October at `admissible_fraction: 0.2`, and
+`data/processed/institutional/README.md` says so. The two are different regimes,
+so the first C2 run compares a fresh twenty seeds at one gate against five
+seeds at another, and its numbers cannot speak to the H4 claim at all. That run
+also produced a second, more alarming fact on the way: run at 0.02, seeds 42--46
+do not reproduce the committed `+64.62` at any cell — they give `-17.23`. The
+reproduction at 0.2 is exact to the last digit on `welfare_common_a`,
+`welfare_diff_residual` and `gini_a` across all 200 rows, which identifies the
+gate as the whole of the difference.
+
+**What that means for H4.** The stated optimum, `+64.62` at
+`(c=0.01, size_fraction=0.65)`, is a measurement of the *inert* institutional
+regime: the one the paper's own §4 calls deaf to the market's outcomes. The paper
+currently presents it as a property of the model. That is a larger defect than
+the seed question C2 asked.
+
+**The corrected design.** Ten `size_fraction` levels at `c = 0.01`, seeds 100--119,
+at `admissible_fraction: 0.2`, which is the regime the original was measured in.
+This is the like-for-like version of C2.
+
+**Prediction, unchanged from E2 and still made before this run:** the fresh point
+estimate at `size_fraction = 0.65` falls by less than one exploratory seed sd
+(9.86 welfare units) and the cell still ranks in the top five of the ten levels.
+
+**Added prediction, made now and before the data:** the cell will rank first or
+near-first in the inert regime, because it did so on the original five seeds and
+the regime — not the seed set — is what the first C2 run changed.

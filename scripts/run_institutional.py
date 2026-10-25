@@ -111,6 +111,12 @@ def main() -> int:
     parser.add_argument("--values-min-size", type=float, default=0.5)
     parser.add_argument("--values-min-cost", type=float, default=0.01)
     parser.add_argument("--only", choices=("grid", "values_min", "factorial"), default=None)
+    parser.add_argument("--config", default=None,
+                        help="config to read; default is the shipped experiments/base.yaml. "
+                             "Needed to reproduce an archived directory at its own regime: the "
+                             "committed institutional grid predates the move from "
+                             "admissible_fraction 0.2 to 0.02, so a comparison against it must "
+                             "pin the gate (see data/processed/institutional/README.md)")
     parser.add_argument("--output-dir", default="data/processed/institutional")
     args = parser.parse_args()
 
@@ -126,7 +132,8 @@ def main() -> int:
               file=sys.stderr)
     out = pathlib.Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    base = SimConfig.from_yaml().to_dict()
+    base = SimConfig.from_yaml(args.config).to_dict() if args.config \
+        else SimConfig.from_yaml().to_dict()
     t0 = time.time()
 
     if args.only in (None, "grid"):
