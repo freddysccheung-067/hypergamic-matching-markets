@@ -115,6 +115,33 @@ construction this section elsewhere says cannot be trusted at five seeds
 a \emph{standing} source of concentration, is refuted by \S\ref{sec:coldstart}.
 The inequality holds; the mechanism attributed to it does not.
 
+\emph{The replication on fresh seeds.} Everything above rests on seeds 42--61, and
+\texttt{docs/STATS.md} \S2.2 shows those five are an unusually low-variance block
+for two quantities. The gap itself is not one of them, but the objection is
+general and the answer is a fresh set. Twenty seeds (100--119) were registered as
+a confirmation set before they were run (\texttt{docs/PREREGISTRATION.md} E1) and
+executed in the same session, at the same thread count, as a regeneration of
+42--61 for comparison. Every quantity listed below is a twenty-seed point
+estimate at 1 thread.
+
+The fresh gap is $+0.0253$ $[+0.0217, +0.0290]$ against $+0.0225$
+$[+0.0187, +0.0264]$ on the exploratory set: inside the pre-registered interval,
+and if anything slightly larger. The exposure Gini itself is $0.6722$ against
+$0.6727$, the oracle level $0.6468$ against $0.6502$, and the arm ordering
+(\textsf{popularity} $>$ \textsf{ncf} $>$ \textsf{oracle} $>$ \textsf{random})
+holds on all twenty seeds. No quantity moved outside its interval and no ordering
+reversed, which is what E1 predicted.
+
+Two differences are worth naming because they bear on how much the seeds were
+worth. The fresh set has a smaller spread on the Gini quantities (sd $0.0111$
+against $0.0143$ for the NCF level) and a larger one on algorithmic loss
+($0.0266$ against $0.0222$), which is the same quantity-specific behavior
+\S2.2 describes rather than a contradiction of it. And the exploratory set
+re-derived here is not bit-identical to the committed \texttt{rigor/base/}: the
+seed-42 epoch-99 Gini differs in the fourth decimal. That directory predates the
+current code, so the comparison throughout this subsection is against the
+regenerated set, not against the committed one.
+
 \emph{What it is not.} The oracle ranks by true utility under the same direction
 and shortlist length: an upper bound on what this architecture could achieve, not
 a deployable alternative. A gap against an oracle measures how far a learned
