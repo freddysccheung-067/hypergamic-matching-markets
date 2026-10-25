@@ -1099,10 +1099,13 @@ def gap_over_horizon(
     so the arm is constant by construction. That is a limitation stated in the
     picture rather than only in the prose.
 
-    Sources: ``data/processed/rigor/long_horizon_gap_series.csv`` for (a), and
-    ``data/processed/rigor/latefreeze/`` for (b) when present.
+    Sources: ``data/processed/rigor/long_horizon_1t/long_horizon_gap_series.csv``
+    for (a) — the regenerated series, because the committed ``long_horizon/``
+    cannot be reproduced from this code at any thread count
+    (``docs/REVIEW_RESPONSE.md`` A3) — and ``data/processed/rigor/latefreeze/``
+    for (b) when present.
     """
-    series = _read(data_dir, "rigor", "long_horizon_gap_series.csv")
+    series = _read(data_dir, "rigor", "long_horizon_1t", "long_horizon_gap_series.csv")
     x = series["epoch"].to_numpy(dtype=int)
     mean = series["gap_mean"].to_numpy(dtype=float)
     sd = series["gap_sd"].to_numpy(dtype=float)
