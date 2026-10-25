@@ -32,7 +32,6 @@ PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.python.stats import (  # noqa: E402
-    Interval,
     bca_interval,
     paired_gap,
     t_interval,
@@ -182,7 +181,6 @@ def test_paired_gap_forms_the_difference_before_resampling():
     population: each arm is a large common component plus a small arm-specific
     one. An unpaired interval on either arm would be several times wider.
     """
-    rng = np.random.default_rng(12)
     common = np.array([10.0, 12.0, 9.0, 11.0, 10.5])
     ncf = common + np.array([0.30, 0.28, 0.31, 0.29, 0.31])
     oracle = common
