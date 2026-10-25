@@ -39,13 +39,24 @@ What was measured is a flat tail: $+0.00037$ over epochs 250--299, with a $t$
 interval of $[+0.000013, +0.000735]$ and Wilcoxon $p = 0.063$. A limit is not
 observed; a tail is. And a flat tail is also what a very slow decay looks like.
 
-The abstract, the introduction and the conclusion now say the gap is **below
-$0.001$ from about epoch 250 and no longer distinguishable from flat**, and
-`paper/sections/results.tex` carries a paragraph naming the distinction between a
-bounded residual and a convergence rate. The phrase "fifty-five times its terminal
-value" is gone: a ratio of two quantities measured to roughly $\pm30\%$ is an order
-of magnitude, not a constant, and the text now says "roughly fifty times" only in
-the one place where it draws the order-of-magnitude point.
+The abstract, the introduction and the conclusion now say the gap is below the
+pre-declared $0.002$ margin from about epoch 211 and that the tail is no longer
+distinguishable from flat, and `paper/sections/results.tex` carries a paragraph
+naming the distinction between a bounded residual and a convergence rate. The
+phrase "fifty-five times its terminal value" is gone: a ratio of two quantities
+measured to roughly $\pm30\%$ is an order of magnitude, not a constant.
+
+**Numbers updated in the revision of 2026-10-25.** The committed 300-epoch
+directory cannot be regenerated from this code at any thread count
+(§A3 below), so the paper now quotes `data/processed/rigor/long_horizon_1t/`, which
+was regenerated in one session at 1 thread and compared against a rule fixed in
+advance (`docs/PREREGISTRATION.md` E7, E7a). On that series the tail mean is
+$+0.00023$ with a $t$ interval of $[-0.00019, +0.00065]$ that **includes zero**
+(three of five seeds positive, $p = 0.204$), and the epoch-99 gap is $+0.0224$.
+The equivalence test at a 0.002 margin still passes ($t = 14.66$ and $11.63$ on
+four degrees of freedom), and it is now the only tail claim the paper makes. This
+is stricter than what this section originally asserted: the paper no longer claims
+a positive residual at all.
 
 The review's alternative sentence — "below 0.001 by epoch 250 and no longer
 distinguishable from flat" — is what the manuscript now uses.

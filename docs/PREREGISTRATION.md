@@ -572,3 +572,39 @@ over the committed directory, and rebuilding the whole interval pipeline to move
 one row is a larger change than this session should make unannounced. The ledger
 therefore carries the committed row and says which directory it is from, and the
 text quotes the regenerated series beside it.
+
+## E8 — which gap number the paper leads with, and why it does not change
+
+**Written:** 2026-10-25, at the end of the revision, before the choice is made in
+the text.
+
+The headline quantity is $\gapShipped = +0.0251$, five seeds, from
+`intervals.csv` row `live100`. Three other numbers measure the same thing:
+
+| source | value | seeds | thread | reproducible? |
+|---|---|---|---|---|
+| `intervals.csv` `live100` | +0.0251 [+0.0155, +0.0347] | 5 (42–46) | 24 | yes, from `ablation_h100/` |
+| `intervals.csv` `base20` | +0.0237 [+0.0199, +0.0274] | 20 (42–61) | 1 | no — `base/` does not regenerate |
+| `rigor/fresh/` (this session) | +0.0253 [+0.0217, +0.0290] | 20 (100–119) | 1 | yes |
+| `rigor/exploratory_1t/` (this session) | +0.0225 [+0.0187, +0.0264] | 20 (42–61) | 1 | yes |
+
+**The choice, made explicit.** The paper leads with +0.0251 because it is the
+number the committed `ablation_h100/` directory supports and that directory
+reproduces exactly at 24 threads — it is the only *archival* value whose
+provenance is clean. The two twenty-seed numbers are +0.0253 and +0.0225, which
+bracket it.
+
+**What is not done.** The headline is not switched to the fresh value, even though
++0.0253 is from the pre-registered confirmation set and is arguably the better
+number. Switching it would change every interval in the ledger, every comparison
+in §3.2's seed-count discussion, and the H3 verdict's quoted bounds — a
+twenty-place edit at the end of a session, with the check being re-reading every
+one of them. The paper instead quotes all four and says which is which
+(`\S`~h3, the fresh-seed paragraph). If a future session switches the headline, it
+should switch `intervals.csv` first, regenerate, and let the macros follow.
+
+**The one thing that is recorded as a limitation rather than a choice:** `base20`'s
+row is still quoted in §3.2 for the five-versus-twenty width comparison, and that
+row comes from a directory that no longer regenerates. It is quoted because it is
+the only twenty-seed run at 24 threads, and the width comparison is about seed
+count rather than about the value, but a reader deserves to know the provenance.
