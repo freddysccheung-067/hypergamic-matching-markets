@@ -192,6 +192,16 @@ def main() -> int:
         used: set[str] = set()
         for _path, text in combined:
             used |= set(MACRO_USE_RE.findall(text))
+        # A TeX control word is letters only. \gapEpoch6 is \gapEpoch followed by
+        # the character "6", so a digit in a defined name is a compile error that
+        # every regex-level check above would wave through.
+        for name in sorted(defined):
+            if any(ch.isdigit() for ch in name):
+                failures.append(
+                    f"\\{name}: TeX macro names cannot contain digits; "
+                    f"it parses as \\{name.rstrip('0123456789')} plus text"
+                )
+                print(f"  INVALID  \\{name}")
         undefined = sorted(used - defined)
         for name in undefined:
             failures.append(f"\\{name} is used but not defined in tables/numbers.tex")

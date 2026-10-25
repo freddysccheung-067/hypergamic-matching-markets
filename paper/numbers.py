@@ -262,9 +262,13 @@ def main() -> None:
         "% The peak is at epoch 6, which is the value the abstract quotes.",
     ]
     series = gap_series()
-    for epoch in (0, 6, 19, 49, 99, 124, 199):
+    # TeX control words are letters only: \gapEpoch6 parses as \gapEpoch followed
+    # by the character 6, so the epoch is spelled out in the macro name.
+    epoch_names = {0: "Zero", 6: "Six", 19: "Nineteen", 49: "FortyNine",
+                   99: "NinetyNine", 124: "OneTwentyFour", 199: "OneNinetyNine"}
+    for epoch, name in epoch_names.items():
         lines.append(
-            rf"\newcommand{{\gapEpoch{'Zero' if epoch == 0 else epoch}}}"
+            rf"\newcommand{{\gapEpoch{name}}}"
             rf"{{{f(series[epoch], 4 if epoch < 99 else 5, True)}}}"
         )
     lines += [

@@ -43,7 +43,7 @@ The H4 row alone carries a multiplicity correction (Bonferroni across 40 cells)
 and its verdict says so; the other rows are uncorrected and their families are
 stated in the text. That row's regime is marked because it matters: the
 institutional grid was measured at the inert gate ($\phi = 0.2$), and re-run at
-the shipped gate ($\phi = 0.02$) no cell of the forty beats the global market —
+the shipped gate ($\phi = 0.02$) no cell of the forty beats the global market ---
 the cell below reads $-17.23$ there (\S\ref{sec:h4regime}). Every row traces to
 \texttt{data/processed/rigor/} and to \S\ref{sec:h3}, \S\ref{sec:h4} or
 \S\ref{sec:h5}. H1, H2 and H6 are absent because no interval is registered for
@@ -58,8 +58,8 @@ Four of the six hypotheses are reported in full in Appendix~\ref{app:hypotheses}
 because their verdicts are weaker than the cold-start result and a reader should
 be able to weigh the argument without them. In one paragraph each:
 
-\textbf{H1 (a proposing cost selects on intent).} Direction holds — mean received
-intent rises monotonically in $c$ — but the magnitude does not match the closed
+\textbf{H1 (a proposing cost selects on intent).} Direction holds --- mean received
+intent rises monotonically in $c$ --- but the magnitude does not match the closed
 form, because the closed form evaluates its threshold at a prior success
 probability the market does not supply. Not refuted; no interval registered.
 Appendix~\ref{app:hypotheses}, \S H1.
@@ -168,11 +168,13 @@ configuration, five seeds (Figure~\ref{fig:gap};
 decays monotonically in the reported points:
 
 \begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrrrrrr}
 \hline
 epoch & 0 & 6 & 19 & 49 & 99 & 124 & 199 & 250--299 \\
-gap & $\gapEpochZero$ & $\gapEpoch6$ & $\gapEpoch19$ & $\gapEpoch49$ & $\gapEpoch99$
-    & $\gapEpoch124$ & $\gapEpoch199$ & $\tailMean$ \\
+gap & $\gapEpochZero$ & $\gapEpochSix$ & $\gapEpochNineteen$ & $\gapEpochFortyNine$ & $\gapEpochNinetyNine$
+    & $\gapEpochOneTwentyFour$ & $\gapEpochOneNinetyNine$ & $\tailMean$ \\
 \hline
 \end{tabular}
 \end{center}
@@ -286,8 +288,8 @@ one claim here that the tail supports: the 95\% interval itself includes zero
 
 The same test gives a better summary of a transient than any single-epoch value:
 the epoch at which the gap first stays below the margin for the remainder of the
-run, per seed, is 245, 262, 198, 223 and 211. That range — about 200 to 260
-epochs, not the 120 to 200 the pre-registration estimated — is the quantity to
+run, per seed, is 245, 262, 198, 223 and 211. That range --- about 200 to 260
+epochs, not the 120 to 200 the pre-registration estimated --- is the quantity to
 quote when a reader asks how long the transient lasts.
 
 \subsection{The institutional grid was measured in the inert regime}
@@ -315,8 +317,8 @@ actually runs, and it does not.
 
 \emph{The grid re-run at the shipped gate.} The full ten-by-four grid was run at
 \texttt{admissible\_fraction} $= 0.02$ on the same five seeds
-(\texttt{data/processed/rigor/h4\_shipped\_gate/}). **No cell of the forty beats
-Environment A.** At $c = 0.01$ the difference is close to monotone decreasing in
+(\texttt{data/processed/rigor/h4\_shipped\_gate/}). \textbf{No cell of the forty beats
+Environment A.} At $c = 0.01$ the difference is close to monotone decreasing in
 subgraph size, from $-0.23$ at size $0.02$ to $-40.22$ at $1.00$, and the cell
 that was the optimum under the inert gate sits seventh of ten at $-17.23$. At
 $c = 0.05$, $0.10$ and $0.25$ the best cell is negative as well ($-0.25$, $-0.28$,
@@ -383,12 +385,12 @@ end of a different one.
 300 epochs (\texttt{data/processed/rigor/c4\_shock0.5/}; five seeds, 1 thread).
 Reach climbs from $0.041$ at epoch 0 to $0.269$ at epoch 49, $0.457$ at epoch 99,
 and $0.490$ at epoch 299. The gap peaks at $+0.0565$ at epoch 9 and decays to
-$-0.0012$ at epoch 299 — proportionally as complete a decay as the shipped cell's,
+$-0.0012$ at epoch 299 --- proportionally as complete a decay as the shipped cell's,
 from a peak a fifth as large.
 
 So $0.4616$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
 does not identify a cell where the mechanism is absent, only one where it runs
-more slowly — which withdraws the conclusion-reversing claim this paper made and
+more slowly --- which withdraws the conclusion-reversing claim this paper made and
 leaves the mechanism untested rather than vindicated, since a cell where reach
 climbs slowly is not a cell where reach is held fixed. At 100 epochs the filter
 learns coverage in every cell, at rates spanning a factor of two, and none was run
