@@ -100,11 +100,11 @@ same thing: 0.941 is the cold-start state.
 **Row 2 (the H3 gap).** This is the quantity the thesis's central algorithmic
 claim rests on. At 100 epochs it is +0.025, with the t interval [0.0155, 0.0347]
 and BCa [0.0186, 0.0307] — small, positive, and clearly separated from zero on
-either reading. At 300 epochs (2b) it is +0.0004 with a BCa interval that
-*includes* zero, while the t interval on the tail mean excludes it (§3). Both
-facts are true and the resolution is in §3: it converges to essentially zero, and
-whether that residual is exactly zero is not resolved at five seeds and does not
-matter.
+either reading. At 300 epochs the tail mean is +0.00023 with a 95% t interval of
+[−0.00019, +0.00065], which includes zero; the table's row 2b carries the
+committed directory's +0.00044 and is superseded by §3's regenerated series. The
+resolution is in §3: the tail is indistinguishable from zero at five seeds, and the
+equivalence test at a pre-declared 0.002 margin is what the data support.
 
 **Row 3 (clearing).** 24% of agents match under the NCF at 100 epochs, t interval
 [0.224, 0.257]. The interval is tight because clearing is an integer count over
@@ -281,9 +281,20 @@ intervals in §1 should be quoted and the old sds should not.
 
 ## §3. The cold-start result, pushed to convergence
 
-Sources: `data/processed/rigor/long_horizon/` (300 epochs, five seeds, shipped
-φ = 0.02), and `long_horizon_gap_series.csv`, `long_horizon_decay_fits.csv`,
-`long_horizon_asymptote.csv`, `long_horizon_stationarity.csv`.
+Sources: **`data/processed/rigor/long_horizon_1t/`** (300 epochs, five seeds,
+shipped φ = 0.02, 1 thread), and its `long_horizon_gap_series.csv`,
+`long_horizon_decay_fits.csv`, `long_horizon_asymptote.csv`,
+`long_horizon_stationarity.csv`.
+
+**Why this directory and not `../long_horizon/`.** The committed 300-epoch
+directory cannot be regenerated from this code at 1, 2, 4, 8, 16 or 24 threads, nor
+from the source as it stood before the 2026-10-24 scoring change; its oracle,
+random and popularity arms reproduce exactly and its NCF arm does not
+(`docs/REVIEW_RESPONSE.md` A3). `long_horizon_1t/` is the same design regenerated
+in one session at 1 thread, and the two were compared against a rule fixed in
+advance (`docs/PREREGISTRATION.md` E7, E7a): the tail means differ by 0.000144 and
+the epoch-99 gaps by 0.001748, both inside the declared tolerances. Where the two
+differ at the third decimal, every figure below quotes the reproducible series.
 
 ### §3.1 Does the gap converge to zero or to an asymptote?
 
@@ -291,17 +302,18 @@ It converges to **zero**, within what five seeds can resolve.
 
 | epoch | 0 | 6 | 19 | 49 | 99 | 124 | 199 | 250–299 mean |
 |---|---|---|---|---|---|---|---|---|
-| gap | +0.2633 | +0.3055 | +0.2869 | +0.1718 | +0.0241 | +0.0072 | +0.0025 | **+0.00037** |
+| gap | +0.2633 | +0.3055 | +0.2863 | +0.1739 | +0.0224 | +0.0079 | +0.0027 | **+0.00023** |
 
-The tail mean over epochs 250–299 is +0.00037 with a 95% t interval of
-[+0.000013, +0.000735], five seeds, all five positive (t = 2.88, p = 0.045;
-Wilcoxon p = 0.063). The BCa interval on the final epoch's gap is
-[−0.00029, +0.00105], which includes zero.
+The tail mean over epochs 250–299 is +0.00023 with a 95% t interval of
+[−0.00019, +0.00065], which **includes zero**: three of five seeds are positive
+(t = 1.52, p = 0.204; Wilcoxon p = 0.313).
 
-**Which to quote:** the effect is at most seven parts in ten thousand of the Gini
-scale, and its sign is not settled. State it as "converges to zero; any residual
-is below 0.001 and is not resolved at five seeds." Do not quote +0.00037 as a
-positive floor.
+**Which to quote:** the tail is indistinguishable from zero at five seeds, and no
+positive residual is claimed. Do not quote +0.00023 as a floor. The claim that does
+survive is the equivalence test at a pre-declared 0.002 margin
+(`docs/PREREGISTRATION.md` E5): TOST rejects both one-sided nulls at
+t = 14.66 and 11.63 on four degrees of freedom, and the 90% interval
+[−0.000094, +0.000555] lies wholly inside the margin.
 
 **The curve comparison, and why it is reported but not trusted.** Both models
 were fitted to the five-seed mean series, from epoch 0 and again from the peak at
@@ -309,10 +321,10 @@ epoch 6:
 
 | fit window | model | params | RSS | AIC | ΔAIC | ΔBIC | K | K's interval |
 |---|---|---|---|---|---|---|---|---|
-| from epoch 0 | `A·exp(−λt)` | 2 | 0.1411 | −2294.6 | 30.7 | 26.9 | — | — |
-| from epoch 0 | `K + A·exp(−λt)` | 3 | 0.1266 | −2325.2 | **0** | **0** | −0.0111 | [−0.0152, −0.0070] |
-| from peak (6) | `A·exp(−λt)` | 2 | 0.0832 | −2398.1 | 27.6 | 23.9 | — | — |
-| from peak (6) | `K + A·exp(−λt)` | 3 | 0.0752 | −2425.7 | **0** | **0** | −0.0079 | [−0.0109, −0.0050] |
+| from epoch 0 | `A·exp(−λt)` | 2 | 0.1451 | −2286.2 | 30.8 | 27.1 | — | — |
+| from epoch 0 | `K + A·exp(−λt)` | 3 | 0.1301 | −2316.9 | **0** | **0** | −0.0113 | [−0.0154, −0.0070] |
+| from peak (6) | `A·exp(−λt)` | 2 | 0.0866 | −2386.4 | 27.8 | 24.1 | — | — |
+| from peak (6) | `K + A·exp(−λt)` | 3 | 0.0782 | −2414.2 | **0** | **0** | −0.0080 | [−0.0110, −0.0051] |
 
 AIC and BIC both prefer the decay-to-constant model, decisively. **But the K it
 fits is negative**, with an interval excluding zero, while the observed tail is
@@ -325,21 +337,21 @@ is the number in §3.1's first paragraph.
 
 ### §3.2 Is 100 epochs enough for the NCF arm to be stationary?
 
-No. At epoch 99 the gap is +0.024, which is 55× its value at epoch 299. A
+No. At epoch 99 the gap is +0.022, which is 97× its tail mean at epoch 299. A
 100-epoch run of this model is measuring a transient.
 
 At 300 epochs, however, the arm **is** stationary:
 
 | test | statistic | p |
 |---|---|---|
-| epochs 290–299 vs 280–289, paired t across seeds | +0.00010 | 0.324 |
-| same, Wilcoxon signed-rank | — | 0.313 |
-| seeds with the late window higher | 3 of 5 | — |
-| largest single step in epochs 290–299 | 0.00041 (epoch 297) | — |
-| that step as a share of the final-epoch seed sd | 3.7% | — |
-| mean absolute step over the last 10 epochs | 0.00018 | — |
+| epochs 290–299 vs 280–289, paired t across seeds | −0.00007 | 0.555 |
+| same, Wilcoxon signed-rank | — | 0.438 |
+| seeds with the late window higher | 1 of 5 | — |
+| largest single step in epochs 280–299 | 0.00046 (epoch 296) | — |
+| that step as a share of the final-epoch seed sd | 4.3% | — |
+| mean absolute step over the last 10 epochs | 0.00021 | — |
 
-The largest epoch-to-epoch move in the last ten epochs is 3.7% of the spread
+The largest epoch-to-epoch move in the last ten epochs is 4.3% of the spread
 across populations at the final epoch. The trajectory has stopped resolving above
 the seed noise, so 300 epochs is enough for this configuration.
 
@@ -582,8 +594,8 @@ magnitude is not resolved.
 |---|---|---|
 | headline intervals | mean ± sd (spread, not an interval) | 95% t at n=5; BCa at n=20 |
 | five seeds adequate? | assumed | yes for Gini/RSI/gap; **no** for algorithmic loss and clearing |
-| cold-start gap at 100 epochs | +0.025, horizon unstated | converges to zero by ~250 epochs; 100 is a transient |
-| gap at 300 epochs | unknown | +0.0004 [−0.0003, +0.0011]; zero within resolution |
+| cold-start gap at 100 epochs | +0.025, horizon unstated | below the 0.002 margin by ~epoch 211–262; 100 is a transient |
+| gap at 300 epochs | unknown | +0.00023 [−0.00019, +0.00065]; indistinguishable from zero |
 | NCF–oracle ordering across the grid | untested | holds 12/12, size varies 5× |
 | cold-start *mechanism* | reach climbs 4%→96% | consistent with the decay, **not established**: the shock_scale 0.5 cell reaches 49% by epoch 299, and a frozen ranker is flat by construction |
 | institutional optimum | optimum at sf=0.65, +64.62 | holds only at the inert gate (φ=0.2); **no cell beats A at the shipped gate** |
@@ -600,6 +612,6 @@ regime table.
 |---|---|
 | 1 | `intervals.csv` |
 | 2 | `power_analysis.csv`, `power_widths.csv`, `power_conclusions.csv` |
-| 3 | `long_horizon/`, `long_horizon_gap_series.csv`, `long_horizon_decay_fits.csv`, `long_horizon_asymptote.csv`, `long_horizon_stationarity.csv` |
+| 3 | `long_horizon_1t/` and its `long_horizon_gap_series.csv`, `long_horizon_decay_fits.csv`, `long_horizon_asymptote.csv`, `long_horizon_stationarity.csv` (the committed `long_horizon/` is retained but superseded, §3) |
 | 4 | `sensitivity.csv`, `sensitivity/` |
 | 5 | `multiple_comparisons.csv`, `sensitivity_summary.csv` |
