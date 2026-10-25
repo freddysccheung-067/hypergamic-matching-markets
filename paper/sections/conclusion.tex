@@ -9,7 +9,8 @@ A learned ranker between the two sides of a matching market concentrates
 exposure relative to an oracle, and the concentration is a start-up cost rather
 than a standing feature. That is the paper's finding, and it is a finding about
 \emph{when} the measurement is taken as much as about what is measured: at the
-shipped hundred-epoch horizon the gap is $\gapShipped$ and looks like a floor; at
+shipped hundred-epoch horizon the gap is $\gapBaseTwenty$ over twenty seeds and
+looks like a floor; at
 three hundred epochs a pre-declared equivalence test at a $0.002$ margin puts it
 inside the margin. The hundred-epoch figure is therefore far from where the
 series settles, though the ratio between the two is not itself a measured
@@ -21,8 +22,7 @@ a very slow decay, and separating them needs a horizon this study did not run.
 Three qualifications travel with it, and two of them are retractions. The
 ordering holds in every cell of a twelve-cell sweep, on both interval
 constructions, but its size varies fivefold, so no single number is "the" gap.
-The mechanism offered --- that the filter learns whom it can represent --- is not
-established here: the cell that was meant to isolate a market without coverage
+The mechanism offered, that the filter learns whom it can represent, is not established here: the cell that was meant to isolate a market without coverage
 learning turns out at a longer horizon to be the same process running more
 slowly, and freezing the ranker cannot test the claim because freezing the
 weights freezes the shortlists. And the institutional companion does not survive

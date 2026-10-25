@@ -6,7 +6,7 @@
 \newcommand{\gapShipped}{+0.0251}
 \newcommand{\gapShippedLo}{+0.0155}
 \newcommand{\gapShippedHi}{+0.0347}
-% base20: the same quantity at 20 seeds, 1 thread
+% base20: the same quantity at 20 seeds (rigor/base, archival; see its README)
 \newcommand{\gapBaseTwenty}{+0.0237}
 \newcommand{\gapBaseTwentyLo}{+0.0199}
 \newcommand{\gapBaseTwentyHi}{+0.0274}
@@ -15,16 +15,8 @@
 \newcommand{\gapBaseTwentyBcaHi}{+0.0271}
 \newcommand{\gapBaseTwentyBcaWidth}{0.0067}
 \newcommand{\gapLiveBcaWidth}{0.0122}
-% long300: rigor/long_horizon, five seeds, 300 epochs
-\newcommand{\gapTail}{+0.00044}
-\newcommand{\gapTailLo}{-0.00029}
-\newcommand{\gapTailHi}{+0.00105}
-
-% ── The levels, for the ledger and the abstract ─────────────────────────
-\newcommand{\giniNcf}{0.6796}
-\newcommand{\giniOracle}{0.6545}
-\newcommand{\mcrNcf}{0.2404}
-\newcommand{\rsiNcf}{0.4502}
+% The 300-epoch tail is in the convergence block below and the revision
+% block at the end, both from rigor/long_horizon_1t.
 
 % ── The convergence tail (rigor/long_horizon_asymptote.csv) ─────────────
 % The tail mean, its t interval, and the t/Wilcoxon p-values
@@ -43,6 +35,9 @@
 \newcommand{\statMaxStep}{0.00046}
 \newcommand{\statMaxStepShare}{4.3}
 \newcommand{\statSeedsLateHigher}{1}
+% The between-seed sd of the NCF arm's Gini at epoch 299: the noise scale the
+% 'ordered noise after epoch 124' caution compares the gap points against.
+\newcommand{\finalEpochGiniSd}{0.0108}
 
 % ── The sensitivity sweep (rigor/sensitivity.csv) ────────────────────────
 \newcommand{\gapRangeLo}{+0.0097}
@@ -115,3 +110,70 @@
 \newcommand{\giniNcfSdExploratory}{0.0142}
 \newcommand{\algLossSdFresh}{0.0266}
 \newcommand{\algLossSdExploratory}{0.0222}
+
+% ── Revision of 2026-10-25: results it added, each from its own CSV ───
+% rigor/long_horizon_1t: tail statistics and the TOST (PREREGISTRATION E5)
+\newcommand{\tailSe}{0.000152}
+\newcommand{\tailSeedsPositive}{3}
+\newcommand{\tostTLower}{14.7}
+\newcommand{\tostTUpper}{11.6}
+\newcommand{\tostLo}{-0.000094}
+\newcommand{\tostHi}{+0.000555}
+\newcommand{\firstBelowMarginBySeed}{245, 262, 198, 223 and 211}
+\newcommand{\firstBelowMarginMin}{198}
+\newcommand{\firstBelowMarginMax}{262}
+\newcommand{\firstBelowMarginMean}{211}
+\newcommand{\tailRatioNinetyNine}{97}
+\newcommand{\decayDeltaBic}{24.1}
+\newcommand{\widthRatioFiveTwenty}{1.8}
+% rigor/thread_sensitivity.csv (seeds 42-44, 1/4/8 threads) and rigor/base/
+\newcommand{\threadSpreadLo}{0.0070}
+\newcommand{\threadSpreadHi}{0.0154}
+\newcommand{\betweenSeedSdTwenty}{0.0159}
+% A3: ablation_h100 vs rigor/long_horizon, seed 42, NCF Gini at epoch 99
+\newcommand{\giniSeedFortyTwoShort}{0.6935}
+\newcommand{\giniSeedFortyTwoLong}{0.6967}
+% rigor/sensitivity.csv
+\newcommand{\reachLowShock}{0.4616}
+\newcommand{\reachLowShockCount}{462}
+\newcommand{\reachShippedCount}{957}
+\newcommand{\gapLowShock}{+0.0097}
+\newcommand{\gapHighShockHi}{+0.0665}
+\newcommand{\gapDeltaZero}{+0.0229}
+\newcommand{\gapDeltaHalf}{+0.0260}
+\newcommand{\gapDeltaOne}{+0.0263}
+\newcommand{\gapDeltaSpread}{0.0034}
+\newcommand{\gapDeltaWidth}{0.013}
+\newcommand{\gapRangeRatio}{5}
+\newcommand{\betaAlphaVsDelta}{3.5}
+\newcommand{\shockVsDelta}{11}
+% rigor/c4_shock0.5 (300 epochs, shock_scale 0.5, 5 seeds, 1 thread)
+\newcommand{\cfourReachZero}{0.041}
+\newcommand{\cfourReachFortyNine}{0.269}
+\newcommand{\cfourReachNinetyNine}{0.457}
+\newcommand{\cfourReachFinal}{0.490}
+\newcommand{\cfourReachFinalShort}{0.49}
+\newcommand{\cfourReachNinetyNineShort}{0.46}
+\newcommand{\cfourPeak}{+0.0579}
+\newcommand{\cfourPeakEpoch}{10}
+\newcommand{\cfourFinal}{-0.0012}
+% rigor/h4_shipped_gate (admissible_fraction 0.02, seeds 42-46)
+\newcommand{\hFourShippedSmall}{-0.23}
+\newcommand{\hFourShippedFull}{-40.22}
+\newcommand{\hFourShippedOpt}{-17.23}
+\newcommand{\hFourShippedOptRank}{7}
+\newcommand{\hFourShippedBestMid}{-0.25}
+\newcommand{\hFourShippedBestHigh}{-0.28}
+\newcommand{\hFourShippedBestTop}{-0.37}
+% rigor/c2_fresh_inert (seeds 100-119, admissible_fraction 0.2)
+\newcommand{\hFourFresh}{+54.45}
+\newcommand{\hFourFreshSd}{46.42}
+\newcommand{\hFourFreshLo}{+32.72}
+\newcommand{\hFourFreshHi}{+76.17}
+\newcommand{\hFourFreshT}{5.25}
+\newcommand{\hFourFreshRank}{1}
+\newcommand{\hFourFreshSdRatio}{4.7}
+% intervals.csv, the H4 optimum's uncorrected t interval
+\newcommand{\optWelfareTLo}{+52.37}
+\newcommand{\optWelfareTHi}{+76.86}
+\newcommand{\optWelfareMag}{64.62}

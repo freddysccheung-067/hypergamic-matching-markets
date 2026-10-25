@@ -41,27 +41,31 @@ The H4 optimum carries a sharper caution than a multiplicity correction can
 address. It was selected from forty cells on mean \emph{and} low variance, and
 Bonferroni corrects the first without undoing the second: on fresh seeds the cell
 replicates its rank and loses most of its claimed precision, its seed sd rising
-from 9.86 to 46.42. And the whole grid was measured in a gate regime that does not
+from $\optWelfareSd$ to $\hFourFreshSd$. And the whole grid was measured in a gate regime that does not
 respond to the market, which is not the configuration this paper otherwise runs.
 At the shipped gate no cell of the forty beats Environment A at all, so the
 interior optimum is a result about a regime rather than about the model
 (\S\ref{sec:h4regime}).
 
-\textbf{The 300-epoch trajectory does not reproduce.} The NCF arm of the
-committed long-horizon run cannot be regenerated from this code at 1, 2, 4, 8, 16
-or 24 threads, nor from the pre-optimization source at 24; its other three arms
-regenerate exactly. The divergence is at the seventh decimal at epoch 5 and grows
-through the feedback loop, which is the signature of a different reduction order
-rather than a different model. Every convergence number quoted here therefore
-comes from a run this repository cannot now regenerate, and the honest statement
-of the provenance is that, not the thread count
-(\texttt{docs/REVIEW\_RESPONSE.md}, A3).
+\textbf{The committed 300-epoch run does not reproduce.} Its NCF arm cannot be
+regenerated from this code at 1, 2, 4, 8, 16 or 24 threads, nor from the
+pre-optimization source at 24; its other three arms regenerate exactly. The
+divergence is at the seventh decimal at epoch 5 and grows through the feedback
+loop, which is the signature of a different reduction order rather than a
+different model (\texttt{docs/REVIEW\_RESPONSE.md}, A3). The convergence numbers
+this paper quotes therefore come from a regeneration at one thread rather than
+from the committed run; the two agree within tolerances fixed before the
+regeneration was read (\texttt{docs/PREREGISTRATION.md} E7). One other archival
+directory is in a milder version of the same position: \texttt{rigor/base/}, which
+carries the twenty-seed headline, differs from a fresh run at the same thread
+count in the fourth decimal.
 
 \textbf{The thread count is part of the run's identity, and that was found late.}
 Torch's intra-op reductions are not bitwise associative, so the same seed at one
 thread and at eight gives different numbers; across a hundred epochs of this
-feedback loop the divergence reaches $0.006$--$0.015$ in exposure Gini, against a
-between-seed standard deviation of $0.011$. Every configuration now pins
+feedback loop the spread across thread counts reaches $\threadSpreadLo$--$\threadSpreadHi$
+in exposure Gini, against a between-seed standard deviation of
+$\betweenSeedSdTwenty$ over twenty seeds. Every configuration now pins
 \texttt{ncf.num\_threads} to~1 and the contract is tested, but the reproducibility
 guarantee this project claims is a guarantee at a named thread count, not an
 unconditional one (\texttt{docs/INTERFACES.md} \S3;

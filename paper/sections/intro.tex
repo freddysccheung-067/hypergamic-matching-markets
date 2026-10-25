@@ -31,8 +31,7 @@ to regulate the ranker, a transient is a reason to wait.
 
 The inversion is not an artifact of one number being misread. It is what a
 single-horizon comparison cannot see, because a decay and a floor look identical
-from inside either one. The distinction is measurable --- it takes a longer run,
-and this paper runs one --- and establishing that it changes the answer is the
+from inside either one. The distinction is measurable, since it takes a longer run and this paper runs one, and establishing that it changes the answer is the
 paper's central claim.
 
 \subsection*{The result}
@@ -44,24 +43,26 @@ deferred-acceptance pass clears the market over those shortlists and nothing
 else.
 
 \textbf{The gap is a transient.} The learned ranker's exposure Gini exceeds an
-oracle's by $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$ at the shipped
-hundred-epoch horizon, positive on all five seeds and on all twenty of a fresh
-set. Extended to three hundred epochs it peaks at $\gapPeak$ shortly after the
-start, is $\gapEpochNinetyNine$ at epoch 99, and is below $0.002$ from about epoch 200 to
-260 depending on seed; a pre-declared equivalence test at that margin puts the
+oracle's by $\gapBaseTwenty$ $[\gapBaseTwentyLo, \gapBaseTwentyHi]$ at the shipped
+hundred-epoch horizon over twenty seeds, positive on all twenty and on all twenty
+of a fresh set. Extended to three hundred epochs it peaks at $\gapPeak$ shortly after the
+start, is $\gapEpochNinetyNine$ at epoch 99, and is below $0.002$ from about epoch
+\firstBelowMarginMin{} to \firstBelowMarginMax{} depending on seed; a pre-declared equivalence test at that margin puts the
 tail inside it. What is not established is the limit, since a flat tail is also what a
 very slow decay looks like (\S\ref{sec:coldstart}, \S\ref{sec:equivalence}).
 
 \textbf{It is real everywhere but not constant in size.} The gap is positive with
 an interval excluding zero in all \nSweepCells{} sweep cells, on both interval
-constructions, and reverses nowhere; its magnitude varies fivefold, so no single
+constructions, and reverses nowhere; its magnitude varies by a factor of
+\gapRangeRatio{}, so no single
 number is ``the'' gap (\S\ref{sec:sensitivity}).
 
 \textbf{The explanation is a hypothesis this study does not establish.} The
 mechanism offered is that the filter learns whom it can represent. That is
 consistent with the trajectory and untested here: the cell meant to isolate a
 market without coverage learning turns out to be the same process running more
-slowly, and freezing the ranker freezes its shortlists, so any frozen arm is
+slowly (reach $\cfourReachFinalShort$ by epoch 299 against $\cfourReachNinetyNineShort$
+at epoch 99), and freezing the ranker freezes its shortlists, so any frozen arm is
 constant by construction (\texttt{docs/PREREGISTRATION.md} E3).
 
 \textbf{The institutional companion does not survive where the paper runs.} An
@@ -118,5 +119,4 @@ distributions alone, and no behavioral strategy changes it. That result depends 
 the constraint being a nested upper set, which is what makes the deficit a
 one-dimensional supremum, and a learned top-$k$ list has neither property. The
 structure that makes the closed form tractable is absent here rather than merely
-harder, which is why the question has to be answered numerically --- and why the
-answer turns out to depend on \emph{when} it is asked.
+harder, which is why the question has to be answered numerically, and why the answer turns out to depend on \emph{when} it is asked.

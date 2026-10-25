@@ -1,28 +1,29 @@
-"""Audit: list every hardcoded decimal in the paper's prose.
+"""Audit: every decimal still typed as a literal in the paper's prose, with its line.
 
-A number that is not a macro is a number that can drift from its source, which is
-the defect paper/numbers.py exists to prevent. This lists what is still literal so
-a reader can decide which of them are qualitative (counts, section numbers, years)
-and which should be macros.
+A number that is not a macro can drift from its source, which is the defect
+paper/gen_numbers.py exists to prevent. This prints each remaining literal with file
+and line so it can be traced to a CSV or classified as a configuration value,
+a count, or a threshold (which stay literal: they are settings, not results).
 
-    python /tmp/audit.py     (or anywhere; it has no dependencies)
+    python scripts/_audit_numbers.py [section-name ...]
 """
 
-import io
 import pathlib
 import re
+import sys
 
-PREFIXED = re.compile(r"\\(?:texttt|ref|label|input|includegraphics|S|emph|textbf|citep|citet)\{[^}]*\}")
-NUMBER = re.compile(r"[+-]?(?:\d+\.\d+|\d{3,})")
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+PREFIXED = re.compile(r"\\(?:texttt|ref|label|input|includegraphics|citep|citet)\{[^}]*\}")
+COMMENT = re.compile(r"(?<!\\)%.*")
+NUMBER = re.compile(r"(?<![\w.])[+-]?\d+\.\d+(?:\\times10\^\{-?\d+\})?")
 
-ROOT = pathlib.Path(r"D:\hypergamic-matching-markets")
-FILES = [ROOT / "paper" / "main.tex"] + sorted(
-    p for p in (ROOT / "paper" / "sections").glob("*.tex") if p.name != "appendix.tex"
-)
-
-for path in FILES:
-    text = io.open(path, encoding="utf-8").read()
-    text = PREFIXED.sub("", text)
-    text = "\n".join(line.split("%")[0] for line in text.splitlines())
-    found = sorted(set(NUMBER.findall(text)))
-    print(f"{path.name:14s} {len(found):>2}: {' '.join(found)}")
+wanted = set(sys.argv[1:])
+files = [ROOT / "paper" / "main.tex", *sorted((ROOT / "paper" / "sections").glob("*.tex"))]
+for path in files:
+    if wanted and path.stem not in wanted:
+        continue
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = PREFIXED.sub("", COMMENT.sub("", line))
+        found = NUMBER.findall(line)
+        if found:
+            print(f"{path.name}:{lineno}: {'  '.join(found)}")

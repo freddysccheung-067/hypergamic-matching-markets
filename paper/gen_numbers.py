@@ -171,14 +171,226 @@ def twenty_seed(directory: str) -> dict[str, dict[str, float]]:
     return out
 
 
+EQUIVALENCE_MARGIN = 0.002   # declared in docs/PREREGISTRATION.md E5 before the test
+T_ONE_SIDED_4DF = 2.132      # t_{0.05}, 4 df: the one-sided critical value TOST uses
+
+
+def _grid_cell(directory: str, cost: float, size: float) -> dict[str, float]:
+    for row in read_csv(RIGOR / directory / "grid_summary.csv"):
+        if abs(float(row["signal_cost"]) - cost) < 1e-9 and \
+                abs(float(row["size_fraction"]) - size) < 1e-9:
+            return {k: float(v) for k, v in row.items()}
+    raise KeyError(f"{directory}: no cell c={cost} sf={size}")
+
+
+def _grid_slice(directory: str, cost: float) -> list[dict[str, float]]:
+    rows = [{k: float(v) for k, v in r.items()}
+            for r in read_csv(RIGOR / directory / "grid_summary.csv")
+            if abs(float(r["signal_cost"]) - cost) < 1e-9]
+    return sorted(rows, key=lambda r: r["welfare_diff_residual_mean"], reverse=True)
+
+
+def _per_seed_gap_series(directory: Path) -> dict[int, dict[int, float]]:
+    out: dict[int, dict[int, float]] = {}
+    for path in sorted(directory.glob("ncf_seed*.csv")):
+        seed = int(path.stem.split("seed")[-1])
+        ncf = {int(r["epoch"]): float(r["gini"]) for r in read_csv(path)}
+        orc = {int(r["epoch"]): float(r["gini"])
+               for r in read_csv(path.with_name(f"oracle_seed{seed}.csv"))}
+        out[seed] = {e: ncf[e] - orc[e] for e in ncf}
+    return out
+
+
+def _first_stays_below(series: dict[int, float], margin: float) -> int:
+    epochs = sorted(series)
+    for i, e in enumerate(epochs):
+        if all(abs(series[x]) < margin for x in epochs[i:]):
+            return e
+    return -1
+
+
+def revision_macros(f) -> list[str]:
+    """Every result the revision of 2026-10-25 quotes, read from its own CSV.
+
+    Kept in one function so the provenance of the session's numbers is in one
+    place. Configuration values (gate phi, cost and size grids, sweep levels, the
+    0.002 margin, the 0.05 ceiling) are settings rather than results and stay
+    literal in the prose.
+    """
+    out = ["% ── Revision of 2026-10-25: results it added, each from its own CSV ───"]
+
+    # The 300-epoch tail, regenerated series: equivalence test and time-to-threshold.
+    asym = asymptote()
+    se = asym["sd"] / asym["n_seeds"] ** 0.5
+    m = asym["point"]
+    firsts = [_first_stays_below(s, EQUIVALENCE_MARGIN)
+              for _, s in sorted(_per_seed_gap_series(LONG_HORIZON).items())]
+    mean_series = gap_series()
+    out += [
+        "% rigor/long_horizon_1t: tail statistics and the TOST (PREREGISTRATION E5)",
+        rf"\newcommand{{\tailSe}}{{{f(se, 6)}}}",
+        rf"\newcommand{{\tailSeedsPositive}}{{{int(asym['n_seeds_positive'])}}}",
+        rf"\newcommand{{\tostTLower}}{{{f((m + EQUIVALENCE_MARGIN) / se, 1)}}}",
+        rf"\newcommand{{\tostTUpper}}{{{f((EQUIVALENCE_MARGIN - m) / se, 1)}}}",
+        rf"\newcommand{{\tostLo}}{{{f(m - T_ONE_SIDED_4DF * se, 6, True)}}}",
+        rf"\newcommand{{\tostHi}}{{{f(m + T_ONE_SIDED_4DF * se, 6, True)}}}",
+        rf"\newcommand{{\firstBelowMarginBySeed}}{{{', '.join(map(str, firsts[:-1]))} and {firsts[-1]}}}",
+        rf"\newcommand{{\firstBelowMarginMin}}{{{min(firsts)}}}",
+        rf"\newcommand{{\firstBelowMarginMax}}{{{max(firsts)}}}",
+        rf"\newcommand{{\firstBelowMarginMean}}{{{_first_stays_below(mean_series, EQUIVALENCE_MARGIN)}}}",
+        rf"\newcommand{{\tailRatioNinetyNine}}{{{f(mean_series[99] / m, 0)}}}",
+    ]
+    fits = read_csv(LONG_HORIZON / "long_horizon_decay_fits.csv")
+    peak_fit = [r for r in fits if r["fit_window"] == "from_peak_6"
+                and r["model"] == "decay_to_zero"][0]
+    out.append(rf"\newcommand{{\decayDeltaBic}}{{{f(peak_fit['delta_bic'], 1)}}}")
+
+    # The width comparison of A1, as a computed ratio.
+    live = regime_row("gini_gap_ncf_minus_oracle", "live100")
+    base = regime_row("gini_gap_ncf_minus_oracle", "base20")
+    ratio = (float(live["hi"]) - float(live["lo"])) / (float(base["hi"]) - float(base["lo"]))
+    out.append(rf"\newcommand{{\widthRatioFiveTwenty}}{{{f(ratio, 1)}}}")
+
+    # The thread-count spread and the between-seed sd it is compared against.
+    spans: dict[str, list[float]] = {}
+    for r in read_csv(RIGOR / "thread_sensitivity.csv"):
+        spans.setdefault(r["seed"], []).append(float(r["gini"]))
+    widths = [max(v) - min(v) for v in spans.values()]
+    base_ginis = []
+    for path in sorted((RIGOR / "base").glob("metrics_seed*.csv")):
+        rows = read_csv(path)
+        last = max(int(r["epoch"]) for r in rows)
+        base_ginis += [float(r["gini"]) for r in rows
+                       if int(r["epoch"]) == last and r["arm"] == "ncf"]
+    bm = sum(base_ginis) / len(base_ginis)
+    bsd = (sum((g - bm) ** 2 for g in base_ginis) / (len(base_ginis) - 1)) ** 0.5
+    out += [
+        "% rigor/thread_sensitivity.csv (seeds 42-44, 1/4/8 threads) and rigor/base/",
+        rf"\newcommand{{\threadSpreadLo}}{{{f(min(widths), 4)}}}",
+        rf"\newcommand{{\threadSpreadHi}}{{{f(max(widths), 4)}}}",
+        rf"\newcommand{{\betweenSeedSdTwenty}}{{{f(bsd, 4)}}}",
+    ]
+
+    # A3: seed 42, epoch 99, NCF Gini in the two directories that disagree.
+    def ep99(path: Path) -> float:
+        return float([r for r in read_csv(path) if r["epoch"] == "99"][0]["gini"])
+    out += [
+        "% A3: ablation_h100 vs rigor/long_horizon, seed 42, NCF Gini at epoch 99",
+        rf"\newcommand{{\giniSeedFortyTwoShort}}{{{f(ep99(PROCESSED / 'ablation_h100' / 'ncf_seed42.csv'), 4)}}}",
+        rf"\newcommand{{\giniSeedFortyTwoLong}}{{{f(ep99(RIGOR / 'long_horizon' / 'ncf_seed42.csv'), 4)}}}",
+    ]
+
+    # The sweep: the cells the prose names, from rigor/sensitivity.csv.
+    sens = {(r["axis"], r["level"]): r for r in sensitivity_rows()}
+    low = sens[("shock_scale", "0.5")]
+    high = sens[("shock_scale", "3.0")]
+    deltas = [sens[("delta", lv)] for lv in ("0.0", "0.5", "1.0")]
+    delta_widths = [float(r["gap_hi"]) - float(r["gap_lo"]) for r in deltas]
+    delta_points = [float(r["gap_point"]) for r in deltas]
+    out += [
+        "% rigor/sensitivity.csv",
+        rf"\newcommand{{\reachLowShock}}{{{f(low['reach_point'], 4)}}}",
+        rf"\newcommand{{\reachLowShockCount}}{{{round(float(low['reach_point']) * 1000)}}}",
+        rf"\newcommand{{\reachShippedCount}}{{{round(float(sens[('shock_scale', '1.5')]['reach_point']) * 1000)}}}",
+        rf"\newcommand{{\gapLowShock}}{{{f(low['gap_point'], 4, True)}}}",
+        rf"\newcommand{{\gapHighShockHi}}{{{f(high['gap_hi'], 4, True)}}}",
+        rf"\newcommand{{\gapDeltaZero}}{{{f(delta_points[0], 4, True)}}}",
+        rf"\newcommand{{\gapDeltaHalf}}{{{f(delta_points[1], 4, True)}}}",
+        rf"\newcommand{{\gapDeltaOne}}{{{f(delta_points[2], 4, True)}}}",
+        rf"\newcommand{{\gapDeltaSpread}}{{{f(max(delta_points) - min(delta_points), 4)}}}",
+        rf"\newcommand{{\gapDeltaWidth}}{{{f(sum(delta_widths) / len(delta_widths), 3)}}}",
+    ]
+    def axis_spread(axis: str) -> float:
+        pts = [float(r["gap_point"]) for (a, _), r in sens.items() if a == axis]
+        return max(pts) - min(pts)
+    delta_spread = axis_spread("delta")
+    all_points = [float(r["gap_point"]) for r in sens.values()]
+    out += [
+        rf"\newcommand{{\gapRangeRatio}}{{{f(max(all_points) / min(all_points), 0)}}}",
+        rf"\newcommand{{\betaAlphaVsDelta}}{{{f(axis_spread('beta_alpha') / delta_spread, 1)}}}",
+        rf"\newcommand{{\shockVsDelta}}{{{f(axis_spread('shock_scale') / delta_spread, 0)}}}",
+    ]
+
+    # C4: the low-chemistry cell at 300 epochs.
+    c4_dir = RIGOR / "c4_shock0.5"
+    c4_gap = _per_seed_gap_series(c4_dir)
+    c4_mean = {e: sum(s[e] for s in c4_gap.values()) / len(c4_gap)
+               for e in next(iter(c4_gap.values()))}
+    c4_peak = max(c4_mean, key=c4_mean.get)
+    reach: dict[int, list[float]] = {}
+    for path in sorted(c4_dir.glob("ncf_seed*.csv")):
+        for r in read_csv(path):
+            reach.setdefault(int(r["epoch"]), []).append(float(r["reach"]))
+    def mean_reach(e: int) -> float:
+        return sum(reach[e]) / len(reach[e])
+    out += [
+        "% rigor/c4_shock0.5 (300 epochs, shock_scale 0.5, 5 seeds, 1 thread)",
+        rf"\newcommand{{\cfourReachZero}}{{{f(mean_reach(0), 3)}}}",
+        rf"\newcommand{{\cfourReachFortyNine}}{{{f(mean_reach(49), 3)}}}",
+        rf"\newcommand{{\cfourReachNinetyNine}}{{{f(mean_reach(99), 3)}}}",
+        rf"\newcommand{{\cfourReachFinal}}{{{f(mean_reach(299), 3)}}}",
+        rf"\newcommand{{\cfourReachFinalShort}}{{{f(mean_reach(299), 2)}}}",
+        rf"\newcommand{{\cfourReachNinetyNineShort}}{{{f(mean_reach(99), 2)}}}",
+        rf"\newcommand{{\cfourPeak}}{{{f(c4_mean[c4_peak], 4, True)}}}",
+        rf"\newcommand{{\cfourPeakEpoch}}{{{c4_peak}}}",
+        rf"\newcommand{{\cfourFinal}}{{{f(c4_mean[299], 4, True)}}}",
+    ]
+
+    # H4 at the shipped gate, and on fresh seeds at the inert gate.
+    shipped = _grid_slice("h4_shipped_gate", 0.01)
+    shipped_by_size = {r["size_fraction"]: r for r in shipped}
+    rank = [r["size_fraction"] for r in shipped].index(0.65) + 1
+    best = {c: _grid_slice("h4_shipped_gate", c)[0]["welfare_diff_residual_mean"]
+            for c in (0.05, 0.10, 0.25)}
+    out += [
+        "% rigor/h4_shipped_gate (admissible_fraction 0.02, seeds 42-46)",
+        rf"\newcommand{{\hFourShippedSmall}}{{{f(shipped_by_size[0.02]['welfare_diff_residual_mean'], 2, True)}}}",
+        rf"\newcommand{{\hFourShippedFull}}{{{f(shipped_by_size[1.0]['welfare_diff_residual_mean'], 2, True)}}}",
+        rf"\newcommand{{\hFourShippedOpt}}{{{f(shipped_by_size[0.65]['welfare_diff_residual_mean'], 2, True)}}}",
+        rf"\newcommand{{\hFourShippedOptRank}}{{{rank}}}",
+        rf"\newcommand{{\hFourShippedBestMid}}{{{f(best[0.05], 2, True)}}}",
+        rf"\newcommand{{\hFourShippedBestHigh}}{{{f(best[0.10], 2, True)}}}",
+        rf"\newcommand{{\hFourShippedBestTop}}{{{f(best[0.25], 2, True)}}}",
+    ]
+    fresh_cell = _grid_cell("c2_fresh_inert", 0.01, 0.65)
+    fresh_values = [float(r["welfare_diff_residual"]) for r in read_csv(RIGOR / "c2_fresh_inert" / "grid.csv")
+                    if abs(float(r["signal_cost"]) - 0.01) < 1e-9
+                    and abs(float(r["size_fraction"]) - 0.65) < 1e-9]
+    n = len(fresh_values)
+    fm = sum(fresh_values) / n
+    fsd = (sum((v - fm) ** 2 for v in fresh_values) / (n - 1)) ** 0.5
+    fse = fsd / n ** 0.5
+    t19 = 2.093
+    fresh_rank = [r["size_fraction"] for r in _grid_slice("c2_fresh_inert", 0.01)].index(0.65) + 1
+    original_sd = mc_values()["optimum_sd"]
+    out += [
+        "% rigor/c2_fresh_inert (seeds 100-119, admissible_fraction 0.2)",
+        rf"\newcommand{{\hFourFresh}}{{{f(fm, 2, True)}}}",
+        rf"\newcommand{{\hFourFreshSd}}{{{f(fsd, 2)}}}",
+        rf"\newcommand{{\hFourFreshLo}}{{{f(fm - t19 * fse, 2, True)}}}",
+        rf"\newcommand{{\hFourFreshHi}}{{{f(fm + t19 * fse, 2, True)}}}",
+        rf"\newcommand{{\hFourFreshT}}{{{f(fm / fse, 2)}}}",
+        rf"\newcommand{{\hFourFreshRank}}{{{fresh_rank}}}",
+        rf"\newcommand{{\hFourFreshSdRatio}}{{{f(fsd / original_sd, 1)}}}",
+    ]
+    # The per-seed grid.csv and the summary must agree on the cell; a mismatch
+    # would mean the mean above was computed from the wrong rows.
+    if abs(fresh_cell["welfare_diff_residual_mean"] - fm) > 1e-9:
+        raise ValueError("c2_fresh_inert: grid.csv and grid_summary.csv disagree at sf=0.65")
+    opt = regime_row("welfare_diff_residual", "optimum_c0.01_sf0.65")
+    out += [
+        "% intervals.csv, the H4 optimum's uncorrected t interval",
+        rf"\newcommand{{\optWelfareTLo}}{{{f(opt['lo_t'], 2, True)}}}",
+        rf"\newcommand{{\optWelfareTHi}}{{{f(opt['hi_t'], 2, True)}}}",
+        rf"\newcommand{{\optWelfareMag}}{{{f(mc_values()['optimum_mean'], 2)}}}",
+        "",
+    ]
+    return out
+
+
 def main() -> None:
     live = regime_row("gini_gap_ncf_minus_oracle", "live100")
     base = regime_row("gini_gap_ncf_minus_oracle", "base20")
-    long_gap = regime_row("gini_gap_ncf_minus_oracle", "long300")
-    gini_ncf = regime_row("gini_ncf", "live100")
-    gini_oracle = regime_row("gini_oracle", "live100")
-    mcr = regime_row("mcr_ncf", "live100")
-    rsi = regime_row("rsi_ncf", "live100")
 
     mc = mc_values()
     asym = asymptote()
@@ -199,7 +411,7 @@ def main() -> None:
         rf"\newcommand{{\gapShipped}}{{{f(live['point'], 4, True)}}}",
         rf"\newcommand{{\gapShippedLo}}{{{f(live['lo_t'], 4, True)}}}",
         rf"\newcommand{{\gapShippedHi}}{{{f(live['hi_t'], 4, True)}}}",
-        "% base20: the same quantity at 20 seeds, 1 thread",
+        "% base20: the same quantity at 20 seeds (rigor/base, archival; see its README)",
         rf"\newcommand{{\gapBaseTwenty}}{{{f(base['point'], 4, True)}}}",
         rf"\newcommand{{\gapBaseTwentyLo}}{{{f(base['lo_t'], 4, True)}}}",
         rf"\newcommand{{\gapBaseTwentyHi}}{{{f(base['hi_t'], 4, True)}}}",
@@ -210,16 +422,8 @@ def main() -> None:
         f"{{{f(float(base['hi']) - float(base['lo']), 4)}}}",
         rf"\newcommand{{\gapLiveBcaWidth}}"
         f"{{{f(float(live['hi']) - float(live['lo']), 4)}}}",
-        "% long300: rigor/long_horizon, five seeds, 300 epochs",
-        rf"\newcommand{{\gapTail}}{{{f(long_gap['point'], 5, True)}}}",
-        rf"\newcommand{{\gapTailLo}}{{{f(long_gap['lo'], 5, True)}}}",
-        rf"\newcommand{{\gapTailHi}}{{{f(long_gap['hi'], 5, True)}}}",
-        "",
-        "% ── The levels, for the ledger and the abstract ─────────────────────────",
-        rf"\newcommand{{\giniNcf}}{{{f(gini_ncf['point'], 4)}}}",
-        rf"\newcommand{{\giniOracle}}{{{f(gini_oracle['point'], 4)}}}",
-        rf"\newcommand{{\mcrNcf}}{{{f(mcr['point'], 4)}}}",
-        rf"\newcommand{{\rsiNcf}}{{{f(rsi['point'], 4)}}}",
+        "% The 300-epoch tail is in the convergence block below and the revision",
+        "% block at the end, both from rigor/long_horizon_1t.",
         "",
         "% ── The convergence tail (rigor/long_horizon_asymptote.csv) ─────────────",
         "% The tail mean, its t interval, and the t/Wilcoxon p-values",
@@ -241,6 +445,9 @@ def main() -> None:
         # a bare number lets the prose write "per cent" or "\%" as it prefers.
         rf"\newcommand{{\statMaxStepShare}}{{{f(100 * stat['max_step_over_seed_sd'], 1)}}}",
         rf"\newcommand{{\statSeedsLateHigher}}{{{int(stat['n_seeds_late_gt_early'])}}}",
+        "% The between-seed sd of the NCF arm's Gini at epoch 299: the noise scale the",
+        "% 'ordered noise after epoch 124' caution compares the gap points against.",
+        rf"\newcommand{{\finalEpochGiniSd}}{{{f(stat['seed_sd_final'], 4)}}}",
         "",
         "% ── The sensitivity sweep (rigor/sensitivity.csv) ────────────────────────",
         rf"\newcommand{{\gapRangeLo}}{{{f(lo_point, 4, True)}}}",
@@ -335,6 +542,8 @@ def main() -> None:
         rf"\newcommand{{\algLossSdExploratory}}{{{f(expl['alg_loss']['sd'], 4)}}}",
         "",
     ]
+
+    lines += revision_macros(f)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text("\n".join(lines), encoding="utf-8")

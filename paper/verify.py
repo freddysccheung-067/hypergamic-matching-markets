@@ -36,17 +36,26 @@ MACRO_DEF_RE = re.compile(r"\\newcommand\{\\([A-Za-z0-9]+)\}")
 # A macro used as $...\name...$ in the prose. Restricted to the names numbers.py
 # can emit, so ordinary formatting macros (\emph, \texttt, \S) are not flagged.
 MACRO_USE_RE = re.compile(
-    r"\\((?:gap|gini|mcr|rsi|reach|opt|hFive|tail|stat|nSweep|nInstitutional"
-    r"|nReject|fwer|algLoss|finalEpoch)[A-Za-z0-9]*)"
+    r"\\((?:gap|gini|mcr|rsi|reach|opt|hFive|hFour|tail|tost|stat|nSweep"
+    r"|nInstitutional|nReject|fwer|algLoss|finalEpoch|firstBelow|decay|width"
+    r"|thread|betweenSeed|cfour|betaAlpha|shockVs)[A-Za-z0-9]*)"
 )
+# Any TeX control word. Used to decide whether a *defined* number macro appears in
+# the prose at all, which a prefix list cannot do: a macro whose prefix the list
+# forgot would read as unused while being used.
+CONTROL_WORD_RE = re.compile(r"\\([A-Za-z]+)")
+
+
+# A comment starts at a "%" that is not escaped. "\%" is a literal percent sign,
+# and an earlier version of strip_comments split on any "%", which silently
+# discarded the rest of every line containing one: a \ref, \cite or macro after
+# "95\%" was invisible to every check below.
+_COMMENT_RE = re.compile(r"(?<!\\)%.*")
 
 
 def strip_comments(text: str) -> str:
     """Remove TeX comments so commented-out labels are not counted."""
-    return "\n".join(
-        line.split("%", 1)[0] if not line.lstrip().startswith("%") else ""
-        for line in text.splitlines()
-    )
+    return "\n".join(_COMMENT_RE.sub("", line) for line in text.splitlines())
 
 
 def collect_files() -> list[Path]:
@@ -185,13 +194,18 @@ def main() -> int:
     numbers_path = PAPER / "tables" / "numbers.tex"
     print("\n[8] number macros")
     if not numbers_path.exists():
-        failures.append("tables/numbers.tex is missing; run python paper/numbers.py")
+        failures.append("tables/numbers.tex is missing; run python paper/gen_numbers.py")
         print("  MISSING tables/numbers.tex")
     else:
         defined = set(MACRO_DEF_RE.findall(numbers_path.read_text(encoding="utf-8")))
         used: set[str] = set()
         for _path, text in combined:
+            # numbers.tex is \input in the preamble, so it is in `combined`; its own
+            # \newcommand lines would otherwise count every macro as "used".
+            if _path.resolve() == numbers_path.resolve():
+                continue
             used |= set(MACRO_USE_RE.findall(text))
+            used |= set(CONTROL_WORD_RE.findall(text)) & defined
         # A TeX control word is letters only. \gapEpoch6 is \gapEpoch followed by
         # the character "6", so a digit in a defined name is a compile error that
         # every regex-level check above would wave through.

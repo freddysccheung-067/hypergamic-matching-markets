@@ -23,9 +23,9 @@ manuscript.
 | 1.2 | The ledger prints the widest interval without naming it | **Fixed** — both constructions now printed |
 | 1.3 | "Monotone decay" includes points inside one seed sd | **Fixed** — the section now says so explicitly |
 | 1.4 | Overlapping-sample agreement called a replication | **Fixed** |
-| 1.5 | The mechanism is contradicted by its own counterexample | **Declined** — see below; the paper states this twice |
+| 1.5 | The mechanism is contradicted by its own counterexample | **Superseded** — the cell is not a counterexample (reach reaches 0.49 by epoch 299), but the mechanism is now reported as untested, which is what the review asked for |
 | 1.6 | No stated rule for BCa over $t$ | **Fixed** — rule stated, both columns printed |
-| 1.7 | The optimum was selected partly on low variance | **Partly fixed** — disclosed; not repairable without fresh seeds |
+| 1.7 | The optimum was selected partly on low variance | **Fixed, and worse than claimed** — fresh seeds 100–119 replicate the location but the seed sd is 46.42 against 9.86; and the optimum vanishes at the shipped gate |
 | 2.1 | Five seeds found biased; correction applied only where noticed | **Fixed as disclosure** — see below |
 | 3.1 | The abstract overstates; "fifty-five times" is a ratio of imprecise quantities | **Fixed** |
 
@@ -153,9 +153,19 @@ inferred, reports the range of the per-cell seed sd
 (`intervals.csv`, `welfare_diff_residual_within_cell_sd`), and says plainly that the
 clean answer is re-estimation on fresh seeds, which this study does not have.
 
-What it does not do: re-estimate the optimum on disjoint seeds. That is a new run,
-not a revision, and pretending a correction fixes a selection effect would be worse
-than disclosing it.
+What it did not do at the time: re-estimate the optimum on disjoint seeds.
+
+**Revision of 2026-10-25: done, and the review was more right than this section
+allowed.** The ten size levels at c = 0.01 were re-run on seeds 100–119, which took
+no part in choosing the cell, after a prediction was committed
+(`docs/PREREGISTRATION.md` E2, corrected to the original gate in E2a). The location
+replicates — the cell ranks first of ten, +54.45 [+32.72, +76.17] — but its seed sd
+is **46.42 against the published 9.86**, so the published interval was built on a
+standard deviation about 4.7 times too small, exactly the selection effect the
+review described. And a second finding the review did not raise is larger: the
+whole grid was measured at the inert gate (`admissible_fraction` 0.2), and at the
+shipped gate no cell of the forty beats A (`data/processed/rigor/h4_shipped_gate/`,
+E6). H4 is now reported as an inert-regime result, refuted where the paper runs.
 
 ## 2.1 Seed-block bias — fixed as disclosure, and the review is right that it is uncomfortable
 

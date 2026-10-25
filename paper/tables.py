@@ -89,7 +89,10 @@ def table_ledger() -> None:
     ledger therefore lists four rows and says so in its caption.
     """
     h3_live = regime_row("gini_gap_ncf_minus_oracle", "live100")
-    h3_long = regime_row("gini_gap_ncf_minus_oracle", "long300")
+    h3_base = regime_row("gini_gap_ncf_minus_oracle", "base20")
+    # The regenerated 300-epoch series (long300_1t), not the committed long300,
+    # whose NCF arm does not reproduce (docs/REVIEW_RESPONSE.md A3).
+    h3_long = regime_row("gini_gap_ncf_minus_oracle", "long300_1t")
     mc = mc_values()
 
     # The interval column carries the t interval throughout, except for H4 where
@@ -107,6 +110,15 @@ def table_ledger() -> None:
     rows = [
         (
             "H3",
+            "NCF $-$ oracle Gini (base20, 20 seeds)",
+            fmt(float(h3_base["point"]), 4, True),
+            f"[{float(h3_base['lo_t']):+.4f}, {float(h3_base['hi_t']):+.4f}]",
+            f"[{float(h3_base['lo']):+.4f}, {float(h3_base['hi']):+.4f}]",
+            "t",
+            "survives; the 100-epoch headline",
+        ),
+        (
+            "H3",
             "NCF $-$ oracle Gini (live100, 5 seeds)",
             fmt(float(h3_live["point"]), 4, True),
             f"[{float(h3_live['lo_t']):+.4f}, {float(h3_live['hi_t']):+.4f}]",
@@ -116,12 +128,12 @@ def table_ledger() -> None:
         ),
         (
             "H3",
-            "same gap (long300, 5 seeds)",
+            "same gap, epoch 299 (300 epochs, 5 seeds, 1 thread)",
             fmt(float(h3_long["point"]), 5, True),
             f"[{float(h3_long['lo_t']):+.5f}, {float(h3_long['hi_t']):+.5f}]",
             f"[{float(h3_long['lo']):+.5f}, {float(h3_long['hi']):+.5f}]",
             "t",
-            "below $0.001$ from about epoch 250",
+            "indistinguishable from zero; inside the 0.002 margin",
         ),
         (
             "H4",

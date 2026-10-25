@@ -21,7 +21,7 @@ OUT = pathlib.Path(r"C:\Users\Freddy\.tectonic_scratch\b1")
 
 def build() -> str:
     OUT.mkdir(parents=True, exist_ok=True)
-    subprocess.run([sys.executable, str(ROOT / "paper" / "numbers.py")], check=True,
+    subprocess.run([sys.executable, str(ROOT / "paper" / "gen_numbers.py")], check=True,
                    capture_output=True)
     subprocess.run([str(TECTONIC), "--outdir", str(OUT), "main.tex"],
                    cwd=ROOT / "paper", check=True, capture_output=True)

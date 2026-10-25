@@ -409,7 +409,7 @@ mean the filter never learns coverage and the mechanism is absent.
 **That reading was tested and it is wrong.** `data/processed/rigor/c4_shock0.5/`
 runs the same cell to 300 epochs, five seeds, 1 thread. Reach climbs 0.041 →
 0.269 (epoch 49) → 0.457 (epoch 99) → **0.490 (epoch 299)**, and the gap peaks at
-+0.0565 and decays to −0.0012. So 0.4616 was reach at epoch 99, not a ceiling,
++0.0579 (epoch 10) and decays to −0.0012. So 0.4616 was reach at epoch 99, not a ceiling,
 and this cell is a slower instance of the same process rather than an exception to
 it. **The conclusion-reversing claim this section previously made is withdrawn:**
 the cell does not isolate a market without coverage learning, so it neither
@@ -446,8 +446,9 @@ configuration that the config file does not make.
 
 **The condition as it can actually be stated.** δ moves no headline in this grid:
 the gap is +0.0229 at δ = 0, +0.0260 at 0.5 and +0.0263 at 1.0, a spread of
-0.0034 against intervals about 0.012 wide. β/α moves it three times as much
-(0.0116 across its levels), and `shock_scale` ten times as much (0.0373). So the
+0.0034 against BCa intervals about 0.013 wide. β/α moves it about three times as
+much (0.0116 across its levels), and `shock_scale` about eleven times as much
+(0.0373). So the
 defensible claim is not "the hypergamy results require β/α ≥ 2" but **"no
 hypergamy claim in this work rests on δ, at any β/α tested; the δ axis is
 flat."**

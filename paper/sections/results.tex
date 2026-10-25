@@ -43,8 +43,7 @@ The H4 row alone carries a multiplicity correction (Bonferroni across 40 cells)
 and its verdict says so; the other rows are uncorrected and their families are
 stated in the text. That row's regime is marked because it matters: the
 institutional grid was measured at the inert gate ($\phi = 0.2$), and re-run at
-the shipped gate ($\phi = 0.02$) no cell of the forty beats the global market ---
-the cell below reads $-17.23$ there (\S\ref{sec:h4regime}). Every row traces to
+the shipped gate ($\phi = 0.02$) no cell of the forty beats the global market, and the cell below reads $\hFourShippedOpt$ there (\S\ref{sec:h4regime}). Every row traces to
 \texttt{data/processed/rigor/} and to \S\ref{sec:h3}, \S\ref{sec:h4} or
 \S\ref{sec:h5}. H1, H2 and H6 are absent because no interval is registered for
 them; see \S\ref{sec:limits}.}
@@ -54,37 +53,36 @@ them; see \S\ref{sec:limits}.}
 \subsection{H1, H2, H4, H5, H6: what was tested, and what happened}
 \label{sec:appendixpointer}
 
-Four of the six hypotheses are reported in full in Appendix~\ref{app:hypotheses},
+Five of the six hypotheses are reported in full in Appendix~\ref{app:hypotheses},
 because their verdicts are weaker than the cold-start result and a reader should
 be able to weigh the argument without them. In one paragraph each:
 
-\textbf{H1 (a proposing cost selects on intent).} Direction holds --- mean received
-intent rises monotonically in $c$ --- but the magnitude does not match the closed
+\textbf{H1 (a proposing cost selects on intent).} Direction holds, with mean received intent rising monotonically in $c$, but the magnitude does not match the closed
 form, because the closed form evaluates its threshold at a prior success
-probability the market does not supply. Not refuted; no interval registered.
-Appendix~\ref{app:hypotheses}, \S H1.
+probability the market does not supply. Not refuted; no interval registered
+(\S\ref{sec:h1}).
 
 \textbf{H2 (threshold inflation as defence against pooling).} Untestable as
 shipped: the $\theta$ update reads only a proposal count, never received intent,
 so no path exists by which the predicted slope could appear. Reported as an
-absence of mechanism, not as a refutation. Appendix~\ref{app:hypotheses}, \S H2.
+absence of mechanism, not as a refutation (\S\ref{sec:h2}).
 
 \textbf{H4 (an interior institutional optimum).} Refuted at the configuration
 this paper runs. At $c_B = 0.01$ in the inert gate regime there is a
 non-monotone welfare difference with its optimum at subgraph size $0.65$, which
 survives Bonferroni and Holm; re-run at the shipped gate, no cell of the forty
 beats the global market at any size or cost. The hypothesis therefore holds in a
-regime the rest of the paper does not use and fails in the one it does.
-Appendix~\ref{app:hypotheses}, \S H4; \S\ref{sec:h4regime} below.
+regime the rest of the paper does not use and fails in the one it does
+(\S\ref{sec:h4}; \S\ref{sec:h4regime} below).
 
 \textbf{H5 (an interaction term).} The drift-by-mediation interaction is
 $\hFiveInteraction$, interval $[\hFiveInteractionLo, \hFiveInteractionHi]$, not
 distinguishable from zero, which is what H5 allowed. The algorithmic term
-dominates. Appendix~\ref{app:hypotheses}, \S H5.
+dominates (\S\ref{sec:h5}).
 
 \textbf{H6 (differential attrition).} Not tested at all: the model has no
-attrition margin, so no committed artifact exists and no number is quoted.
-Appendix~\ref{app:hypotheses}, \S H6.
+attrition margin, so no committed artifact exists and no number is quoted
+(\S\ref{sec:h6}).
 
 \subsection{H3: estimation error concentrates exposure}
 \label{sec:h3}
@@ -94,15 +92,16 @@ learned ranker exceeds that under an oracle ranking by true utility, because the
 ranker cannot represent every agent and those it cannot represent receive no
 exposure. Kill condition: the ranker matches or beats the oracle.
 
-\emph{Measured.} Not refuted. At the shipped regime and horizon the paired gap is
-$\gapShipped$ with a $t$ interval of $[\gapShippedLo, \gapShippedHi]$, positive on all five
-seeds (\texttt{docs/STATS.md} \S1, row 2; \texttt{intervals.csv}). The twenty-seed
-run gives $\gapBaseTwenty$ $[\gapBaseTwentyLo, \gapBaseTwentyHi]$, which is the same quantity on a
-superset of the same seeds: seeds 42--46 are the first five of 42--61, so the two
-figures agreeing is expected and is not a test of anything. What it does
+\emph{Measured.} Not refuted. At the shipped regime and horizon, over twenty
+seeds, the paired gap is $\gapBaseTwenty$ with a $t$ interval of
+$[\gapBaseTwentyLo, \gapBaseTwentyHi]$, positive on all twenty
+(\texttt{docs/STATS.md} \S1, row 2c; \texttt{intervals.csv}). The five-seed run
+gives $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$, positive on all five, which is
+the same quantity on a subset of the same seeds: seeds 42--46 are the first five of
+42--61, so the two figures agreeing is expected and is not a test of anything. What it does
 establish is the interval's width, measured full width against full width: $\gapBaseTwentyBcaWidth$
 on the BCa construction at twenty seeds against $\gapLiveBcaWidth$ at five, a factor of about
-1.8, and that the point estimate moves by less than its own five-seed interval
+$\widthRatioFiveTwenty$, and that the point estimate moves by less than its own five-seed interval
 when the other fifteen seeds are added. The overlapping-sample agreement is not a
 test of anything; \S\ref{sec:sensitivity} is, and the ordering holds in all twelve
 of its cells on both interval constructions.
@@ -131,14 +130,15 @@ holds on all twenty seeds. No quantity moved outside its interval and no orderin
 reversed, which is what E1 predicted.
 
 Four measurements of this one quantity now exist, and a reader should know which
-is which. The headline quoted above, $\gapShipped$, is five seeds at 24 threads
-from \texttt{ablation\_h100/}, the only archival value whose directory reproduces
-exactly. The committed twenty-seed interval, $\gapBaseTwenty$
-$[\gapBaseTwentyLo, \gapBaseTwentyHi]$, comes from \texttt{rigor/base/}, which does
-not regenerate. The two above come from this session at 1 thread. The four are
-$+0.0251$, $+0.0237$, $+0.0253$ and $+0.0225$, and the paper keeps the first as
-its headline because provenance rather than size is the deciding consideration
-(\texttt{docs/PREREGISTRATION.md} E8).
+is which. The headline, $\gapBaseTwenty$, is the committed twenty-seed run in
+\texttt{rigor/base/}; it is quoted because a hundred-epoch claim should rest on
+the twenty-seed interval where one exists, and with the caveat that this directory
+no longer regenerates bit for bit (its seed-42 Gini differs from a fresh run at the
+same thread count in the fourth decimal). The five-seed $\gapShipped$ comes from
+\texttt{ablation\_h100/}, which does reproduce exactly, at 24 threads. The fresh
+$\gapFresh$ and the regenerated exploratory $\gapExploratory$ come from this
+session at 1 thread. All four agree within each other's intervals
+(\texttt{docs/PREREGISTRATION.md} E8, E8a).
 
 Two differences are worth naming because they bear on how much the seeds were
 worth. The fresh set has a smaller spread on the Gini quantities (sd $\giniNcfSdFresh$
@@ -185,7 +185,8 @@ imprecise enough that the ratio is an order of magnitude, not a measured constan
 (\texttt{docs/STATS.md} \S3.2).
 
 Two cautions on reading the table. The points after epoch 124 are all within one
-final-epoch seed standard deviation of each other ($\finalEpochSd$), so the decay is
+final-epoch seed standard deviation of the NCF arm's Gini of each other
+($\finalEpochGiniSd$), so the decay is
 established to about epoch 124 and the later entries are ordered noise rather
 than a measured continuation: the claim that the series is \emph{monotone} holds
 only of the points printed, not of the underlying trajectory. And the entries at
@@ -195,7 +196,7 @@ measurement.
 
 \emph{Convergence test.} The tail mean over epochs 250--299 is $\tailMean$ with a
 95\% $t$ interval of $[\tailMeanLo, \tailMeanHi]$, which \emph{includes zero}:
-three of five seeds are positive ($t = \tailT$, $p = \tailP$; Wilcoxon
+$\tailSeedsPositive$ of five seeds are positive ($t = \tailT$, $p = \tailP$; Wilcoxon
 $p = \tailWilcoxonP$). The tail is therefore indistinguishable from zero at five
 seeds, and no positive residual is claimed. What the data do support is the
 equivalence test in \S\ref{sec:equivalence}, which does not depend on the interval
@@ -204,7 +205,7 @@ excluding zero.
 \emph{What ``converges'' is doing here, and what it is not.} The word appears
 elsewhere in this paper and carries more than the design delivers. A
 limit is not observed; a tail is. The measured statement is that the five-seed
-mean gap is below the $0.002$ margin from about epoch 211 and that the tail is
+mean gap is below the $0.002$ margin from about epoch \firstBelowMarginMean{} and that the tail is
 indistinguishable from zero at five seeds. A flat tail is also what a very slow
 decay looks like, and no test here separates the two: the stationarity result
 below cannot, because a ten-epoch window at five seeds cannot detect a change of a
@@ -221,7 +222,7 @@ suffices here and 100 does not. But "stops resolving" is a statement about
 the measurement, not about the process.
 
 \emph{The curve fit, reported and not trusted.} AIC and BIC prefer
-decay-to-constant over exponential decay decisively ($\Delta\mathrm{BIC} = 23.9$
+decay-to-constant over exponential decay decisively ($\Delta\mathrm{BIC} = \decayDeltaBic$
 from the peak), but the constant it estimates is \emph{negative} with an interval
 excluding zero while the observed tail is positive: a single exponential cannot
 represent a series that first rises, so the constant absorbs the misfit rather
@@ -278,9 +279,9 @@ seed, not the epoch: the fifty tail values are one trajectory, so their spread i
 not the sampling scale.
 
 Two one-sided tests against $\pm 0.002$ both reject. With a seed sd of
-$0.000340$, a standard error of $0.000152$ and four degrees of freedom,
-$t(\mu > -0.002) = 14.7$ and $t(\mu < +0.002) = 11.6$; the 90\% interval over
-seeds is $[-0.000094, +0.000555]$, wholly inside the margin. The tail is
+$\finalEpochSd$, a standard error of $\tailSe$ and four degrees of freedom,
+$t(\mu > -0.002) = \tostTLower$ and $t(\mu < +0.002) = \tostTUpper$; the 90\% interval over
+seeds is $[\tostLo, \tostHi]$, wholly inside the margin. The tail is
 \emph{equivalent} to zero at a pre-declared margin, which is a stronger and more
 checkable statement than an interval that happens to include zero, and it is the
 one claim here that the tail supports: the 95\% interval itself includes zero
@@ -288,8 +289,7 @@ one claim here that the tail supports: the 95\% interval itself includes zero
 
 The same test gives a better summary of a transient than any single-epoch value:
 the epoch at which the gap first stays below the margin for the remainder of the
-run, per seed, is 245, 262, 198, 223 and 211. That range --- about 200 to 260
-epochs, not the 120 to 200 the pre-registration estimated --- is the quantity to
+run, per seed, is \firstBelowMarginBySeed. That range, \firstBelowMarginMin{} to \firstBelowMarginMax{} epochs rather than the 120 to 200 the pre-registration estimated, is the quantity to
 quote when a reader asks how long the transient lasts.
 
 \subsection{The institutional grid was measured in the inert regime}
@@ -307,8 +307,8 @@ Both statements are verifiable from the repository. Re-running seeds 42--46 at
 $0.2$ reproduces all 200 rows of \texttt{data/processed/institutional/grid.csv}
 exactly, to the last digit, on \texttt{welfare\_common\_a},
 \texttt{welfare\_diff\_residual} and \texttt{gini\_a}. Re-running the same seeds at
-the shipped $0.02$ does not: the optimum cell reads $-17.23$ against the committed
-$+64.62$. The regime, not the code and not the seeds, is the whole difference.
+the shipped $0.02$ does not: the optimum cell reads $\hFourShippedOpt$ against the committed
+$\optWelfare$. The regime, not the code and not the seeds, is the whole difference.
 
 So the interior optimum H4 reports is a property of a market that does not learn
 from its own clearing. That much was established by reproducing the committed
@@ -319,10 +319,11 @@ actually runs, and it does not.
 \texttt{admissible\_fraction} $= 0.02$ on the same five seeds
 (\texttt{data/processed/rigor/h4\_shipped\_gate/}). \textbf{No cell of the forty beats
 Environment A.} At $c = 0.01$ the difference is close to monotone decreasing in
-subgraph size, from $-0.23$ at size $0.02$ to $-40.22$ at $1.00$, and the cell
-that was the optimum under the inert gate sits seventh of ten at $-17.23$. At
-$c = 0.05$, $0.10$ and $0.25$ the best cell is negative as well ($-0.25$, $-0.28$,
-$-0.37$).
+subgraph size, from $\hFourShippedSmall$ at size $0.02$ to $\hFourShippedFull$ at
+$1.00$, and the cell that was the optimum under the inert gate is
+number~\hFourShippedOptRank{} of ten by mean, at $\hFourShippedOpt$. At $c = 0.05$, $0.10$ and $0.25$
+the best cell is negative as well ($\hFourShippedBestMid$, $\hFourShippedBestHigh$,
+$\hFourShippedBestTop$).
 
 This result was not pre-registered, and that matters for how much weight it
 carries: it is recorded in \texttt{docs/PREREGISTRATION.md} E6 with that label, on
@@ -368,36 +369,35 @@ constructions: every cell's Student-$t$ interval excludes zero as well as every
 cell's BCa interval, and the two are printed side by side
 (Table~\ref{tab:sens}). The gap is small by the
 pre-fixed ceiling in all twelve (C2), though the largest cell's upper bound
-reaches $+0.0665$ and is the weakest case. Clearing is non-degenerate in all
+reaches $\gapHighShockHi$ and is the weakest case. Clearing is non-degenerate in all
 twelve (C4). Neither the ordering nor the existence of a clearing market is an
 artifact of the shipped corner.
 
 \emph{What does not, at this horizon.} One cell fails the reach claim at 100
-epochs: at the lowest chemistry noise the ranker reaches $0.4616$ of agents
-against $0.9566$ shipped, both fractions of the population (C3). The same
-comparison in counts is $462$ agents against $957$, out of $N = 1000$; reach is
-reported as a fraction everywhere else in this paper and is a fraction here. The
-gap there is small and positive ($+0.0097$), and the reading the sweep supports
+epochs: at the lowest chemistry noise the ranker reaches $\reachLowShock$ of agents
+against $\reachShipped$ shipped, both fractions of the population (C3). The same
+comparison in counts is \reachLowShockCount{} agents against \reachShippedCount{},
+out of $N = 1000$; reach is reported as a fraction everywhere else in this paper and
+is a fraction here. The gap there is small and positive ($\gapLowShock$), and the reading the sweep supports
 is that the cell is at a different point in the same process rather than at the
 end of a different one.
 
 \emph{And what a longer horizon does to that reading.} The cell was then run to
 300 epochs (\texttt{data/processed/rigor/c4\_shock0.5/}; five seeds, 1 thread).
-Reach climbs from $0.041$ at epoch 0 to $0.269$ at epoch 49, $0.457$ at epoch 99,
-and $0.490$ at epoch 299. The gap peaks at $+0.0565$ at epoch 9 and decays to
-$-0.0012$ at epoch 299 --- proportionally as complete a decay as the shipped cell's,
-from a peak a fifth as large.
+Reach climbs from $\cfourReachZero$ at epoch 0 to $\cfourReachFortyNine$ at epoch 49,
+$\cfourReachNinetyNine$ at epoch 99, and $\cfourReachFinal$ at epoch 299. The gap
+peaks at $\cfourPeak$ at epoch \cfourPeakEpoch{} and decays to $\cfourFinal$ at epoch 299, proportionally as complete a decay as the shipped cell's, from a peak
+a fifth as large.
 
-So $0.4616$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
-does not identify a cell where the mechanism is absent, only one where it runs
-more slowly --- which withdraws the conclusion-reversing claim this paper made and
+So $\reachLowShock$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
+does not identify a cell where the mechanism is absent, only one where it runs more slowly. That withdraws the conclusion-reversing claim this paper made and
 leaves the mechanism untested rather than vindicated, since a cell where reach
 climbs slowly is not a cell where reach is held fixed. At 100 epochs the filter
 learns coverage in every cell, at rates spanning a factor of two, and none was run
 long enough to show where the convergence it drives stops.
 
-\emph{How large.} The gap ranges from $+0.0097$ to $+0.0470$, a factor of about
-five, with no change in sign; the shipped cell sits mid-range. Quote the range
+\emph{How large.} The gap ranges from $\gapRangeLo$ to $\gapRangeHi$, a factor of about
+$\gapRangeRatio$, with no change in sign; the shipped cell sits mid-range. Quote the range
 with its condition, or the shipped cell with its regime, never $+0.025$ as
 ``the'' gap.
 
@@ -411,10 +411,11 @@ guardrail treats as meaningful (\texttt{docs/STATS.md} \S4.2;
 measured on a noise-free homogeneous population, and the rule of thumb describes
 that population rather than the one the experiments run on.
 
-What the sweep does show is that $\delta$ moves no headline: the gap is $+0.0229$
-at $0$, $+0.0260$ at $0.5$ and $+0.0263$ at $1.0$, a spread of $0.0034$ against
-intervals about $0.012$ wide, while the weight ratio moves it twice as far and
-chemistry noise four times as far. The defensible statement is that no claim here
+What the sweep does show is that $\delta$ moves no headline: the gap is $\gapDeltaZero$
+at $0$, $\gapDeltaHalf$ at $0.5$ and $\gapDeltaOne$ at $1.0$, a spread of
+$\gapDeltaSpread$ against BCa intervals about $\gapDeltaWidth$ wide, while the weight
+ratio moves it $\betaAlphaVsDelta$ times as far and chemistry noise $\shockVsDelta$
+times as far. The defensible statement is that no claim here
 rests on $\delta$ at any weight ratio tested, not that the results require $\beta/\alpha
 \geq 2$.
 

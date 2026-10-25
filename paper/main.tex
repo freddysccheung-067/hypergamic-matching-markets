@@ -37,7 +37,7 @@
 \bibliographystyle{plainnat}
 
 % Every number the prose quotes is defined here, one macro per quantity, read
-% from data/processed/ by paper/numbers.py. Editing that file instead of a
+% from data/processed/ by paper/gen_numbers.py. Editing that file instead of a
 % section is what keeps one horizon from acquiring three values.
 \input{tables/numbers}
 
@@ -76,11 +76,11 @@ A recommender that decides which candidates a matching market's agents ever see
 changes what a preference list means. This paper shows that measuring the harm at
 one horizon can invert the conclusion. In a simulated market of 1000 agents whose
 top-20 shortlists come from a neural collaborative filter, exposure Gini under the
-learned ranker exceeds an oracle's by $\gapShipped$ $[\gapShippedLo,
-\gapShippedHi]$ at a hundred epochs, and is positive on all twenty of a fresh seed
-set. Extending to three hundred shows no floor: the gap peaks at $\gapPeak$, and a
+learned ranker exceeds an oracle's by $\gapBaseTwenty$ $[\gapBaseTwentyLo,
+\gapBaseTwentyHi]$ at a hundred epochs over twenty seeds, and is positive on all
+twenty of a fresh seed set. Extending to three hundred shows no floor: the gap peaks at $\gapPeak$, and a
 pre-declared equivalence test at a $0.002$ margin puts the tail inside it, so the
-hundred-epoch number describes a transient rather than a bias --- though a flat tail
+hundred-epoch number describes a transient rather than a bias, though a flat tail
 is also what a very slow decay looks like. The ordering survives all
 \nSweepCells{} sweep cells but varies fivefold in size, and the mechanism usually
 offered for the decay is not established here: the two interventions meant to test

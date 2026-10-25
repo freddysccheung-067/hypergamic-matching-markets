@@ -96,17 +96,17 @@ their counterfactual A outcome.
 
 \emph{Measured.} Survives on one slice, killed on the others. At $c_B = 0.01$
 against an oracle A, the optimum is size\_fraction $0.65$ with a residual welfare
-difference of $+64.62$, $t$ interval $[+52.37, +76.86]$ (\texttt{docs/STATS.md}
+difference of $\optWelfare$, $t$ interval $[\optWelfareTLo, \optWelfareTHi]$ (\texttt{docs/STATS.md}
 \S1, row 7b), and the ordering there is non-monotone, which is the shape H4 asks
 for (Figure~\ref{fig:thin}).
 
 \emph{The selection correction the claim requires.} The optimum is the maximum of
 forty cells, so an uncorrected interval on it is not an interval on anything.
 Corrected over that family, the Benjamini--Hochberg $q$-value is
-$3.9\times10^{-4}$, Holm rejects, and the Bonferroni $t$ interval widens to
-$[+28.80, +100.43]$ (\texttt{docs/STATS.md} \S5.3;
+$\optWelfareQ$, Holm rejects, and the Bonferroni $t$ interval widens to
+$[\optWelfareLo, \optWelfareHi]$ (\texttt{docs/STATS.md} \S5.3;
 \texttt{multiple\_comparisons.csv}). At roughly fifteen standard errors
-($64.62 / (9.861/\sqrt{5}) = 14.65$) the correction is cheap.
+($\optWelfareMag / (\optWelfareSd/\sqrt{5}) = \optWelfareT$) the correction is cheap.
 
 \emph{The narrower finding.} Of seven cells where B beats A, only two survive
 correction ($0.65$ and $0.50$). The optimum is a two-cell feature, not a region;
@@ -133,13 +133,12 @@ The \emph{location} replicated. On the fresh grid the cell at $0.65$ still ranks
 first of ten, with positive values from $0.35$ through $1.00$, a maximum at
 $0.65$, and negatives below $0.25$: the non-monotone shape H4 asks for, on twenty
 populations that took no part in choosing the cell. Its interval there is
-$[+32.72, +76.17]$, excluding zero ($t = 5.25$ on 19 df,
-$p = 4.6\times10^{-5}$).
+$[\hFourFreshLo, \hFourFreshHi]$, excluding zero ($t = \hFourFreshT$ on 19 df).
 
-The \emph{magnitude and its precision} did not. The fresh estimate is $+54.45$
-against $+64.62$, and, the larger point, the fresh seed sd is $46.42$ against the
-original $9.86$. The published interval was built on a standard deviation nearly
-five times too small, because the cell was selected partly for having an unusually
+The \emph{magnitude and its precision} did not. The fresh estimate is $\hFourFresh$
+against $\optWelfare$, and, the larger point, the fresh seed sd is $\hFourFreshSd$
+against the original $\optWelfareSd$. The published interval was built on a
+standard deviation $\hFourFreshSdRatio$ times too small, because the cell was selected partly for having an unusually
 low one. That is the same pathology \texttt{docs/STATS.md} \S2.2 found for
 algorithmic loss and clearing, appearing in the cell this hypothesis is built on.
 
@@ -154,8 +153,8 @@ configuration \S\ref{sec:h4regime} shows to be deaf to the market's own outcomes
 the shipped value is $0.02$. That experiment was then run: the same ten-by-four
 grid at $0.02$ on the same five seeds has \textbf{no cell of the forty beating
 Environment A}, at any size and any of the four costs, and at $c = 0.01$ the
-difference falls almost monotonically with size from $-0.23$ to $-40.22$. The
-cell that is the optimum here reads $-17.23$ there.
+difference falls almost monotonically with size from $\hFourShippedSmall$ to
+$\hFourShippedFull$. The cell that is the optimum here reads $\hFourShippedOpt$ there.
 
 So H4 as stated is refuted at the configuration the rest of the paper runs, and
 what survives is a narrower statement: in a market whose threshold gate never
@@ -197,17 +196,19 @@ algorithmic mediation decomposes into additive and interaction parts, with the
 interaction estimated rather than assumed. The hypothesis does not predict its
 sign; it predicts the term is estimable and may be near zero.
 
-\emph{Measured.} The interaction is $+16.70$ with a $t$ interval of
-$[-33.42, +66.82]$ and a BCa interval of $[-13.30, +53.05]$; its BH $q$-value
-over the three terms is $0.407$ and it is not rejected (\texttt{docs/STATS.md}
+\emph{Measured.} The interaction is $\hFiveInteraction$ with a $t$ interval of
+$[\hFiveInteractionLo, \hFiveInteractionHi]$ and a BCa interval of
+$[\hFiveInteractionBcaLo, \hFiveInteractionBcaHi]$; its BH $q$-value over the three
+terms is $\hFiveInteractionQ$ and it is not rejected (\texttt{docs/STATS.md}
 \S5.4). Indistinguishable from zero, as H5 allowed.
 
-\emph{The terms that are not zero.} The algorithmic term is $-717.61$
-$[-795.77, -651.37]$ and dominates: mediation costs an order of magnitude more
-welfare than the demographic shift moves it. The exogenous term is $-21.10$, and
-it is where the two methods disagree: its BCa interval $[-41.13, -3.42]$
-excludes zero while its $t$ interval $[-52.53, +10.32]$ and $q$-value of $0.204$
-do not. At five seeds with this skew the BCa interval is optimistic, so the
+\emph{The terms that are not zero.} The algorithmic term is $\hFiveAlgorithmic$
+$[\hFiveAlgorithmicLo, \hFiveAlgorithmicHi]$ and dominates: mediation costs an
+order of magnitude more welfare than the demographic shift moves it. The exogenous
+term is $\hFiveExogenous$, and it is where the two methods disagree: its BCa
+interval $[\hFiveExogenousBcaLo, \hFiveExogenousBcaHi]$ excludes zero while its $t$
+interval $[\hFiveExogenousTLo, \hFiveExogenousTHi]$ and $q$-value of
+$\hFiveExogenousQ$ do not. At five seeds with this skew the BCa interval is optimistic, so the
 defensible reading is a negative sign with unresolved magnitude.
 Figure~\ref{fig:decomp} shows the arithmetic and the scale difference.
 

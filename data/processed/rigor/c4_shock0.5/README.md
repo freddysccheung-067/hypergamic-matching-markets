@@ -27,11 +27,17 @@ explicitly so `epochs_per_gen = 300 // 5 = 60`, matching the generation schedule
 
 | epoch | 0 | 19 | 49 | 99 | 199 | 299 |
 |---|---|---|---|---|---|---|
-| gap, mean | +0.0246 | +0.0520 | +0.0350 | +0.0111 | −0.0009 | −0.0012 |
+| gap, mean | +0.0262 | +0.0520 | +0.0350 | +0.0111 | −0.0009 | −0.0012 |
 | reach, mean | 0.041 | 0.073 | 0.269 | **0.457** | 0.488 | **0.490** |
 
-The gap peaks at +0.0565 (epoch 9) and decays to −0.0012 — proportionally as
+The gap peaks at **+0.0579 at epoch 10** and decays to −0.0012 — proportionally as
 complete a decay as the shipped cell's, from a peak a fifth as large.
+
+*Corrected 2026-10-25.* An earlier version of this table gave the epoch-0 gap as
++0.0246 and the peak as +0.0565 at epoch 9. Both came from an ad-hoc script that
+subtracted seed 42's oracle Gini from every seed's NCF Gini. Computed per seed
+(`paper/gen_numbers.py`, which reads each seed's own oracle file), the values are as
+above. The rows in the table that were computed per seed were already correct.
 
 **0.4616 was reach at epoch 99, not a ceiling.** Over 300 epochs reach reaches
 0.490, so the cell does not isolate a market without coverage learning; it isolates

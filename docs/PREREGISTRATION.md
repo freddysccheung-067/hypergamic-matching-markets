@@ -640,3 +640,31 @@ first-order question about precision. The rule wins.
 headline, for E8's reason: it would replace a committed artefact's value with one
 generated in the session that is also testing it. It is reported beside the
 headline as the replication.
+
+---
+
+## E9 — corrections to earlier entries, found by computing every quoted number
+
+**Written:** 2026-10-25, after the paper's prose was converted to macros that read
+each number from its CSV. Converting them meant recomputing them, and four of the
+numbers recorded in entries above turned out to be wrong. The entries stay as
+written; this one says which figures in them are superseded.
+
+| entry | stated | computed | cause |
+|---|---|---|---|
+| E3c (C4 table) | gap at epoch 0 = +0.0246 | **+0.0262** | the ad-hoc script subtracted seed 42's oracle Gini from every seed's NCF Gini |
+| E3c (C4 text) | peak +0.0565 at epoch 9 | **+0.0579 at epoch 10** | same script, a second time |
+| paper §limits | thread spread 0.006–0.015, between-seed sd 0.011 | **0.0070–0.0154**, sd **0.0159** (NCF Gini, epoch 99, twenty seeds) | 0.006 and 0.011 match no file in `data/processed/`; the computed range matches `docs/INTERFACES.md` §3.1(b) |
+| paper §sensitivity | δ intervals "about 0.012 wide"; β/α "twice", shock "four times" as far | BCa widths average **0.013**; β/α moves the gap **3.4×**, shock **11×** as far as δ | the ratios had been typed from memory; `docs/STATS.md` §4.2 already said three and ten |
+| E7b, ledger | `long300` row not regenerated | `long300_1t` row **added** to `intervals.csv` | the interval pipeline reproduced all 35 committed rows exactly, so adding a regime was safe; no existing row changed |
+
+**What does not change.** None of these alter a verdict. The C4 peak is a fifth of
+the shipped cell's either way; the thread spread is the same order as the
+between-seed sd either way; δ is still the flattest axis by a wide margin.
+
+**Why it happened.** Every one was a number typed into prose or a log by hand,
+from a calculation that was not saved. That is the failure mode `paper/gen_numbers.py`
+exists to remove, and these were the numbers it had not reached yet. Every number
+in `paper/main.tex` and `paper/sections/*.tex` that is a result rather than a
+setting now reads a macro; `paper/verify.py` fails the build on an undefined one
+and reports an unused one.
