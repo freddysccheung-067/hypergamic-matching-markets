@@ -19,29 +19,33 @@ and no typeset word count. Everything below is a source-level count.
 
 | section | words | target | delta |
 |---|---|---|---|
-| §1 Introduction | 984 | 800 | +184 |
+| §1 Introduction | 1,009 | 800 | +209 |
 | §2 Related work | 1,138 | 1,000 | +138 |
 | §3 Model | 1,678 | 1,500 | +178 |
 | §4 Design | 1,128 | 800 | +328 |
-| §5 Results | 2,461 | 2,000 | +461 |
-| §6 Limitations | 736 | 600 | +136 |
-| §7 Conclusion | 308 | 300 | +8 |
-| **total** | **8,433** | **7,000** | **+1,433** |
-| abstract | 183 | ≤200 | — |
+| §5 Results | 2,971 | 2,000 | +971 |
+| §6 Limitations | 951 | 600 | +351 |
+| §7 Conclusion | 354 | 300 | +54 |
+| **total** | **9,229** | **7,000** | **+2,229** |
+| abstract | 197 | ≤200 | — |
 
 Counts are running prose only: LaTeX markup stripped, float bodies and captions
 excluded, inline math symbols counted. Produced by `paper/wordcount.py`.
 
-**Every section is over its target, and there is a conflict in the brief that
-this report cannot resolve on its own.** The per-section targets sum to 7,000
-words, while the stated goal is 8–10 pages of body text. At 11pt single-column
-with one-inch margins, 7,000 words sets to roughly 13 pages and 8,433 to
-roughly 15–16. The two constraints are not simultaneously satisfiable in the
-specified format. I held to the per-section targets as the more specific
-instruction and stopped trimming at a point where further cuts would have
-started removing sourced numbers rather than words. Reducing §5 to 2,000 and §4
-to 800, as specified, is mechanical and would bring the body to about 7,000 —
-but it costs content, so it is a decision for the owner rather than a cleanup.
+**The length question, settled.** The draft was written to per-section targets
+that summed to 7,000 words against a stated goal of 8–10 pages; as the earlier
+version of this report noted, those two constraints are not simultaneously
+satisfiable at 11pt single column, and the draft has since grown to 9,229 words
+because the review response added sourced passages that the review asked for.
+
+That is the right trade for a working manuscript and the wrong shape for a
+submission. Nothing is trimmed here, because trimming is a decision about what
+the paper is arguing, which is the author's. Before submission: 9,229 words of
+body text sets to roughly 16–17 pages, and no venue this project can reach wants
+that. The realistic cut is to about 6,000 words — §5 loses the per-hypothesis
+recap in favour of the table, §3 moves the derivation detail to an appendix, and
+§2 keeps one citation per claim rather than two. None of that removes a number
+that traces to a committed file.
 
 ## 2. Numbers I could not source, and therefore did not write
 

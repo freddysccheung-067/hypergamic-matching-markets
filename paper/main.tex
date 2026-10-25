@@ -63,16 +63,15 @@ type; a neural collaborative filter produces top-20 shortlists; truncated
 deferred acceptance clears the market over those shortlists and nothing else.
 Exposure Gini under the learned ranker exceeds an oracle's by $+0.0251$
 $[+0.0155, +0.0347]$ over five seeds at a hundred epochs. Extending to three
-hundred shows that is not a floor: the gap peaks at $+0.3055$ near the start and
-is below $0.001$ from about epoch 250, where it stops being distinguishable from
-flat at five seeds. That is a bounded residual, not a demonstrated limit: a flat
-tail is also what a very slow decay looks like, and the design cannot separate
-the two. The ordering is positive in all twelve cells of a parameter sweep, but
-its size varies fivefold, and the attribution to the filter learning coverage
-fails in the one cell where coverage never climbs, so the mechanism is
-established at one point and not as a general property. A companion
-institutional comparison yields an interior welfare optimum two cells wide.
-Every parameter is uncalibrated and five seeds carry every headline.
+hundred shows that is not a floor: the gap peaks at $+0.3055$ and is below
+$0.001$ from about epoch 250, where it stops being distinguishable from flat.
+That is a bounded residual rather than a demonstrated limit --- a flat tail is
+also what a very slow decay looks like. The ordering is positive in all twelve
+cells of a parameter sweep, but its size varies fivefold, and the attribution to
+the filter learning coverage fails in the one cell where coverage never climbs,
+so the mechanism is established at one point, not as a general property. A
+companion institutional comparison yields an interior welfare optimum. Every
+parameter is uncalibrated and five seeds carry every headline.
 \end{abstract}
 
 \input{sections/intro}
