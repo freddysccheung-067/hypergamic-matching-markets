@@ -1,13 +1,16 @@
 # Literature
 
-Thirty-five sources, ordered by how much they bear on this project rather than alphabetically.
+Thirty-eight sources, ordered by how much they bear on this project rather than alphabetically.
 The five marked **★ load-bearing** are the entries a reviewer would use to decide whether the
 work is novel, correct, or redundant.
 
-Every entry below was verified in this session: bibliographic data against the Crossref or
-OpenAlex record for the DOI, and the claim against the abstract, landing page, or full text.
-Where an abstract was unavailable from the publisher, the entry says so. One entry
-(Bilderbeek, 2026) is not indexed anywhere and was verified by reading the document itself.
+Every entry below was verified: bibliographic data against the Crossref or OpenAlex record for
+the DOI, and the claim against the abstract, landing page, or full text. Where an abstract was
+unavailable from the publisher — or the paper is paywalled and only an author copy was reachable
+— the entry says so. One entry (Bilderbeek, 2026) is not indexed anywhere and was verified by
+reading the document itself. The last three entries were added in the revision of 2026-10-25 to
+cover cold start, exploration, and dynamic matching, and each was checked against the publisher
+record before being cited.
 
 ---
 
@@ -614,3 +617,73 @@ here is anchored to data, so the comparative statics are claims about the model 
 **What we add.** A model whose results are reported as a function of the unanchored knobs rather
 than at a single setting, which is the mitigation this literature recommends and few papers
 implement.
+
+---
+
+## A. I. Schein, A. Popescul, L. H. Ungar & D. M. Pennock (2002). *Methods and Metrics for Cold-Start Recommendations*. Proceedings of the 25th Annual International ACM SIGIR Conference, 253–260. DOI 10.1145/564376.564421
+
+**Claim.** Recommendations are required for items that no user has yet rated, and the standard
+collaborative approach has no signal for them; combining content and collaborative data in one
+probabilistic model (a three-way aspect model over user, item and content) beats either alone on
+this problem, and evaluation needs metrics that expose the cold-start case rather than hiding it
+in aggregate accuracy.
+
+**Method.** Probabilistic latent-variable model over user × item × content, evaluated with
+coverage-aware metrics on movie data. *(Publisher abstract unavailable without subscription; the
+claim is taken from the paper's freely available author copy.)*
+
+**Relevance.** The definitional reference for "cold start", and the sense in which this paper's
+title uses it: the ranker is asked to rank agents it has no interactions with. Also the source of
+the point that aggregate accuracy is the wrong metric for the cold-start case, which is why this
+paper measures exposure distribution rather than mean rank quality.
+
+**What we add.** Schein et al. treat cold start as a prediction problem to be solved with side
+information; here it is a *market* property whose consequence is an exposure distribution, and the
+result is that the distribution converges without any side information being supplied — through
+the feedback loop alone. We do not compare against a content-based remedy and do not claim one
+would fail.
+
+---
+
+## L. Li, W. Chu, J. Langford & R. E. Schapire (2010). *A Contextual-Bandit Approach to Personalized News Article Recommendation*. Proceedings of the 19th International Conference on World Wide Web, 661–670. DOI 10.1145/1772690.1772758
+
+**Claim.** Choosing what to show a user is a contextual bandit problem, not a supervised ranking
+problem, because the feedback is only available for what was shown. An upper-confidence-bound
+algorithm over a linear model (LinUCB) beats supervised and non-contextual baselines on a live
+news recommendation task, and can be evaluated offline by replaying logged events.
+
+**Method.** LinUCB with disjoint and hybrid linear models; offline evaluation by the replay
+method on the Yahoo! Today Module dataset, plus a live bucket test.
+
+**Relevance.** The exploration literature this paper's ranker does not participate in. Every arm
+here exploits its estimate; none is optimistic about unseen agents. That is the structural reason
+a cold start exists at all in this model, and it is the intervention a future study should run
+rather than the ones attempted here.
+
+**What we add.** Nothing on the algorithmic side — LinUCB is the right tool and we do not use it.
+The contribution is the observation that the exploration question and the *horizon* question are
+different: an explore-then-exploit ranker would move reach directly, and this paper shows why a
+rank-training intervention cannot separate the two effects.
+
+---
+
+## M. Akbarpour, S. Li & S. Oveis Gharan (2020). *Thickness and Information in Dynamic Matching Markets*. Journal of Political Economy 128(3), 783–815. DOI 10.1086/704761
+
+**Claim.** In a market where agents arrive and depart stochastically, there is a trade-off between
+the thickness of the pool (more candidates, so better matches) and the cost of waiting for it to
+thicken, and the optimal policy depends on how information about match quality is produced over
+time. Delaying a match can be welfare-improving even when a match is available now.
+
+**Method.** Theoretical model of dynamic matching on a network with stochastic arrivals and
+departures, with the composition of the pool moving over time; comparative statics on thickness,
+information and waiting.
+
+**Relevance.** The literature this model's population layer does not belong to. Here there are no
+arrivals and no departures: generational turnover replaces agents and nobody enters an empty
+market or leaves in response to an outcome. Every result in this paper is therefore about a
+transient that ends rather than about a steady state that persists, and this is the paper that
+explains what the steady-state question would be.
+
+**What we add.** Nothing to that theory. We add the observation that a closed population makes the
+exposure gap a transient by construction, which is why the paper's central claim is about horizon
+rather than about equilibrium — and `docs/ROADMAP.md` §1 states what an open market would require.
