@@ -179,3 +179,51 @@ initial condition, not an estimate of a parameter, and the prediction it is used
 to test (the epoch-0 gap is much smaller) is unaffected by whether 50 or 60
 passes were used. A reader who wants the arm run at a different pass count can
 pass `--warm-passes`; the pass count is a column in the output.
+
+---
+
+## E3b — the frozen-ranker result was degenerate, and what to do about it
+
+**Written:** 2026-10-25, after the C3 run and **before** the follow-up it
+describes. Appended because E3(i) did not test what it was meant to test.
+
+**What happened.** E3(i) froze the ranker after epoch 6, the peak of the *gap*.
+Reach at epoch 6 is 0.041: the model has barely trained, so every agent's
+shortlist is nearly the same before and after the freeze, and the frozen arm's
+NCF Gini is constant to the last digit from epoch 6 to epoch 99
+(0.959983 -> 0.959983 on seed 42, and identically on the other four). The
+prediction "the gap stays at its peak" is therefore satisfied **trivially**: a
+ranker that cannot rank cannot change what it ranks, so the arm says nothing
+about whether continued training is what closes the gap. Reporting it as
+confirmation would be reporting an identity as a mechanism.
+
+**The informative version.** Freeze at epochs where the ranker can already
+rank, and where the gap is still falling. Two arms, same five seeds, 1 thread,
+100 epochs:
+
+- **frozen20** — `freeze_after = 20`. Reach is expected to be well above 0.5 by
+  then (a trajectory property to be measured, not asserted), so the ranker's
+  scores are informative and the market keeps both shortlists and matching.
+- **frozen40** — `freeze_after = 40`, a later point, where the control gap is
+  roughly half its peak.
+
+**Prediction.** If continued training is what closes the gap, then in each arm the
+gap at epoch 99 stays within one final-epoch seed sd of its own value at the
+freeze epoch, and the paired (frozen − control) difference at epoch 99 is
+positive and large. Concretely: for `frozen40` the difference is at least half
+the control's remaining decay from epoch 40 to epoch 99.
+
+**What would falsify it.** A frozen arm whose gap continues to fall by more than
+one seed sd after the freeze. That would mean the decay is driven by something
+that runs whether or not the ranker trains — θ relaxation, turnover, or the
+matching itself — and the paper's mechanism story is wrong.
+
+**What C3's warm arm already establishes, and does not.** Reach at epoch 0 rises
+from 0.041 (control) to 0.861 (warm). The epoch-0 gap falls from +0.3055 to
++0.1079, a 65% reduction — so starting informed does shrink the initial gap, as
+predicted. But the terminal gap also falls, from +0.0224 to +0.0132 (paired
+difference -0.00924, t(4) = -4.78), which E3(ii) predicted would be *roughly
+unchanged*. And 67% of the decay survives (warm decay -0.1889 against control
+-0.2831). So E3(ii) is **half confirmed and half refuted**: the start is
+manipulable, the terminal level is not invariant, and most of the decay is not
+explained by starting from ignorance.
