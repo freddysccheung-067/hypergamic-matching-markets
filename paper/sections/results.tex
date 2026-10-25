@@ -124,10 +124,12 @@ executed in the same session, at the same thread count, as a regeneration of
 42--61 for comparison. Every quantity listed below is a twenty-seed point
 estimate at 1 thread.
 
-The fresh gap is $+0.0253$ $[+0.0217, +0.0290]$ against $+0.0225$
-$[+0.0187, +0.0264]$ on the exploratory set: inside the pre-registered interval,
-and if anything slightly larger. The exposure Gini itself is $0.6722$ against
-$0.6727$, the oracle level $0.6468$ against $0.6502$, and the arm ordering
+The fresh gap is $\gapFresh$ $[\gapFreshLo, \gapFreshHi]$ against $\gapExploratory$
+$[\gapExploratoryLo, \gapExploratoryHi]$ on the exploratory set: inside the
+pre-registered interval,
+and if anything slightly larger. The exposure Gini itself is $\giniNcfFresh$ against
+$\giniNcfExploratory$, the oracle level $\giniOracleFresh$ against $\giniOracleExploratory$,
+and the arm ordering
 (\textsf{popularity} $>$ \textsf{ncf} $>$ \textsf{oracle} $>$ \textsf{random})
 holds on all twenty seeds. No quantity moved outside its interval and no ordering
 reversed, which is what E1 predicted.

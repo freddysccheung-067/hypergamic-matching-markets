@@ -112,6 +112,50 @@ def gap_series() -> dict[int, float]:
     return {int(r["epoch"]): float(r["gap_mean"]) for r in rows}
 
 
+def twenty_seed(directory: str) -> dict[str, tuple[float, float, float]]:
+    """Mean, sd and 95% t bounds over the twenty seeds in a rigor subdirectory.
+
+    Reads the per-seed ``metrics_seed<N>.csv`` files written by
+    ``scripts/run_rigor_base.py`` and takes the final epoch of each arm. A gap is
+    formed per seed and then averaged, never as a difference of arm means: the
+    arms inside one file share a population, so pairing is what makes the gap an
+    observation rather than a comparison of two independent samples.
+
+    Returns ``{quantity: (mean, lo, hi)}`` for the three quantities the fresh-seed
+    paragraph quotes. The t interval is the one to read at n = 20
+    (``docs/STATS.md`` §1), so only that construction is returned.
+    """
+    files = sorted((RIGOR / directory).glob("metrics_seed*.csv"))
+    if not files:
+        raise FileNotFoundError(
+            f"no metrics_seed*.csv in data/processed/rigor/{directory}; run "
+            f"scripts/run_rigor_base.py for that directory first"
+        )
+
+    per_seed: dict[str, list[float]] = {"gini_ncf": [], "gini_oracle": [],
+                                        "gini_gap": []}
+    for path in files:
+        last = None
+        rows = read_csv(path)
+        epochs = {int(r["epoch"]) for r in rows}
+        last = max(epochs)
+        final = {r["arm"]: float(r["gini"]) for r in rows if int(r["epoch"]) == last}
+        per_seed["gini_ncf"].append(final["ncf"])
+        per_seed["gini_oracle"].append(final["oracle"])
+        per_seed["gini_gap"].append(final["ncf"] - final["oracle"])
+
+    # Two-sided 95% t at n = 20 (19 df).
+    tcrit = 2.093
+    out: dict[str, tuple[float, float, float]] = {}
+    for key, values in per_seed.items():
+        n = len(values)
+        m = sum(values) / n
+        var = sum((v - m) ** 2 for v in values) / (n - 1)
+        se = (var / n) ** 0.5
+        out[key] = (m, m - tcrit * se, m + tcrit * se)
+    return out
+
+
 def main() -> None:
     live = regime_row("gini_gap_ncf_minus_oracle", "live100")
     base = regime_row("gini_gap_ncf_minus_oracle", "base20")
@@ -243,6 +287,27 @@ def main() -> None:
         rf"\newcommand{{\nRejectBh}}{{{int(mc['n_reject_bh_q05'])}}}",
         rf"\newcommand{{\nRejectHolm}}{{{int(mc['n_reject_holm_05'])}}}",
         rf"\newcommand{{\fwerUncorrected}}{{{f(mc['fwer_uncorrected_independent'], 3)}}}",
+        "",
+    ]
+
+    # ── The fresh-seed replication (PREREGISTRATION E1) ──────────────────────
+    # Both sets at 1 thread, one session. `fresh` is seeds 100-119; `exploratory`
+    # is 42-61 regenerated rather than the committed rigor/base/, which predates
+    # the current code and no longer reproduces (docs/REVIEW_RESPONSE.md, A3).
+    fresh = twenty_seed("fresh")
+    expl = twenty_seed("exploratory_1t")
+    lines += [
+        "% ── The fresh-seed replication (rigor/fresh, rigor/exploratory_1t) ──────",
+        rf"\newcommand{{\gapFresh}}{{{f(fresh['gini_gap'][0], 4, True)}}}",
+        rf"\newcommand{{\gapFreshLo}}{{{f(fresh['gini_gap'][1], 4, True)}}}",
+        rf"\newcommand{{\gapFreshHi}}{{{f(fresh['gini_gap'][2], 4, True)}}}",
+        rf"\newcommand{{\gapExploratory}}{{{f(expl['gini_gap'][0], 4, True)}}}",
+        rf"\newcommand{{\gapExploratoryLo}}{{{f(expl['gini_gap'][1], 4, True)}}}",
+        rf"\newcommand{{\gapExploratoryHi}}{{{f(expl['gini_gap'][2], 4, True)}}}",
+        rf"\newcommand{{\giniNcfFresh}}{{{f(fresh['gini_ncf'][0], 4)}}}",
+        rf"\newcommand{{\giniNcfExploratory}}{{{f(expl['gini_ncf'][0], 4)}}}",
+        rf"\newcommand{{\giniOracleFresh}}{{{f(fresh['gini_oracle'][0], 4)}}}",
+        rf"\newcommand{{\giniOracleExploratory}}{{{f(expl['gini_oracle'][0], 4)}}}",
         "",
     ]
 
