@@ -1,0 +1,84 @@
+% ---------------------------------------------------------------------------
+% Section 6: Limitations (target 600 words). Sharpened from README.md and
+% docs/THESIS.md.
+% ---------------------------------------------------------------------------
+
+\section{Limitations}
+\label{sec:limits}
+
+Ordered by how much each constrains what the results can mean, not by how easy
+it is to fix.
+
+\textbf{Every parameter is a modelling choice.} Nothing is calibrated to data:
+the trait distributions are drawn for tractability, the taste and chemistry
+parameters have no empirical anchor, and neither the signalling cost, the
+defection penalty, nor the entry filter is estimated. The results bound what this
+mechanism \emph{can} do under a stated utility and say nothing about whether any
+population sits at these parameters. Because traits are $z$-scored before
+entering a utility, only rank order matters --- but a distribution with no
+variance would still destroy its term, so the defaults are deliberately not
+self-report-shaped and the attractiveness result is an upper bound on its
+influence rather than an estimate. The mitigation is that the two most
+consequential knobs are reported as a function of their value. It is partial: a
+sweep over four knobs is not a calibration.
+
+\textbf{Five seeds carry every headline.} The power analysis says this is
+adequate for sign and inadequate for width on two quantities, and both matter. An
+interval on a model's seed-averaged quantity is not an interval on the model's
+answer. The five seeds were also not chosen for this purpose; they predate the
+twenty-seed run, which shows them to be an unusually low-variance block for two
+of the seven tracked quantities.
+
+\textbf{One population size carries the headline.} $N = 1000$ is the only size
+at which the full comparison was run, because the full-information benchmark
+needs an $O(N^2)$ preference matrix and is capped at $N = 5000$. Clearing rate is
+not comparable across population sizes at fixed $k$ --- it falls roughly as
+$1/N$ --- and scaling $k$ to compensate makes the swipe log grow superlinearly.
+The clearing figures are properties of $N = 1000$ at $k = 20$ and do not
+transport.
+
+\textbf{There is no closed loop through preferences.} The ranker changes who is
+visible, not what anyone wants: the preference generator takes no shown-set
+argument. A reader looking for the classic feedback story will not find it here.
+A different loop exists, through the acceptance threshold, and it is live at the
+shipped configuration; but it relaxes within a few epochs, so even the loop that
+is present is a transient. This is the largest gap between this model and the
+recommender literature it engages, and it is a structural absence rather than a
+measurement problem.
+
+\textbf{There is no attrition.} Nobody joins or leaves in response to outcomes,
+so there is no selection at the extensive margin and a market that deteriorated
+enough to empty out could not show it. This is why one hypothesis is untested
+(\S\ref{sec:h6}), and it bounds the welfare reading: a mechanism that repelled
+participants would look free.
+
+\textbf{The defection penalty prices defection without deterring it.} It is
+charged after a match dissolves; no agent proposes differently, sets a different
+threshold, or stays longer because of it. Making it deter would mean feeding it
+into the proposal decision --- a different model whose institutional result has
+not been measured.
+
+\textbf{The benchmark is not an achievable institution.} The oracle ranks by true
+utility, so every gap measured against it is a distance from an unattainable
+bound rather than a choice an agent could make. Conversely, the institutional
+comparison scores B against an oracle A, and against an NCF-mediated A the
+ordering reverses. Both facts bound what the A/B result means: it is about the
+quality of A's visibility, not institutional form in general.
+
+\textbf{Truncation is imposed, not strategic.} Agents receive their top-$k$ list
+and do not game it, so the strategic theory of truncation does not apply
+directly, and the model cannot say what happens if agents report their lists
+instead.
+
+\textbf{Validation establishes verification, not validity.} Agreement with
+closed-form results shows the machinery is correct; it establishes nothing about
+the recommender, because the deficit those theorems characterise is measured
+under a compatibility constraint on a single scalar --- exactly what makes it
+tractable --- while this model's constraint is visibility through an estimated
+multi-attribute utility. A matching deficit is not evidence that the
+recommender's unmatched mass has a closed form. It does not appear to have one.
+
+\textbf{Nothing here is a claim about people.} The intent type has no
+instrument, the utility has no estimated weights, and the environments are model
+constructs. Neither is ethically superior: B carries an entry filter that
+excludes agents, and the model prices that exclusion rather than endorsing it.

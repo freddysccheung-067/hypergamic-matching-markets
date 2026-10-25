@@ -1,0 +1,196 @@
+% ---------------------------------------------------------------------------
+% Section 3: Model. The three layers, the two environments, the utility, the
+% theta gate and its binding condition.
+% Sources: docs/THESIS.md, experiments/base.yaml, docs/THEORY.md (referenced,
+% not transcribed). No empirical numbers appear in this section except the
+% binding condition, which is arithmetic from the shipped config.
+% ---------------------------------------------------------------------------
+
+\section{Model}
+\label{sec:model}
+
+The model is a finite two-sided market cleared once per epoch, with a learned
+ranker standing between the two sides. Three layers run in a loop: agents form
+preferences, a collaborative filter decides what each agent can see, a matching
+algorithm clears the market over what was visible, and the clearing outcome
+feeds back into the acceptance threshold that gates the next epoch's visibility.
+This section describes each layer, the two institutional environments the paper
+compares, the utility that drives them, and the condition under which the
+feedback channel is live rather than decorative.
+
+\subsection{The agent layer}
+
+Agents are split into a proposer side $M$ and an acceptor side $W$ of equal
+size. Each carries a four-dimensional state vector $[s, a, c, t]$: status,
+attractiveness, sociability and age. Status is drawn lognormal; the other three
+are clipped to the unit interval. Every trait is $z$-scored against population
+statistics before it reaches a utility, so each weight below is expressed
+against a unit-variance trait and the weights are directly comparable to one
+another. The choice to $z$-score is load-bearing for interpretation: it means
+only the \emph{rank order} of a trait within the population matters, and a
+distribution with no variance would annihilate its term.
+
+Two further agent attributes drive the institutional comparison. A private
+\emph{intent} type $\tau_i \in (0,1]$ is each agent's willingness to commit,
+invisible to others. A pairwise \emph{alignment} $g_{ij} \in [0,1]$ measures
+value compatibility and enters the dissolution hazard rather than the utility.
+
+\subsection{The recommender layer}
+
+A neural collaborative filter with a generalised matrix factorisation path and
+an MLP path is trained on the swipe log --- the record of which pairs were
+liked --- and scores every unseen pair. Each agent then keeps a top-$k$
+shortlist of length $k = 20$ from those scores, and \emph{nothing outside that
+shortlist is visible to the matching step}. This is the architectural commitment
+the paper rests on: the filter is not a convenience wrapper around a preference
+list, it \emph{is} the preference list. It is also why a preference expressed
+over this list is not the preference the same agent holds over the population,
+which is the point of departure for the whole exercise.
+
+The ranker is deliberately off-the-shelf. It is cited for the estimator and not
+for a result about markets, and the contribution would be void if it depended on
+a novel architecture.
+
+\subsection{The matching layer}
+
+Clearing is a truncated deferred-acceptance pass over the shortlists, returning
+the matched pairs and a blocking-pair count. Truncation matters: with lists
+truncated at $k$, the procedure is the classical algorithm run on top-$k$ lists
+rather than on full lists \citep{gale1962}, and the classical stability
+guarantee does not carry over unchanged \citep{roth1999}. It also means the
+clearing bias is a property of the procedure class and not of the algorithm
+specifically, as the wage-forming counterpart of the same procedure shows
+\citep{kelso1982}. A full-information arm ranks by true utility under the same
+proposer direction and the same shortlist length, and is the benchmark against
+which algorithmic loss is measured.
+
+Two properties of the clearing step bound what any $W$-side level can mean.
+Deferred acceptance with $M$ proposing returns the proposer-optimal matching,
+which is simultaneously the acceptor-pessimal one: among all stable matchings,
+every acceptor receives her worst \citep{roth1982,knuth1996}. Since hypergamy
+lives in the acceptor's utility, this bias lands on exactly the side the paper
+is about. The full-information and mediated arms use the same direction, so the
+\emph{gap} between them is far less affected than either absolute level. Any
+$W$-side level reported here is a lower bound across stable matchings and must
+never be compared against a $W$-proposing baseline without saying so.
+
+\subsection{The utility}
+
+Utility is additive over four terms: a status term, an attractiveness term, a
+distance penalty, and an indicator bonus for a status surplus. The bonus is what
+makes the model hypergamic rather than merely assortative --- it rewards a
+partner at or above the agent's own status by a margin $\delta$, and is the
+model's operationalisation of the requirement that a partner rank at or above
+you rather than beside you.
+
+Two parameters modify the utility's realised shape. A per-agent lognormal
+multiplier with coefficient of variation $\sigma_{\text{taste}}$ introduces taste
+heterogeneity, so different agents weight the same traits differently --- the
+same device by which idiosyncratic tastes are added to a transferable-utility
+marriage model \citep{choo2006}. A persistent pairwise chemistry shock with
+standard deviation $\sigma_{\text{shock}}$, drawn once per ordered pair and held
+across epochs, enters in absolute utility units. Neither has an empirical
+anchor, and \S\ref{sec:sensitivity} treats both as knobs whose value changes the
+headline rather than as estimates.
+
+\subsection{The two environments}
+
+Environment A is the global market: a large population, visibility mediated
+globally by the learned ranker, no signalling cost, no entry filter.
+
+Environment B is a subgraph of the \emph{same} population. Agents are drawn into
+a pool of size at most $\phi N$, filtered on an observable value score, and
+within the pool visibility is complete --- every entrant sees every other --- so
+B has information and no liquidity where A has liquidity and no information.
+The comparison is therefore a comparative static in an \emph{institutional}
+parameter at a fixed population, which is a different exercise from the
+comparative statics in market size that the matching literature already treats
+\citep{crawford1991}; changing the subgraph size does move one side's size, and
+that channel is separated from the institution effect by holding the population
+fixed and varying only the shares.
+Proposing in B costs $c_B > 0$ and succeeds with probability $p$, so a
+proposal's presence carries information about the proposer's intent. A
+defection penalty $d$ is charged to a defector after a match dissolves.
+
+The signalling mechanism is the model's core. An agent proposes only when
+$\tau_i V_{ij} p > c$, so the set of proposers is exactly
+$\{i : \tau_i > c/(V_{ij}p)\}$, and the separating threshold is
+\begin{equation}
+\tau^*(c) = \frac{c}{\bar V p}.
+\label{eq:tau-star}
+\end{equation}
+At $c \to 0$ the threshold vanishes, every type proposes, and a received
+proposal carries no information about intent: the posterior equals the
+population mean. This is a pooling outcome reached through a \emph{cost}
+channel rather than through unobservable quality \citep{akerlof1970}, and the
+paper treats it as an analogy to the classical lemons result rather than as an
+application of it. At $c > 0$ the threshold is positive, low-intent agents exit
+by their own incentive to avoid the cost, and the posterior rises: a separating
+outcome in the single-crossing sense \citep{spence1973}. A and B are therefore
+two settings of one parameter, not two theories.
+
+An agent who cannot infer intent from a proposal must use something else, and
+the model's rational response is to raise the bar on observables. That is the
+acceptance threshold $\theta$, and its derivation from the pooling result rather
+than its assumption as an exogenous contagion is the content of H2.
+
+\subsection{Welfare, and the comparability rule}
+
+Welfare is defined per epoch over the whole population: the value created by
+matched pairs, less the signalling cost spent on proposals, less the loss from
+dissolved matches including the defection penalty.
+
+The accounting rule is what makes the comparison meaningful. Agents excluded
+by B's entry filter are not deleted, and agents who fail to match inside B are
+not dropped: every agent appears in the welfare sum exactly once, and an agent B
+excludes is scored at whatever A would have given them. Without this rule an
+entry filter would look like a gain for the purely arithmetic reason that it
+removes the agents it cannot serve. This is a response to a known objection
+rather than a safeguard the project devised --- restricting choice can raise the
+welfare of those inside the restriction \citep{halaburda2018} --- and the model
+prices the cost to non-participants instead of ignoring it.
+
+Both accountings are computed. The common one, over all $N$ agents, is the
+number the paper reports. The selected one, over entrants only, is computed so
+that the selection artefact can be reported honestly rather than hidden, and is
+never quoted as a headline.
+
+\subsection{The $\theta$ gate and its binding condition}
+
+The one feedback channel in the model runs from clearing outcomes to
+visibility. After each epoch, an acceptor whose received proposal count is
+informative updates $\theta$; $\theta$ is the quantile of her own utility
+distribution above which a candidate is admissible, so raising $\theta$ shortens
+her admissible set and lowering it lengthens it.
+
+The gate binds only under a condition that is worth stating exactly, because
+several results below are regime-specific and the regime is set by it. Let
+$\phi$ be the target admissible fraction --- the share of candidates an agent
+finds admissible at epoch 0 --- and let $k$ be the shortlist length. An agent's
+admissible set at epoch 0 has about $\phi N$ members. The gate can only truncate
+an agent's visibility if that set is \emph{shorter} than the shortlist, since
+otherwise she takes the top $k$ of a larger pool wherever $\theta$ sits and the
+update moves nothing. So the gate binds when
+\begin{equation}
+\phi < \frac{2k}{N}.
+\label{eq:gate}
+\end{equation}
+At the shipped values $k = 20$ and $N = 1000$ this is $\phi < 0.04$. The config
+ships $\phi = 0.02$, inside the binding region; the earlier shipped value was
+$\phi = 0.2$, outside it, and the ablation data for that regime is labelled
+\emph{inert} throughout. The factor of two in \eqref{eq:gate} reflects that the
+relevant comparison is against the candidate set on each agent's own side of the
+market rather than against the whole population.
+
+Three consequences follow, and they are used later. First, $\phi$ and $k$
+interact: raising the shortlist length or lowering the population requires
+lowering $\phi$ to keep the gate live, and the configuration validator warns
+when the rule is broken. Second, the difference between an inert run and a live
+run is a statement about whether the market responds to its own clearing
+outcomes, so an ablation measured at $\phi = 0.2$ is not a noisy version of one
+measured at $0.02$ --- it is a different dynamical system. Third, the gate's
+liveness is a property of one epoch's calibration, and it relaxes: the update
+pulls $\theta$ toward a yield in the unit interval from an initial value far
+above it, so the gate truncates at the start and stops truncating within a few
+epochs. That relaxation is why the live and inert regimes produce nearly
+identical final-epoch gaps despite different trajectories.

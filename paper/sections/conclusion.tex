@@ -1,0 +1,36 @@
+% ---------------------------------------------------------------------------
+% Section 7: Conclusion (target 300 words).
+% ---------------------------------------------------------------------------
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+A learned ranker between the two sides of a matching market concentrates
+exposure relative to an oracle, and the concentration is a start-up cost rather
+than a standing feature. That is the paper's finding, and it is a finding about
+\emph{when} the measurement is taken as much as about what is measured: at the
+shipped hundred-epoch horizon the gap is $+0.0251$ and looks like a floor; at
+three hundred epochs it has decayed to below $0.001$, and the hundred-epoch
+figure turns out to be fifty-five times its terminal value. A literature that
+reports single-horizon comparisons cannot distinguish a transient from a bias,
+and this mechanism supplies a case where the distinction is decisive.
+
+Three qualifications travel with it. The ordering is robust --- positive in
+every cell of a twelve-cell sweep --- but its size varies fivefold, so no single
+number is "the" gap. The explanation is conditional: the filter learning
+coverage accounts for the decay at the shipped setting and cannot account for it
+where coverage never climbs, and convergence has been tested at only one point
+in parameter space. And the institutional comparison yields an interior optimum
+that survives multiplicity correction but is two cells wide, so it is a location
+with narrow support rather than a curve with a maximum.
+
+Two hypotheses did not survive as stated and one could not be tested. The
+mechanism the second names is absent from the shipped rule, and the model has no
+attrition margin for the sixth. Those are reported as findings rather than
+omissions, because a six-for-six ledger would be evidence of a design that could
+not fail.
+
+What would move this from a model result toward a claim about markets is
+calibration, and the paper does not attempt it. Until then the results bound
+what this mechanism can do under a stated utility, and the bound is the
+contribution.
