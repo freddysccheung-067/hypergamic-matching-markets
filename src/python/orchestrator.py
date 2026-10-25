@@ -300,6 +300,15 @@ class Simulation:
             n_negatives=self.config.ncf.n_negatives,
         )
 
+        # Intervention switches (docs/PREREGISTRATION.md E3). Read once here rather
+        # than per epoch, and both default to the shipped behaviour: None means
+        # train every epoch, 0 means no warm start. The warm start itself is taken
+        # at the first run() call, because the swipe log it trains on is generated
+        # from the epoch-0 states and those exist only inside the loop.
+        self._freeze_after = self.config.ncf.freeze_after
+        self._warm_start_epochs = int(self.config.ncf.warm_start_epochs)
+        self._warm_start_done = False
+
         # Cumulative match counts for the Pareto fit (THEORY.md §8).
         self._cumulative_matches = np.zeros(self.n, dtype=np.int64)
 
@@ -895,7 +904,20 @@ class Simulation:
             swipe_log = None
             if self.recommender == "ncf":
                 swipe_log = generate_swipes(self.states, epoch_config, epoch)
-                self.trainer.train_epoch(swipe_log)
+                # Warm start (docs/PREREGISTRATION.md E3(ii)): pretrain on the
+                # epoch-0 log before the first scoring, so the ranker enters the
+                # market already knowing who it can represent. Done once, inside the
+                # loop, because the log depends on the epoch-0 states.
+                if not self._warm_start_done and self._warm_start_epochs > 0:
+                    for _ in range(self._warm_start_epochs):
+                        self.trainer.train_epoch(swipe_log)
+                    self._warm_start_done = True
+                # `freeze_after` is the last epoch on which the ranker trains. Past
+                # it the market keeps running and the swipe log is still built — it
+                # is what the next epoch's shortlists were scored against — but no
+                # gradient step is taken.
+                if self._freeze_after is None or epoch <= self._freeze_after:
+                    self.trainer.train_epoch(swipe_log)
                 n_swipes = len(swipe_log)
 
                 # Score each side against the *other* side only. The model has no

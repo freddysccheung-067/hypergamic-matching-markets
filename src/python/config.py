@@ -286,6 +286,16 @@ class NCFConfig:
     # so wherever the output is quoted, because runs at different counts are not
     # comparable.
     num_threads: int = 1
+    # ── Intervention switches (docs/PREREGISTRATION.md E3) ────────────────────
+    # Both default to the shipped behaviour. `freeze_after` is the last epoch on
+    # which the ranker trains: None means every epoch, an integer e means epochs
+    # 0..e train and the market then runs on frozen weights to the end of the
+    # horizon. `warm_start_epochs` is the number of passes over the epoch-0 swipe
+    # log taken before the loop starts. Neither is a headline setting; both are
+    # diagnostics for the claim that the gap closes because the ranker keeps
+    # learning.
+    freeze_after: int | None = None
+    warm_start_epochs: int = 0
 
     def __post_init__(self) -> None:
         if self.top_k < 1:
@@ -296,6 +306,14 @@ class NCFConfig:
             raise ValueError("ncf.mlp_layers must contain at least one width")
         if self.num_threads < 1:
             raise ValueError(f"ncf.num_threads must be >= 1; got {self.num_threads}")
+        if self.freeze_after is not None and self.freeze_after < 0:
+            raise ValueError(
+                f"ncf.freeze_after must be >= 0 or None; got {self.freeze_after}"
+            )
+        if self.warm_start_epochs < 0:
+            raise ValueError(
+                f"ncf.warm_start_epochs must be >= 0; got {self.warm_start_epochs}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -307,6 +325,8 @@ class NCFConfig:
             "top_k": self.top_k,
             "n_negatives": self.n_negatives,
             "num_threads": self.num_threads,
+            "freeze_after": self.freeze_after,
+            "warm_start_epochs": self.warm_start_epochs,
         }
 
 

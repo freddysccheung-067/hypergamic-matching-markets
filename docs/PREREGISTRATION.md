@@ -158,3 +158,24 @@ stays below 0.002) is between 120 and 200 epochs on every seed.
 
 **What would falsify it.** Failing TOST at 0.002, or a time-to-threshold outside
 120–200 on any seed. Either is reported as the result.
+
+---
+
+## E3a — calibration of the warm start (appended before the C3 run)
+
+**Written:** 2026-10-25, before `scripts/run_interventions.py` was first run.
+
+E3(ii) says "pretrain until reach at epoch 0 exceeds 0.8" without saying how many
+passes that is. The number was calibrated by running epoch 0 only, at the shipped
+`N = 1000`, one seed, at 1 thread: 0 passes gives reach 0.041, 10 gives 0.082,
+50 gives 0.821. **`--warm-passes 50` is the setting**, chosen because it is the
+first count tried that clears the threshold, and it is recorded here rather than
+left in a shell history.
+
+Disclosed because it is a choice made with data in hand: the threshold came from
+E3, the number of passes was picked to hit it. What that risks is the same
+criticism as any tuning — but the intervention is a manipulation of the
+initial condition, not an estimate of a parameter, and the prediction it is used
+to test (the epoch-0 gap is much smaller) is unaffected by whether 50 or 60
+passes were used. A reader who wants the arm run at a different pass count can
+pass `--warm-passes`; the pass count is a column in the output.
