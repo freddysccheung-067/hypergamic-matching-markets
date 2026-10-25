@@ -405,3 +405,60 @@ gate finding, the H4 result is: an interior optimum at `size_fraction` 0.65 that
 replicates on fresh seeds, in a regime where the market does not learn, with a
 magnitude of roughly +54 rather than +65 and a much wider uncertainty than the
 published interval carries.
+
+---
+
+## E6 — H4 at the shipped gate. **NOT PRE-REGISTERED. Recorded after the fact.**
+
+**Written:** 2026-10-25, after the run. This entry breaks the file's own rule and
+says so at the top, because the alternative — presenting a post-hoc run as though
+it had been predicted — is worse than the breach.
+
+**Why it was run without a prediction.** E2a established that the whole
+institutional grid was measured in the inert regime, and the paper was edited to
+say that whether the optimum survives at the shipped gate "needs the full grid
+re-run and is left open". Leaving a two-hour question open while eight hours of
+budget remained was not defensible, so the grid was re-run. **No prediction was
+committed first.** A reader should weight this result accordingly: it is a
+measurement, and it is the first measurement of this quantity, so there was no
+prior to be biased toward; but it did not pass through the discipline the rest of
+this file imposes.
+
+**Design.** The full 10 × 4 grid, seeds 42–46, `experiments/base.yaml` as shipped
+(`admissible_fraction: 0.02`), output to
+`data/processed/rigor/h4_shipped_gate/`. Identical to the committed institutional
+run in every respect except the gate.
+
+**Result: H4 does not survive at the shipped gate.** No cell in any of the forty
+beats Environment A. The best cell at each cost level, and the whole c = 0.01
+slice:
+
+| rank | size_fraction | mean residual welfare diff | sd |
+|---|---|---|---|
+| 1 | 0.02 | −0.23 | 0.50 |
+| 2 | 0.05 | −1.45 | 2.47 |
+| 3 | 0.10 | −4.89 | 3.90 |
+| 4 | 0.15 | −9.64 | 5.07 |
+| 5 | 0.50 | −10.56 | 12.55 |
+| 6 | 0.25 | −11.39 | 6.39 |
+| 7 | **0.65** | **−17.23** | 13.32 |
+| 8 | 0.35 | −19.47 | 14.75 |
+| 9 | 0.80 | −22.66 | 32.52 |
+| 10 | 1.00 | −40.22 | 27.21 |
+
+At c = 0.05, 0.10 and 0.25 the best cell is also negative (−0.25, −0.28, −0.37).
+The ordering at c = 0.01 is close to monotone in size: welfare falls as the
+subgraph grows, and the cell that was the optimum under the inert gate sits
+seventh of ten.
+
+**What this means.** The interior optimum is a property of a market whose
+threshold gate never binds — the configuration `design.tex` describes as one where
+the market "never responds to its own outcomes". At the shipped gate the
+institutional comparison has no interior optimum at all: B loses everywhere, and
+increasingly so with size. H4, as stated, is refuted at the configuration the
+paper actually runs.
+
+**Not reconciled.** The paper does not now search for a cost level or a size at
+which B wins; that would be the move this file exists to prevent. The result is
+reported as a refutation in a regime, and the inert-regime result is reported
+beside it as a fact about that regime.
