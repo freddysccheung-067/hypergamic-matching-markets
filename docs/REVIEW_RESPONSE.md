@@ -82,46 +82,46 @@ run actually establishes — the interval's width, and that the point estimate m
 by less than its own interval when fifteen seeds are added — and points the reader
 at the sensitivity sweep for the robustness claim.
 
-## 1.5 The counterexample — declined
+## 1.5 The counterexample — superseded: both sides were wrong
 
-This is the review's headline finding and it does not survive checking.
+This was the review's headline finding. It was declined in an earlier round on the
+ground that the cell does not isolate coverage learning, because the oracle arm
+concentrates there too. **That defence rested on a premise the revision has measured
+and found false, so the disposition changes.**
 
-**The review's claim.** "If learning coverage caused the gap to close, the cell
-without coverage learning should retain a larger gap. It does not." Therefore the
-mechanism "has not been tested — it has been contradicted."
+The earlier defence: reach is 0.4616 at `shock_scale` 0.5 against 0.9566 shipped, so
+the filter "never learns coverage" there, and the gap is small because *both* arms
+concentrate — the oracle's own Gini rises from 0.6502 to 0.9019 when the population
+loses heterogeneity — so the cell is not a counterexample.
 
-**Why that is not a contradiction.** Reach falling is not the only thing that
-changes at `shock_scale` 0.5. The oracle's Gini also rises there, from $0.6502$ to
-$0.9019$: the oracle arm concentrates because the population has lost the
-heterogeneity that let a true-utility ranking spread exposure. The gap is a
-*difference between two arms*, so a cell where both arms concentrate is a cell
-where the difference is small for a reason that has nothing to do with the NCF
-catching up. The review's inference assumes the oracle arm is held fixed across
-cells; it is not, and the paper's Table 2 shows that.
+**What the revision established:** the 0.4616 is reach at **epoch 99**. The same
+cell run to 300 epochs reaches **0.490** (`data/processed/rigor/c4_shock0.5/`, five
+seeds, 1 thread). So "reach never climbs here" is false at a longer horizon, and the
+cell is a slower instance of the same process rather than an exception to it.
 
-**The paper already says this, twice.** `paper/sections/results.tex:359--366`:
+**Both the review and the earlier response are therefore wrong about this cell, in
+different directions.** The review read it as a counterexample and it is not one,
+because reach does climb. The earlier response read it as a cell outside the
+mechanism's scope, and it is not that either, for the same reason. What it is: a
+place where the same process runs at half speed, which neither confirms nor refutes
+the mechanism.
 
-> "This is the mechanism switching off, not a small deviation: at low chemistry
-> noise the filter never learns coverage, so the process §[cold-start] identifies as
-> the reason the gap closes is unavailable. The gap is still small and positive
-> there ($+0.0097$), but because *both* arms concentrate and the ranker has not
-> caught up."
+**The mechanism is now reported as untested, which is what the review's second
+paragraph asked for.** The earlier response conceded that reach is never manipulated
+and said no intervention had been run. Two have now been run
+(`docs/PREREGISTRATION.md` E3). The frozen ranker is **uninformative**: freezing the
+weights freezes the shortlists, so the arm is flat by construction and the within-arm
+test cannot separate training from drift (E3b, E3c). The warm start **meets half its
+prediction and refutes the other half**: the epoch-0 gap falls from +0.3055 to
++0.1079 as predicted, the terminal gap also falls (paired −0.00924, t(4) = −4.78)
+where it was predicted unchanged, and two thirds of the decay survives. The paper
+reports the mechanism as a hypothesis this study does not establish.
 
-And `paper/sections/results.tex:186--188`:
+So the disposition is: **the review is right about the conclusion and wrong about
+the reason.** The mechanism claim should not be made, and it is not made — but not
+because the `shock_scale` 0.5 cell contradicts it. Nothing in this grid contradicts
+it. It has not been tested in a way that could be.
 
-> "Not that the mechanism is the one H3 offers (§[sensitivity] finds a cell where
-> coverage never climbs and the gap closes anyway)."
-
-The review says the paper "acknowledges the reversal but does not confront that the
-direction is wrong for its mechanism". The sentence it is quoting is the
-confrontation. The review's own text cites it and then sets it aside.
-
-**What is genuinely wrong, and is now fixed.** The mechanism is asserted from a
-correlation across epochs; reach is never manipulated. The paper says so in
-`results.tex:186` but not prominently enough, and the *causal* claim ("the filter
-learning coverage accounts for the decay") is stronger than an observational
-trajectory supports. The conclusion now says the explanation is conditional and that
-no intervention on reach was run. That is a real weakening and the review earns it.
 
 ## 1.6 No stated rule for BCa over t — fixed
 
