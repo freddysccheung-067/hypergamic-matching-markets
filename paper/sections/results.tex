@@ -67,13 +67,13 @@ shipped: the $\theta$ update reads only a proposal count, never received intent,
 so no path exists by which the predicted slope could appear. Reported as an
 absence of mechanism, not as a refutation. Appendix~\ref{app:hypotheses}, \S H2.
 
-\textbf{H4 (an interior institutional optimum).} At $c_B = 0.01$ there is a
-non-monotone welfare difference with its optimum at subgraph size $0.65$; it
-survives Bonferroni and Holm, two cells wide. Two things qualify it beyond the
-correction: the cell was selected on low variance as well as high mean, and — the
-larger point — the whole grid was measured in the inert gate regime
-($\phi = 0.2$), the configuration the paper elsewhere calls deaf to its own
-outcomes. Appendix~\ref{app:hypotheses}, \S H4; \S\ref{sec:h4regime} below.
+\textbf{H4 (an interior institutional optimum).} Refuted at the configuration
+this paper runs. At $c_B = 0.01$ in the inert gate regime there is a
+non-monotone welfare difference with its optimum at subgraph size $0.65$, which
+survives Bonferroni and Holm; re-run at the shipped gate, no cell of the forty
+beats the global market at any size or cost. The hypothesis therefore holds in a
+regime the rest of the paper does not use and fails in the one it does.
+Appendix~\ref{app:hypotheses}, \S H4; \S\ref{sec:h4regime} below.
 
 \textbf{H5 (an interaction term).} The drift-by-mediation interaction is
 $\hFiveInteraction$, interval $[\hFiveInteractionLo, \hFiveInteractionHi]$, not
@@ -301,11 +301,34 @@ the shipped $0.02$ does not: the optimum cell reads $-17.23$ against the committ
 $+64.62$. The regime, not the code and not the seeds, is the whole difference.
 
 So the interior optimum H4 reports is a property of a market that does not learn
-from its own clearing. Whether it exists at the shipped gate is untested. This
-section does not repair that — it records it. A twenty-seed re-estimate at the
-inert gate is in \texttt{data/processed/rigor/c2\_fresh\_inert/}, but the question
-that matters, whether the optimum survives at $\phi = 0.02$, needs the full grid
-re-run and is left open.
+from its own clearing. That much was established by reproducing the committed
+grid; the next question is whether the optimum survives at the gate the paper
+actually runs, and it does not.
+
+\emph{The grid re-run at the shipped gate.} The full ten-by-four grid was run at
+\texttt{admissible\_fraction} $= 0.02$ on the same five seeds
+(\texttt{data/processed/rigor/h4\_shipped\_gate/}). **No cell of the forty beats
+Environment A.** At $c = 0.01$ the difference is close to monotone decreasing in
+subgraph size, from $-0.23$ at size $0.02$ to $-40.22$ at $1.00$, and the cell
+that was the optimum under the inert gate sits seventh of ten at $-17.23$. At
+$c = 0.05$, $0.10$ and $0.25$ the best cell is negative as well ($-0.25$, $-0.28$,
+$-0.37$).
+
+This result was not pre-registered, and that matters for how much weight it
+carries: it is recorded in \texttt{docs/PREREGISTRATION.md} E6 with that label, on
+the reasoning that a first measurement of a quantity with no prior is weak
+evidence but not biased evidence, and that presenting it as a prediction would be
+worse than the breach. It is also the only measurement of this quantity.
+
+The reading is therefore plain, and it costs the paper one of its two results.
+H4's interior optimum is a property of the regime where the threshold gate never
+binds and the market never responds to its own outcomes. At the configuration the
+rest of the paper runs, Environment B loses everywhere and loses more as it grows,
+and the thin-market penalty dominates the information gain at every size tested.
+The paper does not search for a cost or a size at which B wins; that search is
+what the pre-registration discipline exists to prevent, and the honest report is a
+refutation in the shipped regime alongside a positive result in a regime the paper
+does not otherwise use.
 
 \subsection{Robustness across the parameter sweep}
 \label{sec:sensitivity}

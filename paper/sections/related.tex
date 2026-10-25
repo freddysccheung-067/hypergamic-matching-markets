@@ -87,11 +87,46 @@ bias as a fairness problem, and \citet{sonboli2022} show that in multisided
 settings fairness criteria for different stakeholders conflict.
 
 Every one of these predicts a loop that \emph{persists or compounds}. The result
-here points the other way, and the explanation is that the ranker's deficiency is
-coverage, which training fixes, rather than preference distortion, which it does
-not. That distinction is not in the loop literature and is the claim a reader
-should check hardest, which is why \S\ref{sec:sensitivity} tests it across the
-parameter grid and reports the cell where it fails.
+here points the other way, and the distinction this paper offers is between a
+ranker's deficiency being coverage, which training could fix, and preference
+distortion, which it would not. That distinction is not in the loop literature,
+and the honest state of it after this study is that it remains a hypothesis: the
+trajectory is consistent with it, and neither of the interventions run here
+separates training from reaching (\S\ref{sec:sensitivity},
+\texttt{docs/PREREGISTRATION.md} E3). A reader should check it hardest of
+anything in the paper, and the paper reports that it does not survive being
+checked.
+
+\subsection*{Cold start, exploration, and the dynamic market}
+
+Three literatures bound the question and are not engaged elsewhere in this
+section. The first is \emph{cold start} in recommender systems: \citet{schein2002}
+define the problem as one where recommendations are required for items no user has
+rated, and the standard taxonomy separates item from user cold start. The gap
+measured here is a cold-start quantity in exactly that sense — the ranker is being
+asked to rank agents it has no interactions for — but the literature's usual
+remedies (content features, hybrid models, side information) are not what the
+trajectory shows happening, which is the ranker accumulating interactions until
+coverage saturates.
+
+The second is \emph{exploration}. \citet{li2010} treat the choice of what to show
+as a contextual bandit and make optimism about unseen items the mechanism by which
+an estimator learns. That is precisely the intervention this paper could not
+implement: an explore-then-exploit ranker would deliberately show low-estimate
+agents, which would move reach directly rather than through training. None of the
+four arms here explores. A reader who expects the bandit framing should know that
+the shipped ranker is pure exploitation, that this is why the cold start exists at
+all, and that the paper does not test whether exploring would remove it.
+
+The third is \emph{dynamic matching markets}. \citet{akbarpour2020} model a market
+where agents arrive and depart stochastically and study the trade-off between
+thickness, information and waiting. This paper's market has neither arrivals nor
+departures: generational turnover replaces agents but nobody enters an otherwise
+empty market and nobody leaves in response to an outcome. That is why every result
+here is about a transient that ends, rather than about a steady state that could
+persist — in a market with continuous arrivals some share of the population is
+always at epoch zero, and the steady-state gap is the object of interest there. It
+has not been measured (\texttt{docs/ROADMAP.md} \S1).
 
 Two further results bound what mediation can be credited with.
 \citet{roth1999} show truncating a preference list changes outcomes
