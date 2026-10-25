@@ -175,10 +175,20 @@ The notebook does this walk-up itself. Everything else needs the insert first, o
 `$env:PYTHONPATH = "build\Release"` for the session.
 
 One reproducibility note. Torch's intra-op reductions are not bitwise associative, so the same seed
-at different thread counts gives slightly different numbers — and across a hundred epochs of the
+at different thread counts gives slightly different numbers, and across a hundred epochs of the
 feedback loop that grows to a Gini spread as large as the between-seed one. `ncf.num_threads` is
 therefore pinned to 1 by default and is part of what identifies a run. Raise it for speed and record
-it; see [docs/INTERFACES.md §3](docs/INTERFACES.md).
+it.
+
+**The committed data is archival.** Everything under `data/processed/` was generated before
+`ncf.num_threads` existed, at the count the development machine reports by default (24). Where a
+directory does reproduce exactly, it is at that count and not at the shipped default of 1. Where it
+does not, the cause is a later change to the code that generated it rather than the thread count,
+and its README says so. Each README states the count it was generated at, which directories were
+re-verified by re-running a seed, and which were not. A fresh clone will not regenerate all of these
+files from the shipped config, and it is not meant to: they are the record of what was run, kept so
+the numbers in the paper can be checked without a re-run. For any new work, leave the default alone.
+The three claims get separated in [docs/INTERFACES.md §3.1](docs/INTERFACES.md).
 
 ## Usage
 
