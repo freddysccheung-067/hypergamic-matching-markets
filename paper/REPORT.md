@@ -27,10 +27,19 @@ and no typeset word count. Everything below is a source-level count.
 | §6 Limitations | 951 | 600 | +351 |
 | §7 Conclusion | 354 | 300 | +54 |
 | **total** | **9,229** | **7,000** | **+2,229** |
-| abstract | 210 | ≤200 | — |
+| abstract | 190 | ≤200 | — |
 
 Counts are running prose only: LaTeX markup stripped, float bodies and captions
-excluded, inline math symbols counted. Produced by `paper/wordcount.py`.
+excluded, inline math symbols counted. Produced by `paper/wordcount.py`; the
+abstract figure comes from `paper/wordcount.py --abstract`, which additionally
+drops inline math, so it reads 190 where a plain whitespace count of the same
+passage reads 199.
+
+The abstract was cut from 210 to 190 by deleting words rather than by adding a
+caveat: "finite" came off the market description, "because" became a colon so the
+clause stopped re-explaining the opening claim, "that is not a floor" became "no
+floor", and "where it stops being distinguishable from flat" became
+"indistinguishable from flat". Every number is unchanged.
 
 **The length question, settled.** The draft was written to per-section targets
 that summed to 7,000 words against a stated goal of 8–10 pages; as the earlier
