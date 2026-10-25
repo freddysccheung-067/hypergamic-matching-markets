@@ -18,21 +18,34 @@ hypotheses with a committed interval; the other two have none, for reasons state
 in place.
 
 Two conventions hold. Every interval is a 95\% interval over the seed
-distribution, and at five seeds it is the Student-$t$ interval rather than the
-BCa bootstrap, which attains roughly 84\% coverage at that size and returns a
-half-width narrower than the sample's own standard deviation
-(\texttt{docs/STATS.md} \S1). At twenty seeds the two agree to 0.002 and the BCa
-interval is quoted. Gaps are always the paired per-seed difference, never a
-comparison of two arms' overlapping intervals.
+distribution, and table~\ref{tab:ledger} prints both the Student-$t$ and the BCa
+bounds for every row rather than choosing one silently, because which is
+preferred is a small-sample question and the two disagree at five seeds. The
+$t$ interval is the one with nominal coverage at n = 5; the BCa bootstrap attains
+roughly 84\% there and returns a half-width narrower than the sample's own
+standard deviation (\texttt{docs/STATS.md} \S1). At twenty seeds the two agree to
+0.002. Where a row's interval has been widened for multiplicity, which is the H4
+row only, the caption and the row both say so: the H4 bounds are Bonferroni-$t$
+across the 40 institutional cells, and the uncorrected and Bonferroni-BCa bounds
+are beside them in the text (\S\ref{sec:h4}; \texttt{docs/STATS.md} \S5.3). Gaps
+are always the paired per-seed difference, never a comparison of two arms'
+overlapping intervals.
 
 \input{tables/ledger}
 
 \begin{table}[t]
 \centering
-\caption{The hypothesis ledger: hypothesis, regime, point estimate, 95\%
-interval, verdict. Every row traces to \texttt{data/processed/rigor/} and to
-\S\ref{sec:h3}, \S\ref{sec:h4} or \S\ref{sec:h5}. H1, H2 and H6 are absent
-because no interval is registered for them; see \S\ref{sec:limits}.}
+\caption{The hypothesis ledger: hypothesis, regime, point estimate, both 95\%
+interval constructions, verdict. The $t$ and BCa columns are printed side by side
+so that the choice between them is visible rather than implied; the $t$ interval
+has nominal coverage at five seeds and is the one to read where they disagree.
+The H4 row alone carries a multiplicity correction (Bonferroni across 40 cells)
+and its verdict says so; the other rows are uncorrected and their families are
+stated in the text. ``Best of 40 cells'' is a count of surviving cells, not a
+width in \texttt{size\_fraction}. Every row traces to
+\texttt{data/processed/rigor/} and to \S\ref{sec:h3}, \S\ref{sec:h4} or
+\S\ref{sec:h5}. H1, H2 and H6 are absent because no interval is registered for
+them; see \S\ref{sec:limits}.}
 \label{tab:ledger}
 \end{table}
 
@@ -116,9 +129,17 @@ exposure. Kill condition: the ranker matches or beats the oracle.
 \emph{Measured.} Not refuted. At the shipped regime and horizon the paired gap is
 $+0.0251$ with a $t$ interval of $[+0.0155, +0.0347]$, positive on all five
 seeds (\texttt{docs/STATS.md} \S1, row 2; \texttt{intervals.csv}). The twenty-seed
-replication gives $+0.0237$ $[+0.0204, +0.0271]$ on the BCa interval, ruling out
-a five-seed accident (row 2c). The gap is positive with an interval excluding
-zero in all twelve sweep cells and reverses nowhere (\S\ref{sec:sensitivity}).
+run gives $+0.0237$ $[+0.0204, +0.0271]$, which is the same quantity on a
+superset of the same seeds: seeds 42--46 are the first five of 42--61, so the two
+figures agreeing is expected and is not a test of anything. What it does
+establish is the interval's width --- 0.0035 on the BCa construction at twenty
+seeds against 0.0121 at five --- and that the point estimate moves by less than
+its own five-seed interval when the other fifteen seeds are added. A reader who
+wants the five-seed accident ruled out should read the sensitivity sweep below,
+where the same ordering is measured on twelve independently varied
+configurations, rather than the overlapping-sample agreement. The gap is positive
+with an interval excluding zero in all twelve sweep cells and reverses nowhere
+(\S\ref{sec:sensitivity}).
 
 \emph{Refuted?} No in direction; the substantive version --- that estimation
 error is a \emph{standing} source of concentration --- is refuted by
@@ -152,9 +173,19 @@ gap & $+0.2633$ & $+0.3055$ & $+0.2869$ & $+0.1718$ & $+0.0241$
 \end{tabular}
 \end{center}
 
-The peak is at epoch 6. The hundred-epoch figure is not a floor: the gap must
-still fall by a factor of about fifty-five to reach its terminal value
-(\texttt{docs/STATS.md} \S3.2).
+The peak is at epoch 6. The hundred-epoch figure is not a floor: at epoch 99 the
+gap is roughly fifty times the residual it settles at, though both numbers are
+imprecise enough that the ratio is an order of magnitude, not a measured
+constant (\texttt{docs/STATS.md} \S3.2).
+
+Two cautions on reading the table. The points after epoch 124 are all within one
+final-epoch seed standard deviation of each other ($0.0111$), so the decay is
+established to about epoch 124 and the later entries are ordered noise rather
+than a measured continuation: the claim that the series is \emph{monotone} holds
+only of the points printed, not of the underlying trajectory. And the entries at
+124, 199 and 250--299 are small differences of quantities whose own intervals are
+wide relative to their distance from zero, which is why no ratio is quoted as a
+measurement.
 
 \emph{Convergence test.} The tail mean over epochs 250--299 is $+0.00037$ with a
 95\% $t$ interval of $[+0.000013, +0.000735]$, all five seeds positive
@@ -162,15 +193,25 @@ still fall by a factor of about fifty-five to reach its terminal value
 epoch is $[-0.00029, +0.00105]$ and includes zero
 (\texttt{long\_horizon\_asymptote.csv}). The methods disagree about whether a
 residual exists and agree about its size, at most seven parts in ten thousand of
-the Gini scale. The paper reports convergence to zero with any residual below
-$0.001$ and unresolved at five seeds, and does not quote $+0.00037$ as a floor.
+the Gini scale.
+
+\emph{What ``converges'' is doing here, and what it is not.} The word appears
+elsewhere in this paper and carries more than the design delivers. A
+limit is not observed; a tail is. The measured statement is that the gap is below
+$0.001$ from about epoch 250 and is no longer distinguishable from flat at five
+seeds. A flat tail is also what a very slow decay looks like, and no test here
+separates the two: the stationarity result below cannot, because a ten-epoch
+window at five seeds cannot detect a change of a size that would still matter.
+The paper therefore reports a bounded residual, not a convergence rate, and does
+not quote $+0.00037$ as a floor.
 
 \emph{Stationarity.} A paired test of epochs 290--299 against 280--289 gives
 $+0.00010$ ($p = 0.324$; Wilcoxon $0.313$; three of five seeds higher). The
 largest single step in the last ten epochs is $0.00041$, or $3.7\%$ of the
 final-epoch seed standard deviation (\texttt{long\_horizon\_stationarity.csv}).
 The trajectory has stopped resolving above population noise, so 300 epochs
-suffices here and 100 does not.
+suffices here and 100 does not --- but "stops resolving" is a statement about
+the measurement, not about the process.
 
 \emph{The curve fit, reported and not trusted.} AIC and BIC prefer
 decay-to-constant over exponential decay decisively ($\Delta\mathrm{BIC} = 23.9$

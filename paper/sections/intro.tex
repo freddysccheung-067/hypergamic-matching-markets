@@ -63,10 +63,12 @@ sample sizes so the numbers can be checked.
 transient.} The learned ranker's exposure Gini exceeds an oracle's by $+0.0251$
 at the shipped horizon, positive on all five seeds. Extending the run to 300
 epochs shows this is not a floor but a decay: the gap peaks shortly after the
-start, falls to $+0.0241$ at epoch 99 --- still fifty-five times its terminal
-level --- and converges to zero, with any residual below $0.001$ and unresolved
-at five seeds. A hundred-epoch measurement of this quantity describes a
-transient, and every number quoted at that horizon carries it.
+start, is $+0.0241$ at epoch 99, and is below $0.001$ from about epoch 250,
+where it stops being distinguishable from flat at five seeds. That is a bounded
+residual rather than a demonstrated limit --- a flat tail is also what a very
+slow decay looks like, and this design cannot separate the two. A hundred-epoch
+measurement of this quantity describes a transient, and every number quoted at
+that horizon carries it.
 
 \textbf{The concentration is real everywhere, but its size is not constant.} The
 gap is positive with an interval excluding zero in all twelve sweep cells and

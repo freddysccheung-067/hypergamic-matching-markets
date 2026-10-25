@@ -64,14 +64,15 @@ deferred acceptance clears the market over those shortlists and nothing else.
 Exposure Gini under the learned ranker exceeds an oracle's by $+0.0251$
 $[+0.0155, +0.0347]$ over five seeds at a hundred epochs. Extending to three
 hundred shows that is not a floor: the gap peaks at $+0.3055$ near the start and
-decays to below $0.001$, with a residual that five seeds cannot resolve from
-zero, so the hundred-epoch figure is fifty-five times its terminal value. The
-ordering is positive in all twelve cells of a parameter sweep, but its size
-varies fivefold, and the mechanism --- the filter learning coverage --- fails in
-the one cell where coverage never climbs, so convergence is established at one
-point and not as a general property. A companion institutional comparison yields
-an interior welfare optimum two cells wide. Every parameter is uncalibrated and
-five seeds carry every headline.
+is below $0.001$ from about epoch 250, where it stops being distinguishable from
+flat at five seeds. That is a bounded residual, not a demonstrated limit: a flat
+tail is also what a very slow decay looks like, and the design cannot separate
+the two. The ordering is positive in all twelve cells of a parameter sweep, but
+its size varies fivefold, and the attribution to the filter learning coverage
+fails in the one cell where coverage never climbs, so the mechanism is
+established at one point and not as a general property. A companion
+institutional comparison yields an interior welfare optimum two cells wide.
+Every parameter is uncalibrated and five seeds carry every headline.
 \end{abstract}
 
 \input{sections/intro}

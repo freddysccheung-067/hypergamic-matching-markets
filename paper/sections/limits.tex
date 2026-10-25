@@ -27,7 +27,24 @@ adequate for sign and inadequate for width on two quantities, and both matter. A
 interval on a model's seed-averaged quantity is not an interval on the model's
 answer. The five seeds were also not chosen for this purpose; they predate the
 twenty-seed run, which shows them to be an unusually low-variance block for two
-of the seven tracked quantities.
+of the seven tracked quantities (\texttt{docs/STATS.md} \S2.2). That finding is
+reported and is not repaired: the interval arithmetic every table uses was
+changed to the construction with nominal small-sample coverage, but the seeds
+themselves were left alone, so any claim whose variance happens to be
+underestimated by this particular block still reads as tighter than it is. The
+honest reading is that the two affected quantities --- algorithmic loss and
+clearing rate --- carry no headline here, and that a future study should choose
+seeds for the purpose rather than inherit them.
+
+\textbf{The thread count is part of the run's identity, and that was found late.}
+Torch's intra-op reductions are not bitwise associative, so the same seed at one
+thread and at eight gives different numbers; across a hundred epochs of this
+feedback loop the divergence reaches $0.006$--$0.015$ in exposure Gini, against a
+between-seed standard deviation of $0.011$. Every configuration now pins
+\texttt{ncf.num\_threads} to~1 and the contract is tested, but the reproducibility
+guarantee this project claims is a guarantee at a named thread count, not an
+unconditional one (\texttt{docs/INTERFACES.md} \S3;
+\texttt{data/processed/rigor/thread\_sensitivity.csv}).
 
 \textbf{One population size carries the headline.} $N = 1000$ is the only size
 at which the full comparison was run, because the full-information benchmark
