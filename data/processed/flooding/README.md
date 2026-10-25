@@ -42,3 +42,27 @@ the step skips everyone else, and for acceptors that is most agents. `interactio
 is a check that the rule is implemented, not evidence for H2.
 
 Results and their reading are in THESIS.md (H2) and THEORY.md §3.
+
+## Thread count
+
+**24, and verified to be immaterial here; the directory does not regenerate regardless.**
+This directory predates `ncf.num_threads`, so its run took whatever count torch read
+from the machine, and the development machine reports 24. But re-running the
+`k=20, c=0, w=0, seed 42` cell on 2026-10-25 gives the same `mean_dtheta_W` at 1
+thread and at 24 (`-0.03661036` either way), and neither matches the committed
+`-0.03620378`. A run built from the commit that produced this directory (`1a075c3`)
+gives that same `-0.03661036` at both counts too. So the difference is **not** the
+thread count: it comes from code that changed after these cells were generated, not
+from the reduction order.
+
+That matters for how the numbers should be read. The volume column at the shipped
+regime reproduces (`mean_V_W` matched to four decimals at `admissible_fraction: 0.02`
+but not at 0.2, so that column is sensitive to the gate too), while the θ-update
+columns do not (`mean_dtheta_W` and `n_matched_mean` both move), which is what a
+change in the matching or scoring path would do. The file is therefore a record of
+what was run on 2026-10-22 and is not a fixture a current checkout regenerates.
+Nothing in the repository claims otherwise for this directory, and
+`docs/INTERFACES.md` §3.1(c) is the general statement.
+
+The thread count matters only for the `ncf` arm, which is the arm this whole design
+uses.

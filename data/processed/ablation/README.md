@@ -31,6 +31,22 @@ directory would make that comparison impossible after the default changed.
 | `summary.csv` | mean and sd of each metric, per arm, over the five seeds |
 | `gaps.csv` | the per-seed differences between arms, mean and sd |
 
+## Thread count
+
+**24, verified.** This directory predates `ncf.num_threads`, so the count was whatever torch took
+from the machine and the development machine reports 24. Re-run on 2026-10-25 with
+`admissible_fraction: 0.2`, `--epochs 20` and `ncf.num_threads: 24`, the `ncf` arm for seed 42
+reproduces its 20 rows of `ncf_seed42.csv` exactly, epoch-19 Gini 0.9415702 included. At the
+shipped default of 1 it does not.
+
+The thread count matters only for the `ncf` arm. The `oracle`, `random` and `popularity` arms train
+no model and are bitwise identical at every thread count, so on those three the count can be left
+unset without affecting reproducibility.
+
+To regenerate exactly, set `ncf.num_threads: 24` alongside the two pins named at the top of this
+file (`admissible_fraction: 0.2` and `--epochs 20`). The shipped default of 1 remains correct for
+new work.
+
 ## Quoting these numbers
 
 Every figure is a mean ± sd over five independent populations, never a single run.

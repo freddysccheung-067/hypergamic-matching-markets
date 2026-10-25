@@ -57,6 +57,24 @@ learns, and its Gini has settled by epoch 4 (THEORY.md §3).
 | `summary.csv` | mean and sd of each metric at the final epoch, per arm, over the five seeds |
 | `gaps.csv` | the three per-seed gaps at the final epoch, mean and sd |
 
+## Thread count
+
+**24, verified.** This directory predates `ncf.num_threads`, so the count was whatever torch read
+from the machine and the development machine reports 24. Re-run on 2026-10-25 at
+`ncf.num_threads: 24`, the `ncf` arm for seed 42 reproduces every column of `ncf_seed42.csv`
+exactly across all 100 epochs, including the epoch-99 Gini of 0.6935411 that
+`docs/INTERFACES.md` §3 cites. The same run at the shipped default of 1 gives 0.6976498, which is
+not the committed number.
+
+Of the three ablation directories this is the only one that reproduces with the shipped config and
+no other override: it was generated after the last change to the NCF scoring path, so the code that
+produced it is the code in the repository. The other two reproduce at 24 threads as well, but only
+once their own regime is pinned as well (`../ablation/` needs `admissible_fraction: 0.2`, and
+`../ablation_live/` needs `--epochs 20`).
+
+To regenerate exactly, set `ncf.num_threads: 24`. The shipped default of 1 remains correct for new
+work; this count is recorded to explain the file, not to recommend the setting.
+
 ## Quoting these numbers
 
 Every figure is a mean ± sd over five independent populations. The seed spread says the

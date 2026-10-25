@@ -35,3 +35,21 @@ with nothing estimated. Against an NCF-mediated A the ordering changes completel
 
 The defection penalty `d` is charged after a match dissolves and changes no decision, so
 these figures price defection without modelling deterrence. See THESIS.md.
+
+## Thread count
+
+**24, verified, and the count cannot matter: this directory trains no model.**
+Environment A is the `oracle` arm and Environment B is the `complete` arm, neither of
+which runs the NCF, so no torch reduction is involved and no thread count can change a
+number (see `docs/INTERFACES.md` §3.1). The count is nonetheless recorded, because
+these files also predate `ncf.num_threads` and the development machine reports 24.
+
+Re-run on 2026-10-25, the `c = 0.01, size_fraction = 0.02, seed 42` cell reproduces
+its `welfare_diff_residual`, `clearance_a`, `clearance_b`, `gini_a`, `gini_b` and
+`n_eligible` exactly, at any thread count, provided the inert regime is pinned:
+`admissible_fraction: 0.2`. At the shipped 0.02 the same cell does not reproduce,
+because `run_institutional.py` reads the config as it stood in October and the gate
+has moved since. That is a regime drift, not a thread effect, and the same is true of
+`../separating/` and `../thin_market/`.
+
+To regenerate exactly: `admissible_fraction: 0.2` and no thread setting needed.
