@@ -174,6 +174,12 @@ python -c "import sys; sys.path.insert(0, 'build/Release'); import _hypergamic; 
 The notebook does this walk-up itself. Everything else needs the insert first, or
 `$env:PYTHONPATH = "build\Release"` for the session.
 
+One reproducibility note. Torch's intra-op reductions are not bitwise associative, so the same seed
+at different thread counts gives slightly different numbers — and across a hundred epochs of the
+feedback loop that grows to a Gini spread as large as the between-seed one. `ncf.num_threads` is
+therefore pinned to 1 by default and is part of what identifies a run. Raise it for speed and record
+it; see [docs/INTERFACES.md §3](docs/INTERFACES.md).
+
 ## Usage
 
 The snippet below is the run whose numbers appear under Results: N = 500, 50 epochs, the live
@@ -278,12 +284,24 @@ visibility is a truncated top-k list over an estimated utility and no closed for
 
 ## Documentation
 
+**The paper.** [paper/main.tex](paper/main.tex) is an 8,400-word manuscript built from the
+committed data, with [docs/STATS.md](docs/STATS.md) supplying every interval it quotes and
+[docs/LITERATURE.md](docs/LITERATURE.md) every citation. It is **uncompiled** — no TeX
+distribution is installed on the development machine — so `paper/verify.py` checks structure
+(inputs resolve, refs have labels, citations have bib entries) rather than typesetting. Three
+tables regenerate from the CSVs via `paper/tables.py`. [docs/REVIEW.md](docs/REVIEW.md) is an
+adversarial review recommending rejection; [docs/REVIEW_RESPONSE.md](docs/REVIEW_RESPONSE.md)
+answers it item by item, fixing six findings and declining one with evidence.
+
 - [docs/THESIS.md](docs/THESIS.md) — what the repository is about, the two environments, and the six hypotheses with their kill conditions
 - [docs/THEORY.md](docs/THEORY.md) — full mathematical formulation, including §10 on the institutional model
+- [docs/STATS.md](docs/STATS.md) — the interval, power and multiple-comparison work; the source of every quoted bound
 - [docs/validation.md](docs/validation.md) — checks against the closed-form results of Bilderbeek (2026)
+- [docs/LITERATURE.md](docs/LITERATURE.md) — 35 verified sources with what each settles and what this project adds
+- [docs/NOVELTY.md](docs/NOVELTY.md) — the narrowest defensible statement of the contribution, and its strongest objection
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — profile of the run loop and the two optimisations that came out of it
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layer diagram, dual-language split, per-epoch data flow
-- [docs/INTERFACES.md](docs/INTERFACES.md) — the authoritative C++/Python contract, including §5 on proposer direction
+- [docs/INTERFACES.md](docs/INTERFACES.md) — the authoritative C++/Python contract, including §5 on proposer direction and §3 on what reproducibility does and does not guarantee
 - [docs/PREREQUISITES.md](docs/PREREQUISITES.md) — toolchain setup, Windows-first
 
 ## Zenodo
