@@ -168,9 +168,9 @@ gap & $\gapEpochZero$ & $\gapEpoch6$ & $\gapEpoch19$ & $\gapEpoch49$ & $\gapEpoc
 \end{center}
 
 The peak is at epoch 6. The hundred-epoch figure is not a floor: at epoch 99 the
-gap is roughly fifty times the residual it settles at, though both numbers are
-imprecise enough that the ratio is an order of magnitude, not a measured
-constant (\texttt{docs/STATS.md} \S3.2).
+gap is roughly a hundred times the residual it settles at, though both numbers are
+imprecise enough that the ratio is an order of magnitude, not a measured constant
+(\texttt{docs/STATS.md} \S3.2).
 
 Two cautions on reading the table. The points after epoch 124 are all within one
 final-epoch seed standard deviation of each other ($\finalEpochSd$), so the decay is
@@ -182,22 +182,22 @@ wide relative to their distance from zero, which is why no ratio is quoted as a
 measurement.
 
 \emph{Convergence test.} The tail mean over epochs 250--299 is $\tailMean$ with a
-95\% $t$ interval of $[\tailMeanLo, \tailMeanHi]$, all five seeds positive
-($t = 2.88$, $p = 0.045$; Wilcoxon $p = 0.063$). The BCa interval on the final
-epoch is $[-0.00029, +0.00105]$ and includes zero
-(\texttt{long\_horizon\_asymptote.csv}). The methods disagree about whether a
-residual exists and agree about its size, at most seven parts in ten thousand of
-the Gini scale.
+95\% $t$ interval of $[\tailMeanLo, \tailMeanHi]$, which \emph{includes zero}:
+three of five seeds are positive ($t = \tailT$, $p = \tailP$; Wilcoxon
+$p = \tailWilcoxonP$). The tail is therefore indistinguishable from zero at five
+seeds, and no positive residual is claimed. What the data do support is the
+equivalence test in \S\ref{sec:equivalence}, which does not depend on the interval
+excluding zero.
 
 \emph{What ``converges'' is doing here, and what it is not.} The word appears
 elsewhere in this paper and carries more than the design delivers. A
-limit is not observed; a tail is. The measured statement is that the gap is below
-$0.001$ from about epoch 250 and is no longer distinguishable from flat at five
-seeds. A flat tail is also what a very slow decay looks like, and no test here
-separates the two: the stationarity result below cannot, because a ten-epoch
-window at five seeds cannot detect a change of a size that would still matter.
-The paper therefore reports a bounded residual, not a convergence rate, and does
-not quote $\tailMean$ as a floor.
+limit is not observed; a tail is. The measured statement is that the five-seed
+mean gap is below the $0.002$ margin from about epoch 211 and that the tail is
+indistinguishable from zero at five seeds. A flat tail is also what a very slow
+decay looks like, and no test here separates the two: the stationarity result
+below cannot, because a ten-epoch window at five seeds cannot detect a change of a
+size that would still matter. The paper therefore reports a bounded residual, not
+a convergence rate, and does not quote $\tailMean$ as a floor.
 
 \emph{Stationarity.} A paired test of epochs 290--299 against 280--289 gives
 $\statPairedDiff$ ($p = \statP$; Wilcoxon $\statWilcoxonP$;
@@ -266,15 +266,17 @@ seed, not the epoch: the fifty tail values are one trajectory, so their spread i
 not the sampling scale.
 
 Two one-sided tests against $\pm 0.002$ both reject. With a seed sd of
-$0.000291$, a standard error of $0.000130$ and four degrees of freedom,
-$t(\mu > -0.002) = 18.3$ and $t(\mu < +0.002) = 12.5$; the 90\% interval over
-seeds is $[+0.000097, +0.000651]$, wholly inside the margin. The tail is
+$0.000340$, a standard error of $0.000152$ and four degrees of freedom,
+$t(\mu > -0.002) = 14.7$ and $t(\mu < +0.002) = 11.6$; the 90\% interval over
+seeds is $[-0.000094, +0.000555]$, wholly inside the margin. The tail is
 \emph{equivalent} to zero at a pre-declared margin, which is a stronger and more
-checkable statement than an interval that happens to include zero.
+checkable statement than an interval that happens to include zero, and it is the
+one claim here that the tail supports: the 95\% interval itself includes zero
+(\S\ref{sec:coldstart}).
 
 The same test gives a better summary of a transient than any single-epoch value:
 the epoch at which the gap first stays below the margin for the remainder of the
-run, per seed, is 268, 237, 210, 198 and 225. That range — about 200 to 270
+run, per seed, is 245, 262, 198, 223 and 211. That range — about 200 to 260
 epochs, not the 120 to 200 the pre-registration estimated — is the quantity to
 quote when a reader asks how long the transient lasts.
 

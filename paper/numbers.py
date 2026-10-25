@@ -55,8 +55,16 @@ def mc_values() -> dict[str, float]:
     }
 
 
+# The 300-epoch trajectory the paper quotes. It is `long_horizon_1t`, the series
+# regenerated at 1 thread in this session, because the committed `long_horizon/`
+# cannot be regenerated from this code at any thread count (docs/REVIEW_RESPONSE.md
+# A3). The two agree at the tolerance fixed in docs/PREREGISTRATION.md E7 (tail
+# difference 0.000144); where they differ, the paper quotes this one.
+LONG_HORIZON = RIGOR / "long_horizon_1t"
+
+
 def asymptote() -> dict[str, float]:
-    rows = read_csv(RIGOR / "long_horizon_asymptote.csv")
+    rows = read_csv(LONG_HORIZON / "long_horizon_asymptote.csv")
     if not rows:
         raise ValueError("long_horizon_asymptote.csv is empty")
     # `window` is the window length in epochs and `epochs` is the range label
@@ -67,7 +75,7 @@ def asymptote() -> dict[str, float]:
 
 
 def stationarity() -> dict[str, float]:
-    rows = read_csv(RIGOR / "long_horizon_stationarity.csv")
+    rows = read_csv(LONG_HORIZON / "long_horizon_stationarity.csv")
     if not rows:
         raise ValueError("long_horizon_stationarity.csv is empty")
     return {k: float(v) for k, v in rows[0].items()
@@ -107,8 +115,8 @@ def sci(value: float) -> str:
 
 
 def gap_series() -> dict[int, float]:
-    """The five-seed mean gap by epoch, from rigor/long_horizon_gap_series.csv."""
-    rows = read_csv(RIGOR / "long_horizon_gap_series.csv")
+    """The five-seed mean gap by epoch, from the regenerated 300-epoch series."""
+    rows = read_csv(LONG_HORIZON / "long_horizon_gap_series.csv")
     return {int(r["epoch"]): float(r["gap_mean"]) for r in rows}
 
 
@@ -215,13 +223,13 @@ def main() -> None:
         "",
         "% ── The convergence tail (rigor/long_horizon_asymptote.csv) ─────────────",
         "% The tail mean, its t interval, and the t/Wilcoxon p-values",
-        rf"\newcommand{{\tailMean}}{{{f(asym['point'], 5, True)}}}",
+        rf"\newcommand{{\tailMean}}{{{f(asym['point'], 6, True)}}}",
         rf"\newcommand{{\tailMeanLo}}{{{f(asym['lo'], 6, True)}}}",
         rf"\newcommand{{\tailMeanHi}}{{{f(asym['hi'], 6, True)}}}",
         rf"\newcommand{{\tailT}}{{{f(asym['t'], 2)}}}",
         rf"\newcommand{{\tailP}}{{{f(asym['p'], 3)}}}",
         rf"\newcommand{{\tailWilcoxonP}}{{{f(asym['wilcoxon_p'], 3)}}}",
-        rf"\newcommand{{\finalEpochSd}}{{{f(asym['sd'], 4)}}}",
+        rf"\newcommand{{\finalEpochSd}}{{{f(asym['sd'], 6)}}}",
         "",
         "% ── Stationarity (rigor/long_horizon_stationarity.csv) ───────────────────",
         rf"\newcommand{{\statPairedDiff}}{{{f(stat['paired_diff'], 5, True)}}}",
