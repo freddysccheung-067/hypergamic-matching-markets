@@ -38,7 +38,7 @@ constructions and this entry resolves it before the data exists. **The predictio
 is judged against the t interval.** Had it been judged against the BCa interval,
 the lower bound would have been `+0.0204` rather than `+0.0199`, and that
 distinction is recorded here rather than chosen after seeing which one the data
-favours.
+favors.
 
 **Disclosure.** One seed of this set, seed 100, was run during sizing (one seed,
 100 epochs, 1 thread) to measure the cost of the run; it took 1m40s and reported
@@ -93,7 +93,7 @@ treatment in the same session. Control is the shipped configuration.
 
 - **(i) Frozen ranker.** Train normally to the peak (epoch 6), then stop training
   and keep the market running to epoch 100. New config key `ncf.freeze_after`,
-  default `None` (no freeze), so the shipped behaviour is unchanged.
+  default `None` (no freeze), so the shipped behavior is unchanged.
 - **(ii) Warm start.** Pretrain the NCF on a synthetic swipe log until reach at
   epoch 0 exceeds 0.8, then start the loop. New config key
   `ncf.warm_start_epochs`, default `0` (no warm start).

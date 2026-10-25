@@ -17,7 +17,7 @@ apply. This repository computes what happens instead, and finds the answer depen
 at which the estimator is evaluated: the exposure gap is +0.287 at epoch 19, +0.025 at epoch 99.
 No closed form in the paper has a horizon argument.
 
-**An institutional comparison with the selection artefact priced.** Environment B is a subgraph of
+**An institutional comparison with the selection artifact priced.** Environment B is a subgraph of
 the same population with a positive signalling cost, and the welfare rule scores agents B excludes
 at their counterfactual A outcome. Without that, an entry filter looks like a gain for the
 arithmetic reason that it removes the agents it cannot serve. B beats an oracle A at `c_B = 0.01`
@@ -30,7 +30,7 @@ the result is in the paper.
 search frictions, endogenous status. The repository addresses none. Its "multi-trait" utility is
 an additive sum of four synthetic traits — a one-dimensional utility of a multidimensional type,
 not multidimensional status. Its visibility constraint is top-k truncation, which Roth & Rothblum
-(1999) analysed. And Chen, Hsieh & Lin (2023) already ran a matching-model-based recommender on a
+(1999) analyzed. And Chen, Hsieh & Lin (2023) already ran a matching-model-based recommender on a
 live platform. What survives is a simulation whose parameters have no empirical anchor.*
 
 The first half is a genre claim and it wins: no theorem is produced. But `D` is a supremum because

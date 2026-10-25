@@ -36,23 +36,32 @@
 
 \bibliographystyle{plainnat}
 
+% Every number the prose quotes is defined here, one macro per quantity, read
+% from data/processed/ by paper/numbers.py. Editing that file instead of a
+% section is what keeps one horizon from acquiring three values.
+\input{tables/numbers}
+
 % ---------------------------------------------------------------------------
-% Three candidate titles. Exactly one is set below; the other two are recorded
-% here because none of them claims more than the design supports, and the
-% choice among them is editorial rather than factual.
+% Candidate titles. Exactly one is set below. All three were revised after the
+% interventions ran, so none claims a mechanism the paper did not establish and
+% none uses "effect" for a quantity measured in one configuration.
 %
-%   (A) "Exposure Concentration Under a Learned Ranker Is a Cold-Start Effect:
-%        A Convergence Test in a Simulated Matching Market"
-%   (B) "Horizon Dependence in Recommender-Mediated Matching: Exposure
-%        Concentration, Institutional Comparison, and What Five Seeds Support"
-%   (C) "How Long Does a Recommender's Exposure Gap Last? Evidence from a
-%        Three-Hundred-Epoch Matching-Market Simulation"
+%   (A) "The Exposure Gap Is a Transient: Horizon Dependence in a
+%        Recommender-Mediated Matching Market"
 %
-% Set in the document: (A).
+%   (B) "What a Single-Horizon Comparison Cannot See: Exposure Concentration in
+%        a Learned-Ranker Matching Market, and How Long It Lasts"
+%
+%   (C) "How Long Does a Recommender's Exposure Gap Last? A Three-Hundred-Epoch
+%        Test in a Simulated Matching Market"
+%
+% Set in the document: (B). It names the methodological claim, which is the one
+% the paper establishes, and promises nothing about mechanism.
 % ---------------------------------------------------------------------------
 
-\title{Exposure Concentration Under a Learned Ranker\\ Is a Cold-Start
-       Effect:\\ A Convergence Test in a Simulated Matching Market}
+\title{What a Single-Horizon Comparison Cannot See:\\
+       Exposure Concentration in a Learned-Ranker Matching Market,\\
+       and How Long It Lasts}
 
 \author{}
 \date{}
@@ -65,21 +74,26 @@
 \noindent
 A recommender that decides which candidates a matching market's agents ever see
 changes what a preference list means: a preference over a truncated list is not
-the one that operates over the whole population. This paper measures how far that
-goes and how long it lasts. A two-sided market of 1000 agents carries a
-four-dimensional trait vector and a private commitment type; a neural
-collaborative filter produces top-20 shortlists; truncated deferred acceptance
-clears over those alone. Exposure Gini under the learned ranker exceeds an
-oracle's by $+0.0251$ $[+0.0155, +0.0347]$ over five seeds at a hundred epochs.
-Extending to three hundred shows no floor: the gap peaks at $+0.3055$ and is
-below $0.001$ from about epoch 250, indistinguishable from flat. That is a
-bounded residual, since a flat tail is also what a very slow decay looks like.
-The ordering is positive in all twelve cells of a parameter sweep but varies
-fivefold in size, and the attribution to coverage learning fails in the one cell
-where coverage never climbs, so the mechanism holds at one point, not generally.
-A companion institutional comparison yields an interior welfare optimum. Five
-seeds carry the horizon and sweep results and twenty carry the shipped-horizon
-ones; no parameter is calibrated.
+the one that operates over the whole population. This paper shows that measuring
+the harm at one horizon can invert the conclusion. A two-sided market of 1000
+agents carries a four-dimensional trait vector and a private commitment type; a
+neural collaborative filter produces top-20 shortlists; truncated deferred
+acceptance clears over those alone. Exposure Gini under the learned ranker
+exceeds an oracle's by $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$ over five
+seeds at a hundred epochs, and positive on all twenty of a fresh set. Extending
+to three hundred shows no floor: the gap peaks at $\gapPeak$, and a pre-declared
+equivalence test at a $0.002$ margin puts the tail inside it, so the hundred-epoch
+number describes a transient rather than a bias. A flat tail is also what a very
+slow decay looks like, and no test here separates the two. The ordering is
+positive in all \nSweepCells{} cells of a parameter sweep but varies fivefold in
+size. The mechanism usually offered for the decay, that the filter learns whom it
+can represent, is consistent with the trajectory and is not established here: the
+two interventions meant to test it do not. A companion institutional comparison
+yields an interior welfare optimum that replicates its location on fresh seeds
+with a much wider interval than published, in a market configuration that does
+not respond to its own outcomes. Five seeds carry the horizon, sweep and
+institutional results and twenty carry the shipped-horizon ones; no parameter is
+calibrated.
 \end{abstract}
 
 \input{sections/intro}
@@ -89,6 +103,9 @@ ones; no parameter is calibrated.
 \input{sections/results}
 \input{sections/limits}
 \input{sections/conclusion}
+
+\appendix
+\input{sections/appendix}
 
 \bibliography{refs}
 

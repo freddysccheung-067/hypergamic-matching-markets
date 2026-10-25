@@ -276,7 +276,7 @@ Three different claims get made about this code and they are not the same claim.
 
 What a reader should do: to regenerate a committed directory exactly, read its README for the thread count and pass it as `ncf.num_threads` (and read the same README for the thread-independent settings it pins, since `experiments/base.yaml` has moved since several of these were generated). For any new work, leave the default of 1 alone.
 
-`tests/python/test_reproducibility.py` pins the default, pins that the config reaches torch, and checks that a pinned run reproduces itself. It does not assert that torch is unstable across thread counts, because that is a property of the runner's BLAS rather than of this repository; claim (b) is characterised by the committed CSV instead.
+`tests/python/test_reproducibility.py` pins the default, pins that the config reaches torch, and checks that a pinned run reproduces itself. It does not assert that torch is unstable across thread counts, because that is a property of the runner's BLAS rather than of this repository; claim (b) is characterized by the committed CSV instead.
 
 ## 4. Complexity and scale limits
 

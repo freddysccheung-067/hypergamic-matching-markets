@@ -254,3 +254,38 @@ def test_theorem_5_1_assortative_uniqueness_and_its_precondition():
     print(
         f"[check 3] eps=0.01 perturbation: pairs that differ by direction = {diverged}"
     )
+
+
+# --------------------------------------------- 4. the committed table artefact
+#
+# `data/processed/rigor/validation.csv` is the table's source, and before this
+# test it had none: the numbers were asserted here and transcribed by hand into
+# docs/validation.md and paper/tables.py, so a change on one side could leave the
+# other silently wrong. The test recomputes every row and compares it with the
+# committed file, which is the arrangement the rest of the paper uses.
+
+
+def test_the_committed_validation_csv_matches():
+    """The committed CSV must equal a fresh computation, row for row."""
+    import csv as _csv  # noqa: PLC0415
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    path = root / "data" / "processed" / "rigor" / "validation.csv"
+    assert path.exists(), f"missing {path}; run: python scripts/run_validation.py"
+    with path.open(newline="", encoding="utf-8") as handle:
+        committed = list(_csv.DictReader(handle))
+
+    sys.path.insert(0, str(root / "scripts"))
+    import run_validation  # noqa: PLC0415
+
+    fresh = run_validation.compute()
+    assert len(committed) == len(fresh), (
+        f"committed CSV has {len(committed)} rows, a fresh computation has "
+        f"{len(fresh)}; rerun python scripts/run_validation.py"
+    )
+    for old, new in zip(committed, fresh):
+        assert old == new, (
+            "committed validation row differs from a fresh computation:\n"
+            f"  committed: {old}\n  fresh:     {new}\n"
+            "rerun: python scripts/run_validation.py"
+        )

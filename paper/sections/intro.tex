@@ -1,5 +1,9 @@
 % ---------------------------------------------------------------------------
 % Section 1: Introduction (target 800 words).
+%
+% Order: the measurement problem, then the result, then what is new, then the
+% closed-form literature and scope. The closed form is what an earlier draft
+% opened with; a reader should meet the finding first.
 % ---------------------------------------------------------------------------
 
 \section{Introduction}
@@ -10,105 +14,120 @@ which candidates anyone ever sees. The consequence is easy to state and awkward
 to price: a preference expressed over a truncated list is not the same
 preference that operates over the whole population. The agent on nobody's list
 is not rejected; she is never considered, and no preference data will record the
-difference. This paper asks what happens to a matching market under that
-arrangement, and how it compares with a differently designed market that trades
-liquidity for information.
+difference.
 
-For a single scalar notion of status the aggregate questions have closed-form
-answers, and a recent preprint argues they are settled
-\citep{bilderbeek2026}. When unions must be hypergamous, that is,
-when a partner must rank at or above rather than beside, the minimal unmatched mass is a
-functional of the two marginal status distributions alone,
-and no behavioural strategy changes it. Two things the literature treated as
-substantive, the feasibility of a status requirement and the size of the
-resulting deficit, turn out to be properties of histograms, and any new work in
-that setting is at best a check on a theorem.
+\subsection*{The measurement problem}
 
-This paper works where that theorem does not reach. The constraint here is
-\emph{visibility}, not compatibility: the feasible set is the top-$k$ of an
-estimated multi-attribute utility, lists differ by agent, and estimator error is
-correlated in a way no marginal captures. The closed-form result relies on the
-constraint being a nested upper set, which is exactly what makes the deficit a
-one-dimensional supremum. Truncated lists from a learned ranker are not nested,
-and their error depends on how long the ranker has trained. The structure that
-makes the deficit tractable is absent rather than merely harder, so the question
-must be answered numerically.
+The standard way to measure that harm is to compare exposure under the learned
+ranker with exposure under a ranker that is perfect at the same task, on the same
+population and seed, and to report the difference at some horizon. This paper
+shows that measurement can invert its own conclusion. In the market simulated
+here the gap between the learned ranker and an oracle is large and positive at
+twenty epochs, small and still positive at a hundred, and indistinguishable from
+zero at three hundred. A study that stopped at either of the first two horizons
+would report a standing deficiency of learned rankers where what exists is a
+start-up cost, and the two are not the same finding: a standing bias is a reason
+to regulate the ranker, a transient is a reason to wait.
 
-The answer depends on \emph{when} you ask. That is the paper's central finding
-and its central methodological warning.
+The inversion is not an artifact of one number being misread. It is what a
+single-horizon comparison cannot see, because a decay and a floor look identical
+from inside either one. The distinction is measurable — it takes a longer run,
+and this paper runs one — and establishing that it changes the answer is the
+paper's central claim.
 
-\subsection*{What was done}
+\subsection*{The result}
 
 A finite two-sided market of a thousand agents carries a four-dimensional trait
 vector and a private commitment type. A neural collaborative filter trained on
 the swipe log produces a top-20 shortlist per agent, and a truncated
 deferred-acceptance pass clears the market over those shortlists and nothing
-else. In parallel, a second institution is modelled as a subgraph of the same
-population, with complete visibility inside it and a positive signalling cost:
-information instead of liquidity, where the global market has liquidity instead
-of information. Welfare is scored on a common basis, so agents the subgraph
-excludes are priced at their counterfactual outcome rather than deleted, since otherwise
-an entry filter improves its own arithmetic by removing the agents it
-cannot serve.
+else.
 
-Six hypotheses were posed in advance, each with a stated kill condition, and four
+\textbf{The gap is a transient.} The learned ranker's exposure Gini exceeds an
+oracle's by $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$ at the shipped
+hundred-epoch horizon, positive on all five seeds and on all twenty of a fresh
+set. Extended to three hundred epochs, the same quantity peaks at $\gapPeak$
+shortly after the start, is $+0.0241$ at epoch 99, and is below $0.002$ from
+about epoch 200 to 270 depending on seed. A pre-declared equivalence test at a
+$0.002$ margin puts the tail inside the margin ($t = 18.3$ and $12.5$ on four
+degrees of freedom), which is a stronger statement than an interval that happens
+to include zero. What is not established is the limit: a flat tail is also what a
+very slow decay looks like, and this design does not separate the two.
+
+\textbf{It is real everywhere but not constant in size.} The gap is positive with
+an interval excluding zero in all \nSweepCells{} sweep cells, on both interval
+constructions, and reverses nowhere. Its magnitude varies fivefold, so no single
+number is ``the'' gap: quote the range with its condition, or the shipped cell
+with its regime.
+
+\textbf{The explanation is a hypothesis, and this study does not establish it.}
+The mechanism offered is that the filter is learning whom it can represent. That
+is consistent with the trajectory and it is not tested here: the cell meant to
+isolate a market without coverage learning turns out, at 300 epochs, to be the
+same process running more slowly (reach $0.49$ against $0.46$ at epoch 99), and
+freezing the ranker's weights freezes its shortlists, which makes any frozen arm
+constant by construction. Both failures are reported as failures of the design
+(\texttt{docs/PREREGISTRATION.md} E3).
+
+\textbf{The institutional companion is narrower than it looked.} A second
+institution — a subgraph with complete visibility inside it and a positive
+signalling cost — is modeled beside the global market, and welfare is scored on a
+common basis so agents it excludes are priced at their counterfactual outcome
+rather than deleted. At a signalling cost low enough that entry screens little,
+an interior optimum exists at subgraph size $0.65$. On twenty fresh seeds that
+took no part in choosing the cell it still ranks first, but its estimate falls
+and its standard deviation is nearly five times larger than the published one.
+The whole grid was also measured in the gate regime that does not respond to the
+market, which is reported as a limitation of the result
+(\S\ref{sec:h4regime}, Appendix~\ref{app:hypotheses}).
+
+\subsection*{What is new}
+
+\begin{enumerate}
+\item \textbf{A horizon dependence that inverts a conclusion.} A single-horizon
+  comparison of a recommender's exposure effect cannot distinguish a transient
+  from a standing bias, and in this market the distinction reverses the
+  interpretation. \S\ref{sec:coldstart}, \S\ref{sec:equivalence}.
+\item \textbf{A separation of what replicates from what does not.} Twenty fresh
+  seeds that took no part in any earlier choice reproduce every ordering, and
+  reproduce the institutional optimum's location while cutting its claimed
+  precision by a factor of about five. \S\ref{sec:h3},
+  Appendix~\ref{app:hypotheses}.
+\item \textbf{A regime finding that qualifies the institutional result.} The
+  interior optimum was measured at a gate configuration that does not respond to
+  the market, and the paper says so rather than presenting it as a property of
+  the model. \S\ref{sec:h4regime}.
+\item \textbf{A mechanism claim reported as untested.} The interventions that
+  were meant to test it do not, and the paper says which and why.
+  \S\ref{sec:sensitivity}.
+\end{enumerate}
+
+\subsection*{Scope, the closed-form context, and what this is not}
+
+Six hypotheses were posed in advance, each with a stated kill condition, and five
 kinds of test applied: seed-bootstrapped intervals, a horizon extended to
-convergence, a twelve-cell parameter sweep with its claim thresholds fixed before
-the cells were read, and multiplicity correction over the forty institutional
-cells the headline optimum was selected from. \S\ref{sec:design} states the
-sample sizes so the numbers can be checked.
+convergence, a twelve-cell parameter sweep with its thresholds fixed before the
+cells were read, multiplicity correction over the forty institutional cells the
+headline optimum was selected from, and a replication on seeds chosen for the
+purpose rather than inherited. \S\ref{sec:design} states the sample sizes so every
+number can be checked.
 
-\subsection*{What was found}
+Nothing here is a claim about a population. Every parameter is a modeling choice,
+nothing is calibrated, twenty seeds carry the shipped-horizon quantities and five
+carry the horizon, sweep and institutional results, and one population size
+carries it. The results bound what this mechanism can do under a stated utility;
+\S\ref{sec:limits} says so at length rather than in a footnote.
 
-\textbf{Estimation error concentrates exposure, and the concentration is a
-transient.} The learned ranker's exposure Gini exceeds an oracle's by $+0.0251$
-at the shipped horizon, positive on all five seeds. Extending the run to 300
-epochs shows this is not a floor but a decay: the gap peaks shortly after the
-start, is $+0.0241$ at epoch 99, and is below $0.001$ from about epoch 250,
-where it stops being distinguishable from flat at five seeds. That is a bounded
-residual rather than a demonstrated limit, because a flat tail is also what a very slow
-decay looks like, and this design cannot separate the two. A hundred-epoch
-measurement of this quantity describes a transient, and every number quoted at
-that horizon carries it.
-
-\textbf{The concentration is real everywhere, but its size is not constant.} The
-gap is positive with an interval excluding zero in all twelve sweep cells and
-reverses nowhere, while its magnitude varies fivefold. A reader should quote the
-range with its condition, or the shipped cell with its regime, never one number
-as ``the'' gap.
-
-\textbf{The explanation is conditional.} The mechanism offered, the filter learning whom it can represent, holds where coverage climbs and fails in the
-one cell where it does not. There the gap is also small, but because both arms
-concentrate rather than because the ranker caught up. Convergence to zero is
-established at one point in parameter space, not as a general property of
-mediation.
-
-\textbf{An interior institutional optimum exists, and it is narrow.} At a
-signalling cost low enough that entry screens little, welfare under the subgraph
-institution exceeds the global oracle's by $+64.62$ at subgraph size $0.65$, and
-survives correction for the forty cells it was chosen from. Only two cells
-survive that correction, so the optimum is a two-cell feature rather than a
-region.
-
-Three of six hypotheses are qualified. One is untestable because the mechanism
-it names is absent from the shipped rule, one holds at a single cost level, and
-one cannot be tested at all because the model has no attrition margin. They are
-reported at the same length as the results that worked, because a paper that
-reports only its successes reads as advocacy.
-
-\subsection*{Why it matters, and what it does not claim}
-
-That mediation's effect is horizon-dependent is absent from the recommender-loop
-literature, which predicts homogenisation that persists or compounds, and from
-the closed-form literature, which has no horizon argument. Had the effect been
-measured only at the shipped horizon, or at twenty epochs as an earlier version of this
-work was, the paper would have reported a standing deficiency
-of learned rankers where the truth is a start-up cost. The general lesson is that
-a single-horizon inequality cannot distinguish a standing bias from a transient,
-and that the distinction is measurable.
-
-Nothing here is a claim about a population. Every parameter is a modelling
-choice, nothing is calibrated, twenty seeds carry the shipped-horizon quantities
-and five carry the horizon and sweep results, and one
-population size carries it. The results bound what this mechanism can do under a
-stated utility; \S\ref{sec:limits} says so at length rather than in a footnote.
+There is also a specific absence the paper is built around. The constraint here
+is \emph{visibility}, not compatibility: the feasible set is the top-$k$ of an
+estimated multi-attribute utility, lists differ by agent, and estimator error is
+correlated in a way no marginal captures. For a single scalar notion of status
+the aggregate questions do have closed-form answers, and a recent preprint argues
+they are settled \citep{bilderbeek2026}: with unions constrained to be
+hypergamous, the minimal unmatched mass is a functional of the two marginal status
+distributions alone, and no behavioral strategy changes it. That result depends on
+the constraint being a nested upper set, which is what makes the deficit a
+one-dimensional supremum, and a learned top-$k$ list has neither property. The
+structure that makes the closed form tractable is absent here rather than merely
+harder, which is why the question has to be answered numerically — and why the
+answer turns out to depend on \emph{when} it is asked.

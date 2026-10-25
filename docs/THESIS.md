@@ -207,7 +207,7 @@ falls by a fifth, through `1 − τ̄` falling from 0.49 to 0.39, not through fe
 the signal becoming informative weakens the defence rather than ending it. And at `w = 0.2` the
 defence closes the market: raising `θ` for the most-swiped acceptors cuts reciprocity until
 the measured accept rate is zero, at which no proposal is worth its cost. Because `V` is
-normalised by its mean, the term moves `θ` between acceptors and barely moves mean `θ`, which
+normalized by its mean, the term moves `θ` between acceptors and barely moves mean `θ`, which
 is what "`θ` rises" asserts. (Not exactly zero: `V/V̄ − 1` averages to zero but is weighted by
 `1 − τ̄`, which correlates weakly with volume. Measured at epoch 5, the side mean of the term is
 +0.0003 against a per-agent sd of 0.040 at `w = 0.05`, and +0.0012 against 0.161 at `w = 0.2` —
@@ -288,7 +288,7 @@ Stated here so that no downstream section has to hedge:
   dissolves. No agent proposes differently, sets a different threshold, or stays in a match longer
   because of it: survival depends on intent and alignment only, and the proposal decision does not
   read `d`. So B's penalty lowers B's welfare when defection happens and never prevents defection.
-  The proposal's "social penalty for casual defection" is modelled as a cost, not as a deterrent.
+  The proposal's "social penalty for casual defection" is modeled as a cost, not as a deterrent.
   Making it deter would mean feeding `d` into the proposal decision, so that an agent likely to
   defect stops proposing — a different model, and one whose H4 result has not been measured.
 

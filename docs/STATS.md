@@ -119,7 +119,7 @@ W-proposing baseline without saying so.
 **Row 5 (algorithmic loss).** 0.663 means the NCF-mediated matching realizes 34%
 of the full-information welfare. This quantity had no committed column before
 this branch — it was computed on every epoch and discarded at write time — so it
-is new. It also carries the worst small-sample behaviour of anything measured:
+is new. It also carries the worst small-sample behavior of anything measured:
 §2 shows its five-seed sd understates the twenty-seed sd by a factor of 3.2. The
 interval here rests on 20 seeds for that reason.
 
@@ -175,7 +175,7 @@ length, against the 1/√n law (`power_widths.csv`):
 **The 1/√n law holds.** Every quantity's ratio falls within 18% of the predicted
 1.71–2.15 against 2.00, and the deviation is systematic rather than erratic: the
 ratio is slightly *below* the law for the Gini quantities and slightly above for
-`mcr` and `algorithmic_loss`. That pattern is the finite-sample behaviour of a
+`mcr` and `algorithmic_loss`. That pattern is the finite-sample behavior of a
 bootstrap interval, not a defect — at n = 5 the bootstrap cannot see the tails it
 has not observed (§1), so its width grows more slowly than 1/√n as n falls. The
 `algorithmic_loss` ratio of 2.15 is on the conservative side of the law, which is
@@ -466,7 +466,7 @@ win. The family is therefore **40**.
 Family-wise error rate at α = 0.05 uncorrected, if the 40 tests were independent:
 **1 − 0.95⁴⁰ = 0.871**. The cells are not independent — adjacent size_fractions
 share populations and the same five seeds are reused across all 40 — so the
-realised rate is lower than this and is not claimed. The number is the nominal
+realized rate is lower than this and is not claimed. The number is the nominal
 upper bound and is labelled as such.
 
 ### §5.2 What survives

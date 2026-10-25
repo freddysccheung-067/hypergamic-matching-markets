@@ -66,6 +66,55 @@ def _conditions(warm_passes: int) -> dict[str, dict]:
     }
 
 
+def _late_freeze_conditions(freeze_epochs: tuple[int, ...]) -> dict[str, dict]:
+    """Freezes at epochs where the ranker can already rank (PREREGISTRATION E3b).
+
+    ``frozen`` at the gap's peak is degenerate: reach is 0.041 at epoch 6, so the
+    shortlists are near-identical before and after the freeze and the arm's Gini
+    is constant by construction rather than because of anything about training.
+    These arms freeze later, so the frozen score matrix is informative and the
+    market keeps both its shortlists and its matching.
+    """
+    conditions: dict[str, dict] = {"control": {}}
+    for epoch in freeze_epochs:
+        conditions[f"frozen{epoch}"] = {"freeze_after": int(epoch)}
+    return conditions
+
+
+def run_late_freeze(seed: int, base_config: dict, epochs: int,
+                    freeze_epochs: tuple[int, ...], out_dir: pathlib.Path) -> str:
+    """The E3b arm: control plus one frozen run per requested freeze epoch."""
+    return _run_conditions(seed, base_config, epochs,
+                           _late_freeze_conditions(freeze_epochs), out_dir,
+                           tag="latefreeze")
+
+
+def _run_conditions(seed: int, base_config: dict, epochs: int,
+                    conditions: dict[str, dict], out_dir: pathlib.Path,
+                    tag: str) -> str:
+    from src.python.orchestrator import Simulation  # noqa: PLC0415
+
+    frames = []
+    for name, overrides in conditions.items():
+        cfg = copy.deepcopy(base_config)
+        cfg["population"]["seed"] = int(seed)
+        cfg["ncf"].update(overrides)
+        sim = Simulation(config=cfg, recommender="ncf")
+        metrics = sim.run(n_epochs=epochs).copy()
+        metrics["condition"] = name
+        metrics["seed"] = int(seed)
+        metrics["noise_ratio"] = float(sim.noise_ratio)
+        frames.append(metrics[COLUMNS])
+
+    table = pd.concat(frames, ignore_index=True)
+    path = out_dir / f"{tag}_seed{seed}.csv"
+    table.to_csv(path, index=False)
+
+    final = table[table.epoch == table.epoch.max()].set_index("condition")
+    parts = " ".join(f"{c}={final.loc[c, 'gini']:.4f}" for c in conditions)
+    return f"seed {seed:>3}: {parts} -> {path.name}"
+
+
 def run_one(seed: int, base_config: dict, epochs: int, warm_passes: int,
             out_dir: pathlib.Path) -> str:
     from src.python.orchestrator import Simulation  # noqa: PLC0415
@@ -104,6 +153,10 @@ def main() -> int:
                         help="passes over the epoch-0 log before the loop starts")
     parser.add_argument("--output-dir", default="data/processed/rigor/interventions")
     parser.add_argument("--jobs", type=int, default=1, help="worker processes, one seed each")
+    parser.add_argument("--late-freeze", default=None,
+                        help="comma-separated freeze epochs for the E3b arm, e.g. 20,40. "
+                             "Runs control plus one frozen run per epoch and writes "
+                             "latefreeze_seed<seed>.csv. Omit to run the E3 arm.")
     args = parser.parse_args()
 
     with open(args.config, encoding="utf-8") as fh:
@@ -116,6 +169,21 @@ def main() -> int:
     seeds = [int(s) for s in args.seeds.split(",") if s.strip()]
     out_dir = pathlib.Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.late_freeze:
+        freeze_epochs = tuple(int(e) for e in args.late_freeze.split(",") if e.strip())
+        if args.jobs <= 1:
+            for seed in seeds:
+                print(run_late_freeze(seed, base_config, args.epochs, freeze_epochs,
+                                      out_dir), flush=True)
+        else:
+            with _futures.ProcessPoolExecutor(max_workers=args.jobs) as pool:
+                futures = [pool.submit(run_late_freeze, s, base_config, args.epochs,
+                                       freeze_epochs, out_dir) for s in seeds]
+                for fut in _futures.as_completed(futures):
+                    print(fut.result(), flush=True)
+        print(f"\nwrote {len(seeds)} late-freeze seed files to {out_dir}", flush=True)
+        return 0
 
     if args.jobs <= 1:
         for seed in seeds:
