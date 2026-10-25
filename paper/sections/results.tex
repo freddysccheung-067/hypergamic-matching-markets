@@ -128,14 +128,18 @@ seeds (\texttt{docs/STATS.md} \S1, row 2; \texttt{intervals.csv}). The twenty-se
 run gives $+0.0237$ $[+0.0204, +0.0271]$, which is the same quantity on a
 superset of the same seeds: seeds 42--46 are the first five of 42--61, so the two
 figures agreeing is expected and is not a test of anything. What it does
-establish is the interval's width, 0.0035 on the BCa construction at twenty seeds
-against 0.0121 at five, and that the point estimate moves by less than
-its own five-seed interval when the other fifteen seeds are added. A reader who
+establish is the interval's width, measured full width against full width: 0.0067
+on the BCa construction at twenty seeds against 0.0122 at five, a factor of about
+1.8, and that the point estimate moves by less than its own five-seed interval
+when the other fifteen seeds are added. A reader who
 wants the five-seed accident ruled out should read the sensitivity sweep below,
 where the same ordering is measured on twelve independently varied
 configurations, rather than the overlapping-sample agreement. The gap is positive
-with an interval excluding zero in all twelve sweep cells and reverses nowhere
-(\S\ref{sec:sensitivity}).
+with an interval excluding zero in all twelve sweep cells and reverses nowhere,
+on \emph{both} interval constructions: every cell's Student-$t$ interval excludes
+zero as well as every cell's BCa interval, so the verdict does not depend on the
+construction this section elsewhere says cannot be trusted at five seeds
+(\S\ref{sec:sensitivity}; \texttt{data/processed/rigor/sensitivity.csv}).
 
 \emph{Refuted?} No in direction; the substantive version, that estimation error is
 a \emph{standing} source of concentration, is refuted by \S\ref{sec:coldstart}.
@@ -259,8 +263,8 @@ forty cells, so an uncorrected interval on it is not an interval on anything.
 Corrected over that family, the Benjamini--Hochberg $q$-value is
 $3.9\times10^{-4}$, Holm rejects, and the Bonferroni $t$ interval widens to
 $[+28.80, +100.43]$ (\texttt{docs/STATS.md} \S5.3;
-\texttt{multiple\_comparisons.csv}). At roughly eleven standard errors the
-correction is cheap.
+\texttt{multiple\_comparisons.csv}). At roughly fifteen standard errors
+($64.62 / (9.861/\sqrt{5}) = 14.65$) the correction is cheap.
 
 \emph{The narrower finding.} Of seven cells where B beats A, only two survive
 correction ($0.65$ and $0.50$). The optimum is a two-cell feature, not a region;
@@ -388,23 +392,31 @@ four claims fixed with their thresholds before the cells were read
 \centering
 \input{tables/sensitivity}
 \caption{The sensitivity grid: one knob at one level per row, the rest at shipped
-values, five seeds, 100 epochs. Gap is the paired exposure difference and the
-interval its BCa 95\% bounds. The shipped level of each knob is italicised and
-appears in three axes with identical numbers, which checks that the axes are
-independent. C1--C4 are the claims of \texttt{docs/STATS.md} \S4.1, bold where a
-claim fails.}
+values, five seeds, 100 epochs. Gap is the paired exposure difference, with its
+95\% BCa bounds and its 95\% Student-$t$ bounds printed side by side, because the
+C1 verdict must not rest on the construction the paper elsewhere says undercovers
+at five seeds. The shipped level of each knob is italicised and appears in three
+axes with identical numbers, which checks that the axes are independent. C1--C4
+are the claims of \texttt{docs/STATS.md} \S4.1, bold where a claim fails; C1
+holds on both constructions in all twelve cells.}
 \label{tab:sens}
 \end{table}
 
 \emph{Holds everywhere.} The H3 ordering holds in all twelve cells, positive with
-an interval excluding zero, reversing nowhere (C1). The gap is small by the
+an interval excluding zero, reversing nowhere (C1). It holds on both
+constructions: every cell's Student-$t$ interval excludes zero as well as every
+cell's BCa interval, and the two are printed side by side
+(Table~\ref{tab:sens}). The gap is small by the
 pre-fixed ceiling in all twelve (C2), though the largest cell's upper bound
 reaches $+0.0665$ and is the weakest case. Clearing is non-degenerate in all
 twelve (C4). Neither the ordering nor the existence of a clearing market is an
 artefact of the shipped corner.
 
 \emph{What does not.} One cell fails the reach claim: at the lowest chemistry
-noise the ranker reaches $0.4616$ of agents against $0.9566$ shipped (C3). This
+noise the ranker reaches $0.4616$ of agents against $0.9566$ shipped, both
+fractions of the population (C3). The same comparison in counts is $462$ agents
+against $957$, out of $N = 1000$; reach is reported as a fraction everywhere else
+in this paper and is a fraction here. This
 is the mechanism switching off, not a small deviation: at low chemistry noise the
 filter never learns coverage, so the process \S\ref{sec:coldstart} identifies as
 the reason the gap closes is unavailable. The gap is still small and positive

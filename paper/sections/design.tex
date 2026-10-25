@@ -35,9 +35,17 @@ regime & $\phi$ & epochs & what it isolates \\
 The inert regime is retained rather than discarded because the difference
 between it and the live regime is the evidence that the feedback channel matters
 at all. The two 20-epoch regimes differ in $\phi$ alone; the two live regimes
-differ in horizon alone, and the first 100 epochs of the 300-epoch run are
-identical row for row to the 100-epoch run, which checks that horizon is the
-only change.
+differ in horizon alone, and their first epochs agree only approximately. The
+four arms of the 300-epoch run and the 100-epoch run are bit-identical through
+epoch 4 and then diverge in the NCF arm alone, reaching $3\times10^{-4}$ in
+exposure Gini by epoch 19; the other three arms stay bit-identical. That is the
+signature of a different floating-point reduction order in the training path, not
+of a different model, and it is why every figure in this paper names the run it
+came from: the 100-epoch gap is quoted from \texttt{ablation\_h100} and the
+300-epoch trajectory from \texttt{rigor/long\_horizon}, which are two runs and
+not one run at two lengths. The difference is at the fourth decimal and changes
+no verdict, but a reader checking the two directories against each other will
+find it (see \texttt{docs/REVIEW\_RESPONSE.md}).
 
 \subsection{Arms}
 
@@ -69,11 +77,23 @@ algorithmic mediation, each on or off, from which the three terms are estimated.
 
 \subsection{Sampling and what counts as a replicate}
 
-Five seeds (42 through 46) underlie every headline, and this is the design
+Five seeds (42 through 46) underlie every headline except the two quantities
+that carry a twenty-seed interval, and this is the design
 decision most likely to be objected to, so the response is registered rather than
 deferred. A seed is a population, not a run: each draws fresh traits, intents,
 alignments and pairwise shocks and holds them fixed across arms, so arms are
 compared \emph{paired} by seed and every gap is a per-seed difference.
+
+\textbf{Which quantities rest on twenty seeds and which on five.} So that a
+reader is never guessing: the exposure Gini, the NCF--oracle gap, the clearing
+rate, rank satisfaction, reach and algorithmic loss at the shipped
+hundred-epoch regime are all quoted from a twenty-seed run. Everything else is
+five. That includes every horizon claim (the 300-epoch series, its decay fits,
+its asymptote and its stationarity tests), every sensitivity-sweep claim (twelve
+cells, five seeds each), the institutional grid and its optimum, and the drift
+decomposition. A number in \S\ref{sec:results} that is not one of the six named
+above is a five-seed number, and the text says so where the distinction could
+mislead.
 
 A twenty-seed run (42 through 61) was executed at the shipped regime. A power
 calculation against the twenty-seed standard deviation requires fewer than five

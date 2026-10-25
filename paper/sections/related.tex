@@ -11,14 +11,20 @@
 
 For a marriage market where status is a single scalar and unions must be
 hypergamous, the aggregate questions have closed-form answers.
-\citet{bilderbeek2026} proves the picture: universal hypergamy is feasible
-exactly when one side's status distribution first-order stochastically dominates
-the other's, and when it is not, the minimal unmatched mass is the hypergamy
-deficit $D = \sup_t\,(G_W(t) - G_M(t))_+$, by a continuum Hall marriage theorem.
-No behavioural strategy changes either fact, status gains are transfers of rank
-rather than creations of it, and under status-ranked preferences the stable
-matching is unique and positive assortative, the Gale--Shapley result of
-\citet{gale1962} on the continuum.
+A recent preprint argues the picture \citep{bilderbeek2026}: universal hypergamy is
+feasible exactly when one side's status distribution first-order stochastically
+dominates the other's, and when it is not, the minimal unmatched mass is the
+hypergamy deficit $D = \sup_t\,(G_W(t) - G_M(t))_+$. The finite-population
+condition underneath it is Hall's marriage theorem \citep{hall1935}, of which
+this deficit is the maximum deficiency; the preprint's contribution is the
+continuum form and its application. This is checked against the simulator below
+rather than taken on trust. No behavioural strategy changes either fact,
+status gains are transfers of rank rather than creations of it, and under
+status-ranked preferences the stable matching is unique and positive assortative.
+Existence of a stable matching is \citet{gale1962}; uniqueness under a common
+ranking is a property of the lattice they generate, set out by \citet{knuth1996},
+because when every agent on a side ranks the other side identically the
+proposer-optimal and acceptor-optimal matchings coincide.
 
 The consequences for anyone modelling this are severe. Unmatched mass is a
 functional of the two marginal status distributions alone, so interventions that
@@ -124,7 +130,7 @@ across stable matchings.
 \subsection{What is new here}
 
 Thirty-five sources were examined for whether any already does
-recommender-mediated matching on multiple traits. Thirty-three do not. Three
+recommender-mediated matching on multiple traits. Thirty-two do not. Three
 require the claim restated: \citet{chen2023}, \citet{pizzato2010} and
 \citet{tomita2022} between them rule out any novelty claim resting on the ranker.
 The gap that survives is narrower than ``recommender-mediated matching'' and is a
