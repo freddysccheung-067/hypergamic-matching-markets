@@ -490,9 +490,20 @@ Seven cells have a positive mean (B beats A). Only two of them survive BH:
 
 ### §5.3 Does the optimum survive?
 
-**Yes, decisively.** The cell at (c = 0.01, size_fraction = 0.65) ranks first of
-40 by mean, its one-sample t against zero is 14.65 on 4 df (p = 1.3e-4), and its
-BH q-value is 3.9e-4. Holm rejects it too.
+**Within its regime, yes. At the shipped regime, no.** The cell at (c = 0.01,
+size_fraction = 0.65) ranks first of 40 by mean, its one-sample t against zero is
+14.65 on 4 df (p = 1.3e-4), and its BH q-value is 3.9e-4. Holm rejects it too.
+
+**But that grid was measured at `admissible_fraction: 0.2`, the inert gate.** The
+committed `data/processed/institutional/` predates the move to `0.02`, and
+re-running seeds 42–46 at `0.2` reproduces all 200 rows exactly. Re-running the
+full grid at the shipped `0.02` — `data/processed/rigor/h4_shipped_gate/` — finds
+**no cell of the 40 beating Environment A**, at any of the four costs, and at
+`c = 0.01` the difference falls almost monotonically with size from −0.23 to
+−40.22. The former optimum cell reads **−17.23**. That run was not
+pre-registered; `docs/PREREGISTRATION.md` E6 records it with that label. The
+subsection below describes the inert-regime result, which is the only regime in
+which an optimum exists.
 
 Its interval after correction for having been chosen as the maximum of 40:
 
@@ -547,7 +558,8 @@ magnitude is not resolved.
 ### What a reader may conclude
 
 - The institutional optimum survives correction for the 200 cells it was chosen
-  from, and survives it comfortably.
+  from, **within the inert gate regime it was measured in**. It does not exist at
+  the shipped gate: no cell of the 40 beats Environment A there.
 - "The optimum" is two cells wide at five seeds, not a region. Quote it as a
   location with a narrow support, not as a curve with a maximum.
 - The H5 interaction is zero within its interval, which is what H5 said it might
@@ -564,9 +576,10 @@ magnitude is not resolved.
 | cold-start gap at 100 epochs | +0.025, horizon unstated | converges to zero by ~250 epochs; 100 is a transient |
 | gap at 300 epochs | unknown | +0.0004 [−0.0003, +0.0011]; zero within resolution |
 | NCF–oracle ordering across the grid | untested | holds 12/12, size varies 5× |
-| cold-start *mechanism* | reach climbs 4%→96% | conditional: fails at shock_scale 0.5 (reach 46%) |
+| cold-start *mechanism* | reach climbs 4%→96% | consistent with the decay, **not established**: the shock_scale 0.5 cell reaches 49% by epoch 299, and a frozen ranker is flat by construction |
+| institutional optimum | optimum at sf=0.65, +64.62 | holds only at the inert gate (φ=0.2); **no cell beats A at the shipped gate** |
 | δ's power below β/α 2 | documented as inert | **not reproduced at shipped settings; ordering reverses** |
-| institutional optimum | +64.62 ± 9.86 | survives BH (q=3.9e-4); two cells wide |
+| institutional optimum | +64.62 ± 9.86, survives BH (q=3.9e-4) | survives in the inert regime only; refuted at the shipped gate |
 | H5 interaction | +16.7 ± 40.4 | +16.7 [−13.3, +53.0], not distinguishable from zero |
 
 ## Files
