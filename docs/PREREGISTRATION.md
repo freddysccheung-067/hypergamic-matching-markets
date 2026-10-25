@@ -263,3 +263,36 @@ estimate at `size_fraction = 0.65` falls by less than one exploratory seed sd
 **Added prediction, made now and before the data:** the cell will rank first or
 near-first in the inert regime, because it did so on the original five seeds and
 the regime — not the seed set — is what the first C2 run changed.
+
+---
+
+## E5a — result of the equivalence test, appended after the run
+
+**Written:** 2026-10-25, after E5 was computed on the existing series and before
+anything was written into the paper.
+
+**TOST at the declared margin of 0.002.** The replicate is the seed (n = 5), not
+the epoch: the fifty tail values are one trajectory, so their spread is not the
+sampling scale. Seed sd = 0.000291, SE = 0.000130, df = 4, one-sided
+$t_{0.05} = 2.132$.
+
+- $t(\mu > -0.002) = +18.26$ — rejects.
+- $t(\mu < +0.002) = +12.50$ — rejects.
+- **TOST passes.** The 90% interval over seeds is $[+0.000097, +0.000651]$,
+  wholly inside $\pm 0.002$.
+
+So the tail *is* equivalent to zero at a 0.002 margin, in the sense of a
+pre-declared equivalence test, which is a stronger statement than "the interval
+includes zero". This is what E5 predicted and it holds.
+
+**Time-to-threshold: the prediction failed on part of its range.** E5 predicted the
+first epoch from which the gap stays below 0.002 lies between 120 and 200 on every
+seed. Measured: 268, 237, 210, 198, 225 for seeds 42–46 — **range 198 to 268, with
+four of five seeds above 200.** The point prediction was 120–200 and the data sit
+one to three hundred epochs later; only seed 45 lands at the boundary.
+
+What that means: the tail is equivalent to zero, and the trajectory takes about
+200–270 epochs to get there, not the 120–200 estimated. The paper accordingly says
+"below 0.002 from about epoch 200 to 270 depending on seed", not "from about epoch
+200". E5's window was a guess about where the crossing would fall; the measurement
+is the finding, and it is reported as a miss.
