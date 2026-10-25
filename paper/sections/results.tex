@@ -130,6 +130,16 @@ and the arm ordering
 holds on all twenty seeds. No quantity moved outside its interval and no ordering
 reversed, which is what E1 predicted.
 
+Four measurements of this one quantity now exist, and a reader should know which
+is which. The headline quoted above, $\gapShipped$, is five seeds at 24 threads
+from \texttt{ablation\_h100/}, the only archival value whose directory reproduces
+exactly. The committed twenty-seed interval, $\gapBaseTwenty$
+$[\gapBaseTwentyLo, \gapBaseTwentyHi]$, comes from \texttt{rigor/base/}, which does
+not regenerate. The two above come from this session at 1 thread. The four are
+$+0.0251$, $+0.0237$, $+0.0253$ and $+0.0225$, and the paper keeps the first as
+its headline because provenance rather than size is the deciding consideration
+(\texttt{docs/PREREGISTRATION.md} E8).
+
 Two differences are worth naming because they bear on how much the seeds were
 worth. The fresh set has a smaller spread on the Gini quantities (sd $\giniNcfSdFresh$
 against $\giniNcfSdExploratory$ for the NCF level) and a larger one on algorithmic loss
