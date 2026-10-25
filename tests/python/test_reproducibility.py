@@ -171,3 +171,105 @@ def test_unpinned_threads_can_change_the_numbers():
             "instability to characterise here; the pin stands regardless"
         )
     assert one.shape == two.shape
+
+
+# ── the archival promise ──────────────────────────────────────────────────────
+#
+# ``docs/INTERFACES.md`` §3.1(c) says the committed data under ``data/processed/``
+# was generated before ``ncf.num_threads`` existed, and that each directory's
+# README states the count it was generated at. That sentence is the only thing
+# standing between a reader and a silent mismatch between the README and the
+# files, and prose alone does not fail when it stops being true. These tests are
+# what make it fail.
+#
+# The stronger check would be to read a thread count out of each committed CSV and
+# compare it to the README. No CSV carries such a column (only
+# ``rigor/thread_sensitivity.csv`` does, and that file *is* the measurement rather
+# than a run), so the check is the structural one the contract can actually
+# support.
+
+PROCESSED = PROJECT_ROOT / "data" / "processed"
+
+# Directories that hold committed simulation output. ``separating/`` and the three
+# ``thin_market*`` directories were added to this list when their READMEs were
+# written. Each has its own README and each states its own thread count, even
+# where the answer is "not applicable", because a reader who lands on one of them
+# should not have to find a sibling to learn that.
+DATA_DIRS = [
+    "ablation",
+    "ablation_live",
+    "ablation_h100",
+    "flooding",
+    "institutional",
+    "rigor",
+    "separating",
+    "thin_market",
+    "thin_market_q0.95",
+    "thin_market_q0.99",
+]
+
+
+def test_every_data_directory_documents_its_thread_count():
+    """Each committed data directory states the thread count it was generated at.
+
+    Adding a directory without a "Thread count" section fails here rather than
+    leaving a reader to discover the gap by re-running something.
+
+    Deliberately independent of this machine's core count: it reads files and
+    compares strings, so it passes on a 4-core CI runner and on a 96-core one
+    alike. That is the point of choosing the structural check over a re-run.
+    """
+    missing = []
+    for name in DATA_DIRS:
+        readme = PROCESSED / name / "README.md"
+        if not readme.exists():
+            missing.append(f"{name}/README.md does not exist")
+            continue
+        text = readme.read_text(encoding="utf-8")
+        if "## Thread count" not in text:
+            missing.append(f"{name}/README.md has no '## Thread count' section")
+    assert not missing, (
+        "committed data directories must document the thread count they were "
+        "generated at (docs/INTERFACES.md §3.1c):\n  " + "\n  ".join(missing)
+    )
+
+
+def test_every_data_directory_on_disk_is_in_the_list():
+    """The list above covers what is actually committed.
+
+    Otherwise a new directory could be added and the test above would keep
+    passing, because the test iterates the list rather than the filesystem.
+    """
+    on_disk = {
+        p.name
+        for p in PROCESSED.iterdir()
+        if p.is_dir() and any(p.glob("*.csv"))
+    }
+    undocumented = on_disk - set(DATA_DIRS)
+    assert not undocumented, (
+        "these data directories exist but are not covered by DATA_DIRS, so their "
+        f"README is not checked: {sorted(undocumented)}"
+    )
+
+
+def test_the_archival_directories_are_not_claimed_to_reproduce():
+    """The READMEs point at §3.1 rather than promising a byte-for-byte re-run.
+
+    This is the sentence that was wrong before: the repository used to say the
+    runs regenerate identically "within one toolchain and across thread counts".
+    The C++ half of that was true; the torch half was not. A grep-level assertion
+    is crude, but the failure mode it guards against is exactly a sentence coming
+    back, and a sentence is what it looks for.
+    """
+    offenders = []
+    for path in [PROJECT_ROOT / "README.md", *(PROCESSED.glob("*/README.md"))]:
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if "within one toolchain and across thread counts" in text:
+            offenders.append(str(path.relative_to(PROJECT_ROOT)))
+    assert not offenders, (
+        "this sentence overstates the guarantee; point at docs/INTERFACES.md "
+        f"§3.1 instead: {offenders}"
+    )
+
