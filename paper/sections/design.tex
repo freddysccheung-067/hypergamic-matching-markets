@@ -16,7 +16,7 @@ the shipped configuration without re-running the simulation.
 \subsection{Regimes, and why the horizon is a design variable}
 
 The shipped configuration is $N = 1000$ agents, shortlist length $k = 20$, gate
-target $\phi = 0.02$, nominal horizon 100 epochs. Four regimes appear, and the
+target $\phi = 0.02$, nominal horizon 100 epochs. Five regimes appear, and the
 differences between them are results in their own right:
 
 \begin{center}
@@ -27,17 +27,35 @@ regime & $\phi$ & epochs & what it isolates \\
 \texttt{inert20} & 0.2 & 20 & gate never binds; market deaf to its own outcomes \\
 \texttt{live20} & 0.02 & 20 & gate binds, then relaxes \\
 \texttt{live100} & 0.02 & 100 & the shipped horizon \\
+\texttt{base20} & 0.02 & 100 & the same horizon, twenty seeds \\
 \texttt{long300} & 0.02 & 300 & convergence, not a steady state \\
 \hline
 \end{tabular}
 \end{center}
 
+The institutional comparison uses a sixth: $\phi = 0.2$, the inert gate, at five
+epochs per paired run. That is the same gate as \texttt{inert20} and it is the
+regime in which H4 holds and in which it is refuted at the shipped gate
+(\S\ref{sec:h4regime}).
+
 The inert regime is retained rather than discarded because the difference
 between it and the live regime is the evidence that the feedback channel matters
 at all. The two 20-epoch regimes differ in $\phi$ alone; the two live regimes
-differ in horizon alone, and the first 100 epochs of the 300-epoch run are
-identical row for row to the 100-epoch run, which checks that horizon is the
-only change.
+differ in horizon alone, and their first epochs agree only approximately. The
+four arms of the 300-epoch run and the 100-epoch run are bit-identical through
+epoch 4 and then diverge in the NCF arm alone, reaching $3\times10^{-4}$ in
+exposure Gini by epoch 19; the other three arms stay bit-identical. That is the
+signature of a different floating-point reduction order in the training path, not
+of a different model, and it is why every figure in this paper names the run it
+came from: \texttt{ablation\_h100} and the committed \texttt{rigor/long\_horizon}
+are two runs and not one run at two lengths. Their seed-42 NCF Ginis at epoch 99
+differ in the third decimal ($\giniSeedFortyTwoShort$ against
+$\giniSeedFortyTwoLong$), which changes no verdict, but the second directory cannot
+be regenerated from this code at any thread count tested
+(\texttt{docs/REVIEW\_RESPONSE.md}, A3). The 300-epoch trajectory this paper quotes
+is therefore \texttt{rigor/long\_horizon\_1t}, the same design regenerated at one
+thread and checked against the committed run before it was quoted
+(\texttt{docs/PREREGISTRATION.md} E7).
 
 \subsection{Arms}
 
@@ -69,11 +87,23 @@ algorithmic mediation, each on or off, from which the three terms are estimated.
 
 \subsection{Sampling and what counts as a replicate}
 
-Five seeds (42 through 46) underlie every headline, and this is the design
+Five seeds (42 through 46) underlie the horizon, sweep and institutional results,
+and twenty the shipped-horizon ones. This is the design
 decision most likely to be objected to, so the response is registered rather than
 deferred. A seed is a population, not a run: each draws fresh traits, intents,
 alignments and pairwise shocks and holds them fixed across arms, so arms are
 compared \emph{paired} by seed and every gap is a per-seed difference.
+
+\textbf{Which quantities rest on twenty seeds and which on five.} So that a
+reader is never guessing: the exposure Gini, the NCF--oracle gap, the clearing
+rate, rank satisfaction, reach and algorithmic loss at the shipped
+hundred-epoch regime are all quoted from a twenty-seed run. Everything else is
+five. That includes every horizon claim (the 300-epoch series, its decay fits,
+its asymptote and its stationarity tests), every sensitivity-sweep claim (twelve
+cells, five seeds each), the institutional grid and its optimum, and the drift
+decomposition. A number in \S\ref{sec:results} that is not one of the six named
+above is a five-seed number, and the text says so where the distinction could
+mislead.
 
 A twenty-seed run (42 through 61) was executed at the shipped regime. A power
 calculation against the twenty-seed standard deviation requires fewer than five
@@ -100,8 +130,8 @@ Two families are corrected. The institutional grid holds 200 rows but 40 distinc
 cells (ten sizes by four costs), each replicated over five seeds; a cell is what
 was selected over, so its seeds are replicates rather than five further chances
 to win, and the family is 40. Uncorrected family-wise error under independence
-would be 0.871, but the cells are not independent, since adjacent sizes share
-populations and the same seeds are reused, so the realised rate is lower and is
+would be $\fwerUncorrected$, but the cells are not independent, since adjacent sizes share
+populations and the same seeds are reused, so the realized rate is lower and is
 not claimed; the nominal figure is quoted as an upper bound. The decomposition
 corrects over its three terms.
 
@@ -118,7 +148,7 @@ reaches at least 75\% of agents (C3), and that clearing is non-degenerate (C4).
 C2's ceiling and C3's floor are the two judgments most exposed to the charge of
 being chosen after the fact, and the only mitigation is that they were written
 down first. The shipped cell appears in three axes with identical numbers
-($+0.025973$, reach $0.9566$), which checks that the axes are independent.
+($\gapShippedSweep$, reach $\reachShipped$), which checks that the axes are independent.
 
 \subsection{Validation against closed-form results}
 \label{sec:validation-design}
@@ -131,8 +161,12 @@ about whether the model describes a population.
 Two tools are used because the results are of two kinds. The deficit results
 concern the largest matching under a \emph{compatibility} constraint, which is a
 maximum-cardinality bipartite matching problem and is solved as one; a
-stable-matching procedure does not compute it. The uniqueness result is the
-stability question and is tested with deferred acceptance.
+stable-matching procedure does not compute it. Its finite form is the deficiency
+version of Hall's marriage theorem \citep{hall1935}, of which the preprint's
+continuum deficit is the limit. The uniqueness result is the stability question
+and is tested with deferred acceptance \citep{gale1962}; that a common ranking
+makes the stable matching unique is the collapse of the stable-matching lattice to
+a point \citep{knuth1996}.
 
 Table~\ref{tab:validation} reports both. The most informative check is the last:
 adding noise of order one percent of the status scale to each agent's own view of
@@ -144,13 +178,15 @@ on the lists being \emph{common}, not merely correlated with status.
 \centering
 \input{tables/validation}
 \caption{Validation against the closed-form results: the deficit identity and
-height-deficit form in the first five rows, assortative uniqueness and its
-precondition in the last two. These are the only numbers in the paper that do not
-trace to a file under \texttt{data/processed/}: they are asserted in
-\texttt{tests/python/test\_validation.py} and transcribed in
-\texttt{docs/validation.md}, with no committed artefact between assertion and
-table. Every other table is generated from committed CSVs by
-\texttt{paper/tables.py}.}
+height-deficit form in the first five rows \citep{hall1935,bilderbeek2026},
+assortative uniqueness and its precondition in the last two
+\citep{gale1962,knuth1996}. The theorem numbers are the preprint's; the deficit
+and uniqueness results themselves are classical. Generated by \texttt{paper/tables.py} from
+\texttt{data/processed/rigor/validation.csv}, which
+\texttt{scripts/run\_validation.py} writes by recomputing the quantities
+\texttt{tests/python/test\_validation.py} asserts; a test compares the committed
+file against a fresh computation, so the table cannot silently disagree with the
+checks it reports.}
 \label{tab:validation}
 \end{table}
 

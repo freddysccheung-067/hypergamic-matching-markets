@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "rev/**"]
   pull_request:
     branches: [main]
 
@@ -41,8 +41,33 @@ jobs:
           cmake --build build --parallel
 
       # slow property tests are excluded from the default run
-      # slow property tests are excluded from the default run
       - run: pytest tests/python/ -v --tb=short -m "not slow"
+
+  # The paper's numbers are checked, not compiled. verify.py needs no TeX: it
+  # checks that every \input resolves, every \ref has a \label, every \cite has a
+  # bib entry, every figure exists, every number macro used is defined and every
+  # one defined is used, and that no control character or backslash-stripped
+  # command crept into a source. numbers.tex must also be current with its CSVs,
+  # or the committed table is stale against the data it claims to report.
+  paper:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Structural checks
+        run: python paper/verify.py
+      - name: Number macros are current
+        run: |
+          python paper/gen_numbers.py
+          python paper/tables.py
+          git diff --exit-code paper/tables/ || {
+            echo "::error::paper/tables is stale; run paper/gen_numbers.py and paper/tables.py"
+            exit 1
+          }
 
   test-cpp:
     runs-on: ubuntu-24.04

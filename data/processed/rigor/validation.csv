@@ -1,0 +1,8 @@
+check,n,measured,detail,evidence,verdict
+"Thm 2.2, deficit $D$",$N=300$,exact on 5 seeds,0.2433 / 0.3367 / 0.2200 / 0.2833 / 0.1800,matching $=$ empirical sup,agrees
+Example 2.4,"$N=20{,}000$",0.2519 vs $1/4$,empirical sup 0.2519,"single seed, tol 0.02",agrees
+"Thm 3.3, $D(14.0)$","$N=5{,}000$",0,exactly zero on all five seeds,exact,agrees by construction
+"Thm 3.3, $D(30.48)$","$N=5{,}000$",0.7254,seed sd 0.0054,formula 0.7217,agrees
+"Thm 3.3, unequal var.","$N=5{,}000$",0.7433,seed sd 0.0053,formula 0.7380,agrees
+"Thm 5.1, unique",$N=300$,same matching both ways,identical matching on all five seeds,"0 blocking pairs, 5 seeds",agrees
+"Thm 5.1, perturbed",$N=300$,22 / 8 / 11 / 12 / 8 pairs differ,1\% status noise,"uniqueness fails, stability holds",as the theorem requires

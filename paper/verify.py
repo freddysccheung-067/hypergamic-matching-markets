@@ -31,14 +31,31 @@ LABEL_RE = re.compile(r"\\label\{([^}]+)\}")
 CITE_RE = re.compile(r"\\cite[a-zA-Z]*\{([^}]+)\}")
 BIBKEY_RE = re.compile(r"@\w+\{([^,]+),")
 GRAPHICS_RE = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
+# \newcommand{\gapShipped}{...} -> gapShipped
+MACRO_DEF_RE = re.compile(r"\\newcommand\{\\([A-Za-z0-9]+)\}")
+# A macro used as $...\name...$ in the prose. Restricted to the names numbers.py
+# can emit, so ordinary formatting macros (\emph, \texttt, \S) are not flagged.
+MACRO_USE_RE = re.compile(
+    r"\\((?:gap|gini|mcr|rsi|reach|opt|hFive|hFour|tail|tost|stat|nSweep"
+    r"|nInstitutional|nReject|fwer|algLoss|finalEpoch|firstBelow|decay|width"
+    r"|thread|betweenSeed|cfour|betaAlpha|shockVs)[A-Za-z0-9]*)"
+)
+# Any TeX control word. Used to decide whether a *defined* number macro appears in
+# the prose at all, which a prefix list cannot do: a macro whose prefix the list
+# forgot would read as unused while being used.
+CONTROL_WORD_RE = re.compile(r"\\([A-Za-z]+)")
+
+
+# A comment starts at a "%" that is not escaped. "\%" is a literal percent sign,
+# and an earlier version of strip_comments split on any "%", which silently
+# discarded the rest of every line containing one: a \ref, \cite or macro after
+# "95\%" was invisible to every check below.
+_COMMENT_RE = re.compile(r"(?<!\\)%.*")
 
 
 def strip_comments(text: str) -> str:
     """Remove TeX comments so commented-out labels are not counted."""
-    return "\n".join(
-        line.split("%", 1)[0] if not line.lstrip().startswith("%") else ""
-        for line in text.splitlines()
-    )
+    return "\n".join(_COMMENT_RE.sub("", line) for line in text.splitlines())
 
 
 def collect_files() -> list[Path]:
@@ -169,6 +186,82 @@ def main() -> int:
         if status != "ok":
             notes.append(f"{path.name}: brace depth ends at {depth}, min {low}")
         print(f"  {status:10s} {path.name} (final depth {depth})")
+
+    # 8. number macros: every \foo used in the prose must be defined in
+    # tables/numbers.tex, and every macro defined there should be used. An
+    # undefined one compiles to nothing or to an error depending on the engine;
+    # either way the paper would silently lose a number.
+    numbers_path = PAPER / "tables" / "numbers.tex"
+    print("\n[8] number macros")
+    if not numbers_path.exists():
+        failures.append("tables/numbers.tex is missing; run python paper/gen_numbers.py")
+        print("  MISSING tables/numbers.tex")
+    else:
+        defined = set(MACRO_DEF_RE.findall(numbers_path.read_text(encoding="utf-8")))
+        used: set[str] = set()
+        for _path, text in combined:
+            # numbers.tex is \input in the preamble, so it is in `combined`; its own
+            # \newcommand lines would otherwise count every macro as "used".
+            if _path.resolve() == numbers_path.resolve():
+                continue
+            used |= set(MACRO_USE_RE.findall(text))
+            used |= set(CONTROL_WORD_RE.findall(text)) & defined
+        # A TeX control word is letters only. \gapEpoch6 is \gapEpoch followed by
+        # the character "6", so a digit in a defined name is a compile error that
+        # every regex-level check above would wave through.
+        for name in sorted(defined):
+            if any(ch.isdigit() for ch in name):
+                failures.append(
+                    f"\\{name}: TeX macro names cannot contain digits; "
+                    f"it parses as \\{name.rstrip('0123456789')} plus text"
+                )
+                print(f"  INVALID  \\{name}")
+        undefined = sorted(used - defined)
+        for name in undefined:
+            failures.append(f"\\{name} is used but not defined in tables/numbers.tex")
+            print(f"  MISSING  \\{name}")
+        unused = sorted(defined - used)
+        if unused:
+            notes.append(f"{len(unused)} number macros defined but unused: "
+                         + ", ".join(unused))
+        print(f"  {len(defined)} defined, {len(used)} used, "
+              f"{len(undefined)} undefined, {len(unused)} unused")
+
+    print("\n[10] control characters")
+    contro = 0
+    for path, text in combined:
+        for char in text:
+            if ord(char) < 32 and char not in "\n\t":
+                contro += 1
+                failures.append(
+                    f"{path.name}: control character U+{ord(char):04X} in source "
+                    f"(a backslash was eaten by a text tool; the macro name that "
+                    f"follows it is broken)"
+                )
+    print(f"  {contro} found")
+
+    print("\n[11] backslash-stripped commands")
+    # A text tool that eats "\" before a letter leaves the command name bare, or
+    # leaves the letter as a control character. Check 10 catches the latter; this
+    # catches "ef{...}" at the start of a line, where "\ref" lost its backslash
+    # and the first letter with it.
+    # Requires the opening brace: the point is a command whose name survived and
+    # whose backslash did not. Without the brace, ordinary prose ("end of a
+    # different one") would trip it, and a checker that cries wolf gets ignored.
+    stripped = re.compile(
+        r"(?m)^(?:ef|exttt|extbf|emph|site|ection|ubsection|label|eqref|itemize|"
+        r"begin|end|input|includegraphics|frac|sqrt|times|quad|hline)\{"
+    )
+    bare = 0
+    for path, text in combined:
+        for match in stripped.finditer(text):
+            bare += 1
+            line = text.count("\n", 0, match.start()) + 1
+            failures.append(
+                f"{path.name}:{line}: '{match.group(0)}' at line start — a command "
+                f"lost its backslash"
+            )
+    print(f"  {bare} found")
 
     print("\n" + "=" * 60)
     if failures:

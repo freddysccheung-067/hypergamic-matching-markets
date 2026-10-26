@@ -25,9 +25,39 @@ Student-t intervals beside it on every row.
 | `sensitivity_summary.csv` | the 40 institutional cells with per-cell t, p, q | same |
 | `sensitivity.csv` | the 12 parameter-sweep cells with the four claim verdicts | `scripts/summarise_sensitivity.py` |
 | `sensitivity/` | the raw cells and their README | `scripts/run_sensitivity.py` |
-| `long_horizon/` | the 300-epoch run and its README | `scripts/run_ablation.py` |
-| `long_horizon_*.csv` | the gap series, decay fits, asymptote, stationarity | `scripts/analyse_long_horizon.py` |
+| `long_horizon/` | the committed 300-epoch run, **archival: does not reproduce** | `scripts/run_ablation.py` |
+| `long_horizon_1t/` | the 300-epoch run the paper actually quotes, regenerated at 1 thread | same, `experiments/long_horizon_1t.yaml` |
+| `long_horizon_*.csv` | the gap series, decay fits, asymptote, stationarity, for the regenerated series; the committed one's live inside `long_horizon/` | `scripts/analyse_long_horizon.py` |
 | `base/` | 20 seeds, full metrics table, all four arms | `scripts/run_rigor_base.py` |
+| `validation.csv` | Table 1's seven rows, recomputed rather than transcribed | `scripts/run_validation.py` |
+| `fresh/` | seeds 100–119, the pre-registered confirmation set | `scripts/run_rigor_base.py` |
+| `exploratory_1t/` | seeds 42–61 regenerated in the same session, the comparison arm for `fresh/` | same |
+| `interventions/` | C3: control, frozen ranker, warm start | `scripts/run_interventions.py` |
+| `latefreeze/` | E3b: the ranker frozen at epochs 20 and 40 | same |
+| `c4_shock0.5/` | 300 epochs at `shock_scale` 0.5 | `scripts/run_ablation.py` |
+| `c2_fresh_inert/` | the H4 grid on seeds 100–119 at the inert gate | `scripts/run_institutional.py --config experiments/c2_inert.yaml` |
+| `h4_shipped_gate/` | the H4 grid at the shipped gate — no cell beats A | same, shipped config |
+| `c2_fresh_institutional/` | superseded: the grid on fresh seeds at the *wrong* gate; kept, not quoted | same |
+
+## Added in the revision of 2026-10-25
+
+Five of the directories above exist because an earlier result turned out to rest
+on a regime, a seed set, or a code version that the paper had not examined. Each
+has its own README stating what was run, at what gate and thread count, and what
+the result does not license:
+
+- `fresh/` and `exploratory_1t/` answer the seed-selection objection, in one
+  session at one thread count because the committed `base/` no longer reproduces
+  (see its README).
+- `interventions/` and `latefreeze/` test the coverage-learning mechanism. Both
+  report a failed test: the frozen arm is flat by construction, and the warm start
+  leaves two thirds of the decay unexplained.
+- `h4_shipped_gate/` refutes H4 where the paper actually runs. It is the one
+  directory here whose run was **not** pre-registered; `docs/PREREGISTRATION.md`
+  E6 says so.
+
+`docs/PREREGISTRATION.md` carries the prediction, or the admission that there was
+none, for every one of them.
 
 ## Reproducing
 

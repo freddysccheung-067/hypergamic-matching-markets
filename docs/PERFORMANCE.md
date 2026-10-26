@@ -156,7 +156,7 @@ NaN — which is why that stage is absent here and present at N=5,000.
 **Per-epoch cost grows with run length on this machine.** 6 epochs run at 7.3
 s/epoch; 20 epochs at 12.5 s/epoch; 50 epochs at 16.2 s/epoch. The scoring call
 itself goes from 3.6 s to 4.3 s over the same span, with identical shapes. That is
-sustained-load clock behaviour on a 24-thread laptop part, not an algorithmic
+sustained-load clock behavior on a 24-thread laptop part, not an algorithmic
 effect, and it means any long-run wall clock measured on this box is
 pessimistic relative to a short benchmark of the same code.
 

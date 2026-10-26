@@ -135,8 +135,13 @@ Headline numbers, read off the committed output:
 - **The NCF–oracle exposure gap is a cold-start effect.** At N = 1000, k = 20, five seeds, the
   shipped regime (`admissible_fraction = 0.02`): the Gini gap is +0.287 ± 0.010 at epoch 19 and
   +0.025 ± 0.008 at epoch 99, positive on every seed (`data/processed/ablation_live/` and
-  `ablation_h100/`). The 20-epoch figure of +0.285 measured at `admissible_fraction = 0.2`
-  (`data/processed/ablation/`) is the same effect in the inert regime. Quote the horizon with it.
+  `ablation_h100/`). Extended to 300 epochs it peaks at +0.306 and its tail is indistinguishable
+  from zero (`data/processed/rigor/long_horizon_1t/`), so the 100-epoch figure describes a
+  transient rather than a floor. The 20-epoch figure of +0.285 measured at
+  `admissible_fraction = 0.2` (`data/processed/ablation/`) is the same quantity in the inert
+  regime. The mechanism that would explain the decay — the filter learning coverage — is **not
+  established**: the two interventions meant to test it do not (`docs/PREREGISTRATION.md` E3).
+  Quote the horizon with the number.
 - **`δ` moves matching without moving concentration.** Across `δ = 0 → 1.5` the final-epoch Gini
   stays inside a 0.007 band (0.8334–0.8405), shortlist overlap against `δ = 0` falls to 0.8528
   (about three entries of a twenty-item list turn over), and rank satisfaction runs 0.4769 at `δ = 0`
@@ -180,12 +185,17 @@ feedback loop that grows to a Gini spread as large as the between-seed one. `ncf
 therefore pinned to 1 by default and is part of what identifies a run. Raise it for speed and record
 it.
 
-**The committed data is archival.** Everything under `data/processed/` was generated before
-`ncf.num_threads` existed, at the count the development machine reports by default (24). Where a
-directory does reproduce exactly, it is at that count and not at the shipped default of 1. Where it
-does not, the cause is a later change to the code that generated it rather than the thread count,
-and its README says so. Each README states the count it was generated at, which directories were
-re-verified by re-running a seed, and which were not. A fresh clone will not regenerate all of these
+**The committed data is archival.** Most of `data/processed/` was generated before
+`ncf.num_threads` existed, at the count the development machine reports by default (24); the
+directories added on 2026-10-25 (`rigor/fresh/`, `rigor/exploratory_1t/`, `rigor/long_horizon_1t/`,
+`rigor/interventions/`, `rigor/latefreeze/`, `rigor/c4_shock0.5/`, `rigor/c2_fresh_inert/`,
+`rigor/h4_shipped_gate/`) were generated at 1. Where an older directory does reproduce exactly, it
+is at its own count. Two do not reproduce at any count: `rigor/long_horizon/` (no code change
+explains it — the NCF arm drifts from the seventh decimal at epoch 5, the signature of a different
+floating-point environment) and, by a fourth-decimal margin, `rigor/base/`. The institutional grid
+reproduces only at the gate it was generated at, `admissible_fraction: 0.2`. Each README states
+the count and gate it was generated at, which directories were re-verified by re-running a seed,
+and which were not. A fresh clone will not regenerate all of these
 files from the shipped config, and it is not meant to: they are the record of what was run, kept so
 the numbers in the paper can be checked without a re-run. For any new work, leave the default alone.
 The three claims get separated in [docs/INTERFACES.md §3.1](docs/INTERFACES.md).

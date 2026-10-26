@@ -37,7 +37,7 @@ value compatibility and enters the dissolution hazard rather than the utility.
 
 \subsection{The recommender layer}
 
-A neural collaborative filter with a generalised matrix factorisation path and
+A neural collaborative filter with a generalized matrix factorisation path and
 an MLP path is trained on the swipe log, the record of which pairs were liked, and
 scores every unseen pair. Each agent then keeps a top-$k$
 shortlist of length $k = 20$ from those scores, and \emph{nothing outside that
@@ -83,7 +83,7 @@ above the agent's own status by a margin $\delta$, and is the
 model's operationalisation of the requirement that a partner rank at or above
 you rather than beside you.
 
-Two parameters modify the utility's realised shape. A per-agent lognormal
+Two parameters modify the utility's realized shape. A per-agent lognormal
 multiplier with coefficient of variation $\sigma_{\text{taste}}$ introduces taste
 heterogeneity, so different agents weight the same traits differently, which is the same
 device by which idiosyncratic tastes are added to a transferable-utility
@@ -152,7 +152,7 @@ cost to non-participants instead of ignoring it.
 
 Both accountings are computed. The common one, over all $N$ agents, is the
 number the paper reports. The selected one, over entrants only, is computed so
-that the selection artefact can be reported honestly rather than hidden, and is
+that the selection artifact can be reported honestly rather than hidden, and is
 never quoted as a headline.
 
 \subsection{The $\theta$ gate and its binding condition}
@@ -194,3 +194,12 @@ pulls $\theta$ toward a yield in the unit interval from an initial value far
 above it, so the gate truncates at the start and stops truncating within a few
 epochs. That relaxation is why the live and inert regimes produce nearly
 identical final-epoch gaps despite different trajectories.
+
+Those three facts decide one of this paper's results rather than merely
+qualifying it. The institutional comparison was measured at $\phi = 0.2$, outside
+the binding region, and re-run at the shipped $\phi = 0.02$ it reverses
+(\S\ref{sec:h4regime}). A reader who wants to know why a small arithmetic
+condition in this section matters at the level of a conclusion has it here: an
+inert gate means the market is deaf to its own outcomes, and an institution
+measured in a deaf market is not being compared under the same learning dynamics
+as one measured in a live one.

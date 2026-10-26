@@ -348,7 +348,7 @@ is wrong even though its *direction* is right. Standardization changed the numer
 $\theta$ but not this mismatch; it is recorded here rather than repaired because repairing
 it means redefining the update, which changes every result the project reports.
 
-**When the gate binds, and when it is inert.** $\theta$ can only affect behaviour when it
+**When the gate binds, and when it is inert.** $\theta$ can only affect behavior when it
 truncates the admissible set below $k$: an agent with at least $k$ admissible candidates
 takes the top $k$ of them regardless of where the cutoff sits. The condition is
 
@@ -422,7 +422,7 @@ with $V_i$ the positive swipes $i$ received this epoch and $\bar\tau_i$ their me
 intent; an agent who received nothing uses the population mean intent. $w = 0$ is the default,
 is omitted from the config dict, and reproduces every result bit for bit. Two properties follow
 from the form and are not findings: the term's coefficients are $w$ by construction, and because
-$V$ is normalised by its side mean the term averages to about zero — it moves $\theta$ *between*
+$V$ is normalized by its side mean the term averages to about zero — it moves $\theta$ *between*
 acceptors and moves mean $\theta$ by under 1% of its own spread (the residual comes from the
 $1 - \bar\tau$ weight correlating weakly with volume). Results are in THESIS.md under H2.
 
@@ -540,7 +540,7 @@ $N \cdot k \cdot (1 + n_{\text{negatives}})$ rows, grows as $N^{1.5}$ rather tha
 $k \approx 0.9\sqrt{N/2}$ and $n_{\text{negatives}} = 4$, $N = 1000$ produces 100,000 rows and
 $N = 4000$ produces 800,000 — a factor of 8 for a 4× population, exactly $N^{1.5}$, against
 4× if $k$ were held fixed. The NCF's per-epoch cost follows the row count. This is a Day 5
-budget constraint, not a modelling one.
+budget constraint, not a modeling one.
 
 Do not read a lower MCR as a worse market without fixing $N$ and $k$: it is mostly an
 arithmetic consequence of longer candidate pools, and the substantive metric at fixed
@@ -646,7 +646,7 @@ difference at one seed is one observation):
 preamble landed at 0.925 against an oracle of 0.653 — an earlier measurement of the same
 sign. Estimation error pushes agents the model is uncertain about out of every shortlist, so
 a *lossy personalisation concentrates more than perfect ranking does*. The mechanism is not
-"the algorithm favours status" but "the algorithm cannot represent everyone, so it drops the
+"the algorithm favors status" but "the algorithm cannot represent everyone, so it drops the
 uncertain ones". The NCF's 0.9393 also sits within 0.02 of the popularity ceiling of 0.96:
 at these settings the learned arm is close to degenerate — reach 18% against the shared-list
 arm's 4% is what separates them, not the Gini.
@@ -903,7 +903,7 @@ the parameters that make an *institution* a variable rather than a constant, and
 welfare accounting that lets two institutions be compared.
 
 Nothing in §1–§9 changes. The new state is appended, the new parameters default to values that
-reproduce current behaviour exactly, and every existing test must keep passing. That is a hard
+reproduce current behavior exactly, and every existing test must keep passing. That is a hard
 requirement, not a preference: §9.4's argument about what the project can claim depends on the
 current results staying reproducible.
 
@@ -1407,7 +1407,7 @@ seeds 42–46, 40 epochs per cell, $W$ = `welfare_total` averaged over epochs 30
 "Drift on" is $\gamma = 0.02$ population status-sd per epoch applied to W's raw status from epoch
 1, so by epoch 39 her status has moved 0.78 sd. "Mediation off" is the **oracle** arm, not an
 unranked market: same $k$, same θ gate, same deferred acceptance, so the switch changes only
-whether the ranking is estimated. The terms are formed per seed and summarised; the four cells at a
+whether the ranking is estimated. The terms are formed per seed and summarized; the four cells at a
 seed are asserted to start from one population (the only assertion the decomposition makes).
 
 | | mean | sd | min | max |
@@ -1473,7 +1473,7 @@ Three things follow.
 because $\tau$ never enters `utility_toward`. So an exit rule keyed on "did not match this epoch" is
 flat in $\tau$ by construction and kills H6 without needing evidence.
 
-**Pair survival does, but in H6's favour only weakly.** A match between two high-intent agents
+**Pair survival does, but in H6's favor only weakly.** A match between two high-intent agents
 survives more often (+0.180), which makes high-intent agents *better off*, not worse — the
 opposite of exiting first.
 

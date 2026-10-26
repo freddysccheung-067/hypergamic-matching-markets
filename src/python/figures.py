@@ -1080,8 +1080,110 @@ def save_dashboard(
     return fig
 
 
+def gap_over_horizon(
+    data_dir: pathlib.Path | str | None = None,
+    out_dir: pathlib.Path | str | None = None,
+    save: bool = True,
+) -> Figure:
+    """The paper's central figure: the exposure gap over the whole horizon.
+
+    Panel (a) is the five-seed mean gap by epoch with a one-sd seed band, the peak
+    at epoch 6 marked, the 0.002 equivalence margin as a rule, and the shipped
+    hundred-epoch point highlighted. It earns its place because the paper's claim
+    is about a shape over time and every earlier presentation of it was a table of
+    eight numbers.
+
+    Panel (b) is drawn only when the frozen-ranker run exists. It belongs beside
+    (a) because it shows what the table cannot: the frozen arm is flat, and the
+    figure makes the reason visible — freezing the weights freezes the shortlists,
+    so the arm is constant by construction. That is a limitation stated in the
+    picture rather than only in the prose.
+
+    Sources: ``data/processed/rigor/long_horizon_1t/long_horizon_gap_series.csv``
+    for (a) — the regenerated series, because the committed ``long_horizon/``
+    cannot be reproduced from this code at any thread count
+    (``docs/REVIEW_RESPONSE.md`` A3) — and ``data/processed/rigor/latefreeze/``
+    for (b) when present.
+    """
+    series = _read(data_dir, "rigor", "long_horizon_1t", "long_horizon_gap_series.csv")
+    x = series["epoch"].to_numpy(dtype=int)
+    mean = series["gap_mean"].to_numpy(dtype=float)
+    sd = series["gap_sd"].to_numpy(dtype=float)
+
+    freeze_dir = pathlib.Path(data_dir) if data_dir is not None else DATA
+    freeze_files = sorted((freeze_dir / "rigor" / "latefreeze").glob(
+        "latefreeze_seed*.csv"))
+
+    ncols = 2 if freeze_files else 1
+    with mpl.rc_context(_STYLE):
+        fig = _new_figure(10.4 if ncols == 2 else 6.6, 3.2, layout="constrained")
+        axes = fig.subplots(1, ncols, sharey=False)
+        ax = axes[0]
+
+        ax.fill_between(x, mean - sd, mean + sd, color=BLUE, alpha=0.16,
+                        linewidth=0, label="one seed sd")
+        ax.plot(x, mean, color=BLUE, linewidth=1.6, label="mean gap")
+        ax.axhline(0.0, color=INK, linewidth=0.8)
+        ax.axhline(0.002, color=VERMILLION, linewidth=1.0, linestyle="--",
+                   label="0.002 equivalence margin")
+
+        peak = int(np.argmax(mean))
+        ax.plot([x[peak]], [mean[peak]], marker="o", markersize=5.5, color=INK,
+                linestyle="none")
+        ax.annotate(f"peak {mean[peak]:+.3f} (epoch {x[peak]})",
+                    xy=(x[peak], mean[peak]),
+                    xytext=(x[peak] + 30, mean[peak] * 0.90),
+                    fontsize=8.5, color=INK,
+                    arrowprops={"arrowstyle": "-", "color": GREY, "linewidth": 0.8})
+
+        hundred = 99
+        ax.plot([hundred], [mean[hundred]], marker="D", markersize=5,
+                color=VERMILLION, linestyle="none", label="100-epoch horizon")
+        ax.annotate(f"epoch 99: {mean[hundred]:+.4f}", xy=(hundred, mean[hundred]),
+                    xytext=(hundred - 10, mean[hundred] + 0.060), fontsize=8.5,
+                    color=VERMILLION, ha="right",
+                    arrowprops={"arrowstyle": "-", "color": VERMILLION,
+                                "linewidth": 0.8})
+
+        ax.set_xlabel("epoch")
+        ax.set_ylabel("exposure Gini, NCF minus oracle")
+        ax.set_xlim(x[0], x[-1])
+        ax.set_ylim(min(-0.02, float((mean - sd).min())),
+                    float((mean + sd).max()) * 1.12)
+        ax.set_title("(a) the shipped cell, five seeds", loc="left", fontsize=10)
+        ax.legend(loc="upper right", fontsize=7.6, frameon=False)
+
+        if freeze_files:
+            ax2 = axes[1]
+            frame = pd.read_csv(freeze_files[0])
+            ctrl = frame[frame["condition"] == "control"].set_index("epoch")["gini"]
+            ax2.plot(ctrl.index.to_numpy(), ctrl.to_numpy(), color=BLUE,
+                     linewidth=1.6, label="control")
+            for cond, colour in (("frozen20", ORANGE), ("frozen40", GREEN)):
+                hit = frame[frame["condition"] == cond].set_index("epoch")["gini"]
+                if hit.empty:
+                    continue
+                freeze_epoch = int(cond.replace("frozen", ""))
+                ax2.plot(hit.index.to_numpy(), hit.to_numpy(), color=colour,
+                         linewidth=1.6, label=f"frozen after epoch {freeze_epoch}")
+                ax2.axvline(freeze_epoch, color=colour, linewidth=0.8,
+                            linestyle=":", alpha=0.85)
+            ax2.set_xlabel("epoch")
+            ax2.set_ylabel("exposure Gini, NCF arm")
+            ax2.set_title("(b) ranker frozen: flat by construction", loc="left",
+                          fontsize=10)
+            ax2.legend(loc="center right", fontsize=7.6, frameon=False)
+
+        fig.suptitle("The exposure gap is a transient, not a floor", x=0.01,
+                     ha="left", fontsize=11.5)
+        if save:
+            _save(fig, "gap_over_horizon", out_dir)
+    return fig
+
+
 def make_all(out_dir: pathlib.Path | str | None = None) -> dict[str, Figure]:
     return {
+        "gap_over_horizon": gap_over_horizon(out_dir=out_dir),
         "separating_curve": separating_curve(out_dir=out_dir),
         "thin_market_curve": thin_market_curve(out_dir=out_dir),
         "decomposition": decomposition(out_dir=out_dir),

@@ -9,32 +9,31 @@ A learned ranker between the two sides of a matching market concentrates
 exposure relative to an oracle, and the concentration is a start-up cost rather
 than a standing feature. That is the paper's finding, and it is a finding about
 \emph{when} the measurement is taken as much as about what is measured: at the
-shipped hundred-epoch horizon the gap is $+0.0251$ and looks like a floor; at
-three hundred epochs it is below $0.001$ and no longer distinguishable from
-flat. The hundred-epoch figure is therefore an order of magnitude away from
-where the series settles, though the ratio between the two is not itself a
-measured quantity. A literature that reports single-horizon comparisons cannot
-distinguish a transient from a bias, and this mechanism supplies a case where
-the distinction is decisive. What is not established is the limit: a flat tail
-is compatible with a very slow decay, and separating them needs a horizon this
-study did not run.
+shipped hundred-epoch horizon the gap is $\gapBaseTwenty$ over twenty seeds and
+looks like a floor; at
+three hundred epochs a pre-declared equivalence test at a $0.002$ margin puts it
+inside the margin. The hundred-epoch figure is therefore far from where the
+series settles, though the ratio between the two is not itself a measured
+quantity. A literature that reports single-horizon comparisons cannot distinguish
+a transient from a bias, and this mechanism supplies a case where the distinction
+is decisive. What is not established is the limit: a flat tail is compatible with
+a very slow decay, and separating them needs a horizon this study did not run.
 
-Three qualifications travel with it. The ordering holds in every cell of a twelve-cell
-sweep, positive each time, but its size varies fivefold, so no single
-number is "the" gap. The explanation is conditional: the filter learning
-coverage accounts for the decay at the shipped setting and cannot account for it
-where coverage never climbs, and convergence has been tested at only one point
-in parameter space. And the institutional comparison yields an interior optimum
-that survives multiplicity correction but is two cells wide, so it is a location
-with narrow support rather than a curve with a maximum.
-
-Two hypotheses did not survive as stated and one could not be tested. The
-mechanism the second names is absent from the shipped rule, and the model has no
-attrition margin for the sixth. Those are reported as findings rather than
-omissions, because a six-for-six ledger would be evidence of a design that could
-not fail.
+Three qualifications travel with it, and two of them are retractions. The
+ordering holds in every cell of a twelve-cell sweep, on both interval
+constructions, but its size varies fivefold, so no single number is "the" gap.
+The mechanism offered, that the filter learns whom it can represent, is not established here: the cell that was meant to isolate a market without coverage
+learning turns out at a longer horizon to be the same process running more
+slowly, and freezing the ranker cannot test the claim because freezing the
+weights freezes the shortlists. And the institutional companion does not survive
+where the paper runs: an interior optimum exists in the gate regime that ignores
+the market's own outcomes, and at the shipped gate no cell of forty beats the
+global market at any size or cost. A companion result that requires a
+configuration the rest of the paper does not use is a result about that
+configuration.
 
 What would move this from a model result toward a claim about markets is
-calibration, and the paper does not attempt it. Until then the results bound
-what this mechanism can do under a stated utility, and the bound is the
-contribution.
+calibration, and the paper does not attempt it. What would move the exposure
+result from a transient to a mechanism is an intervention that separates training
+from reach, which this model cannot supply. Until then the results bound what
+this mechanism can do under a stated utility, and the bound is the contribution.

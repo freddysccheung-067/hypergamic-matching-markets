@@ -1,0 +1,262 @@
+% ---------------------------------------------------------------------------
+% Appendix A: the hypotheses the main text summarizes. Moved out of Section 5
+% because the paper argues two things of different strength: the cold-start
+% result (checked, replicable, five and twenty seeds) and the institutional
+% comparison (survives correction in two cells of forty and reverses against an
+% NCF-mediated benchmark). H1, H2, H4, H5 and H6 are reproduced here in full so
+% the record is complete without carrying the weaker half of the paper's weight
+% in the main argument. Section~\ref{sec:results} says, in one paragraph each,
+% what was tested and why it failed or could not be tested.
+% ---------------------------------------------------------------------------
+
+\section{Appendix: hypotheses reported in full}
+\label{app:hypotheses}
+
+This appendix holds the five hypothesis subsections whose verdicts are
+summarized in \S\ref{sec:results}. Nothing here is new; it is the same analysis
+at the same length, moved so that the main text's argument is carried by the
+results that survive it.
+
+\subsection{H1: a cost on proposing selects on intent}
+\label{sec:h1}
+
+\emph{Under test.} Mean received intent rises with the signalling cost $c$, and
+low-intent proposers exit. Kill condition: the mean intent is flat in $c$.
+
+\emph{Measured.} The direction holds: mean received intent is monotone increasing over the swept grid (Figure~\ref{fig:h1}), so the kill condition is
+not met. The figure also shows the real finding. The analytic threshold
+$\tau^*(c) = c/(\bar V p)$ is evaluated at a prior success probability, while the
+reciprocity the market delivers is a small fraction of that prior. A threshold
+evaluated at a probability the market does not supply cuts more aggressively than
+the realized one, so the measured points sit between the pooling line and the
+analytic curve rather than on it. Selection happens, later and more weakly than
+the closed form predicts.
+
+\emph{Scope.} The hypothesis is testable only where the market stays open.
+Carrying measured rather than prior reciprocity, the market closes for good a
+short way above the bottom of the grid (\texttt{docs/THESIS.md}, H1 caveat;
+\texttt{docs/THEORY.md} \S10.2), so the surviving statement is narrower than the
+one posed.
+
+\emph{Refuted?} No. Flatness is required and there is none. What is refuted is
+the implied magnitude. No interval is registered for this quantity.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/separating_curve}
+\caption{H1: measured mean intent of received proposals against signalling cost,
+with the analytic cut $\tau^*(c)$ and the intent a pure cut would produce. Earns
+its place as the only committed artifact for H1, and because it shows the
+discrepancy the text reports: the analytic curve assumes a reciprocity the market
+does not supply, so the measured points lie between the pooling line and the
+curve. No interval is registered for this quantity.}
+\label{fig:h1}
+\end{figure}
+
+\subsection{H2: threshold inflation as defence against pooling}
+\label{sec:h2}
+
+\emph{Under test.} The acceptance threshold $\theta$ rises with received volume
+\emph{net of} the mean intent of those proposals, and stops rising when $c$ makes
+the signal informative. Kill conditions: unrelated to volume, or still rising at
+high $c$.
+
+\emph{Measured: there is no instrument.} The shipped $\theta$ update reads one thing, the count of proposals received through clearing, and reads it only as a yield denominator. It never reads received intent. The count is bounded
+above by one per proposer while $\theta$ starts far above the unit interval a
+yield can occupy, so when the update fires it can only lower $\theta$, for a
+minority of acceptors, by a fixed step. No path exists by which a net-of-intent
+slope could be positive, because the intent term is not in the code. The observed
+decline of $\theta$ in volume is not evidence either way: it reflects which
+acceptors the update reaches, and holding reach fixed the association vanishes.
+
+\emph{Would it survive if the mechanism existed?} Partly, and self-defeatingly.
+Lengthening the shortlist scales volume but also moves the gate, so it is not a
+clean instrument. A flooding term added by hand does produce the predicted sign,
+but only at the largest weight tested and the smaller shortlist, and at that weight it
+raises the most-swiped acceptors' thresholds until reciprocity falls to
+zero and the market closes (\texttt{data/processed/flooding/};
+\texttt{docs/THESIS.md}, H2). A defence against pooling that empties the market
+is not a defence.
+
+\emph{Refuted?} Formally yes, substantively uninformative: the mechanism is
+absent from the model rather than present and ineffective. Reporting this as a
+refutation would be a category error and as support would be worse. H2 is
+untestable under the shipped rule, and that is the finding.
+
+
+\subsection{H4: an interior optimum in the institutional comparison}
+\label{sec:h4}
+
+\emph{Under test.} Welfare under Environment B exceeds welfare under A for
+subgraph sizes above a critical mass and falls below it for small sizes, at fixed
+cost. Kill condition: the ordering is monotone in size: B always wins, so the
+thin-market penalty does nothing, or always loses (the information gain does
+nothing). Welfare is scored on a common basis, with agents B excludes priced at
+their counterfactual A outcome.
+
+\emph{Measured.} Survives on one slice, killed on the others. At $c_B = 0.01$
+against an oracle A, the optimum is size\_fraction $0.65$ with a residual welfare
+difference of $\optWelfare$, $t$ interval $[\optWelfareTLo, \optWelfareTHi]$ (\texttt{docs/STATS.md}
+\S1, row 7b), and the ordering there is non-monotone, which is the shape H4 asks
+for (Figure~\ref{fig:thin}).
+
+\emph{The selection correction the claim requires.} The optimum is the maximum of
+$\nInstitutionalCells$ cells, so an uncorrected interval on it is not an interval on anything.
+Corrected over that family, Benjamini--Hochberg rejects $\nRejectBh$ of the
+$\nInstitutionalCells$ and Holm $\nRejectHolm$; the optimum's own $q$-value is
+$\optWelfareQ$, and the Bonferroni $t$ interval widens to
+$[\optWelfareLo, \optWelfareHi]$ (\texttt{docs/STATS.md} \S5.3;
+\texttt{multiple\_comparisons.csv}). At roughly $\optWelfareSeMultiple$ standard
+errors, where the point estimate is $\optWelfareMag$ and its standard error is
+$\optWelfareSe$ on five seeds ($\optWelfareT$ on four degrees of freedom), the
+correction is cheap.
+
+\emph{The narrower finding.} Of seven cells where B beats A, only two survive
+correction ($0.65$ and $0.50$). The optimum is a two-cell feature, not a region;
+the curve beyond those cells is indistinguishable from zero. A caution the
+correction does not address: the optimum's standard deviation is the ninth
+smallest of the forty, at a little under a third of the median cell's spread, so
+it is a cell where five seeds happened to agree, which is why the $t$ interval is the
+one to read.
+
+\emph{What the correction does not fix.} Bonferroni and Holm widen an interval for
+having searched a family; they do not undo the fact that the cell was selected on
+low variance as well as high mean. The interval above is therefore an honest width
+around a point that may be biased upward by the selection itself, and the two are
+not the same problem.
+
+\emph{The re-estimate on seeds that took no part in the choice.} That objection was
+answered in this session rather than deferred. The ten \texttt{size\_fraction}
+levels at $c = 0.01$ were re-run on seeds 100--119, at the same gate as the
+original, after the prediction was committed
+(\texttt{docs/PREREGISTRATION.md} E2; \texttt{data/processed/rigor/c2\_fresh\_inert/}).
+Two things happened, and they point opposite ways.
+
+The \emph{location} replicated. On the fresh grid the cell at $0.65$ still ranks
+number~\hFourFreshRank{} of ten, with positive values from $0.35$ through $1.00$, a maximum at
+$0.65$, and negatives below $0.25$: the non-monotone shape H4 asks for, on twenty
+populations that took no part in choosing the cell. Its interval there is
+$[\hFourFreshLo, \hFourFreshHi]$, excluding zero ($t = \hFourFreshT$ on 19 df).
+
+The \emph{magnitude and its precision} did not. The fresh estimate is $\hFourFresh$
+against $\optWelfare$, and, the larger point, the fresh seed sd is $\hFourFreshSd$
+against the original $\optWelfareSd$. The published interval was built on a
+standard deviation $\hFourFreshSdRatio$ times too small, because the cell was selected partly for having an unusually
+low one. That is the same pathology \texttt{docs/STATS.md} \S2.2 found for
+algorithmic loss and clearing, appearing in the cell this hypothesis is built on.
+
+So the correct reading is: an interior optimum at subgraph size $0.65$ that
+replicates on fresh seeds, with a gain of roughly $+54$ rather than $+65$, and an
+uncertainty the published $t$ interval understates by a factor of about five. A
+reader who wants one number should take the fresh one.
+
+\emph{And it is an inert-regime result, which the shipped regime refutes.} The
+whole grid above was measured at \texttt{admissible\_fraction} $0.2$, the
+configuration \S\ref{sec:h4regime} shows to be deaf to the market's own outcomes;
+the shipped value is $0.02$. That experiment was then run: the same ten-by-four
+grid at $0.02$ on the same five seeds has \textbf{no cell of the forty beating
+Environment A}, at any size and any of the four costs, and at $c = 0.01$ the
+difference falls almost monotonically with size from $\hFourShippedSmall$ to
+$\hFourShippedFull$. The cell that is the optimum here reads $\hFourShippedOpt$ there.
+
+So H4 as stated is refuted at the configuration the rest of the paper runs, and
+what survives is a narrower statement: in a market whose threshold gate never
+binds, an interior optimum exists at a subgraph size around $0.65$. A companion
+result that requires a configuration the main study does not use is a result
+about that configuration, and it should be read that way.
+
+\emph{Killed elsewhere.} At $c_B \geq 0.05$ B always loses: no size beats A
+beyond seed noise (\texttt{data/processed/institutional/}). Against an
+NCF-mediated A rather than an oracle A the ordering reverses and B always wins,
+so the result is about the quality of A's visibility, not subgraph size as such.
+
+\emph{Refuted?} Yes, on the $c_B \geq 0.05$ slice, and yes in that the hypothesis
+is a property of one cost level rather than of the model. What survives: at a
+cost low enough that entry screens little, an interior optimum exists and is two
+cells wide.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/thin_market_curve}
+\caption{H4: welfare against the share of the population drawn into Environment
+B, at two signalling costs, with Environment A as a horizontal line. Earns its
+place because one frame carries all three elements of the verdict: the
+non-monotone shape at the low cost, the monotone collapse at the high cost where
+no size beats A, and the gap between selected and common accounting (dashed against
+solid), which is the selection artifact the comparability rule exists
+to price. Vertical rules mark analytic critical masses; they serve the
+thin-market penalty and do not explain the right-hand slope, which
+\texttt{data/processed/THIN\_MARKET\_README.md} attributes to top-$k$
+truncation.}
+\label{fig:thin}
+\end{figure}
+
+\subsection{H5: the decomposition's interaction term}
+\label{sec:h5}
+
+\emph{Under test.} The welfare change from an exogenous status shift and from
+algorithmic mediation decomposes into additive and interaction parts, with the
+interaction estimated rather than assumed. The hypothesis does not predict its
+sign; it predicts the term is estimable and may be near zero.
+
+\emph{Measured.} The interaction is $\hFiveInteraction$ with a $t$ interval of
+$[\hFiveInteractionLo, \hFiveInteractionHi]$ and a BCa interval of
+$[\hFiveInteractionBcaLo, \hFiveInteractionBcaHi]$; its BH $q$-value over the three
+terms is $\hFiveInteractionQ$ and it is not rejected (\texttt{docs/STATS.md}
+\S5.4). Indistinguishable from zero, as H5 allowed.
+
+\emph{The terms that are not zero.} The algorithmic term is $\hFiveAlgorithmic$
+$[\hFiveAlgorithmicLo, \hFiveAlgorithmicHi]$ and dominates: mediation costs an
+order of magnitude more welfare than the demographic shift moves it. The exogenous
+term is $\hFiveExogenous$, and it is where the two methods disagree: its BCa
+interval $[\hFiveExogenousBcaLo, \hFiveExogenousBcaHi]$ excludes zero while its $t$
+interval $[\hFiveExogenousTLo, \hFiveExogenousTHi]$ and $q$-value of
+$\hFiveExogenousQ$ do not. At five seeds with this skew the BCa interval is optimistic, so the
+defensible reading is a negative sign with unresolved magnitude.
+Figure~\ref{fig:decomp} shows the arithmetic and the scale difference.
+
+\emph{Refuted?} No. The kill condition was incomparability of the factorial
+cells, which would leave the decomposition undefined; comparability is asserted
+per seed and holds. The measurement establishes a negative result reported
+honestly: drift and mediation act through separate channels here, and the claim
+that the algorithm amplifies the shift has no support.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/decomposition}
+\caption{H5: the four factorial levels and the three decomposed terms. Earns its
+place because the left panel shows the decomposition's arithmetic, with the interaction
+as the residual closing the gap between the marginal effects and the joint effect, while
+the right panel puts the three terms on their own scale
+with per-seed points, which is what makes the scale difference between the
+algorithmic term and the other two visible. Without the left panel the terms
+cannot be checked to add up; without the right panel the interaction looks
+larger than it is. Source: \texttt{data/processed/institutional/factorial.csv}.}
+\label{fig:decomp}
+\end{figure}
+
+\subsection{H6: differential attrition by intent}
+\label{sec:h6}
+
+\emph{Under test.} High-intent agents leave Environment A at a higher rate than
+low-intent agents. Kill condition: attrition flat in $\tau$, or the sign
+reversed.
+
+\emph{Measured: not at all.} The model has no attrition mechanism. Agents do not
+exit in response to outcomes; the only population change is generational
+turnover, which is not a decision and does not read $\tau$. No committed artifact
+exists for this hypothesis and no quantity is registered, so no number is quoted.
+
+\emph{What can be said without one.} The sign of any measured correlation is
+determined by the exit rule imposed, and the two examined point opposite ways:
+keying exit on being unmatched yields no association, since matching does not
+depend on $\tau$; keying it on net payoff yields a strong positive one, but by cost burn
+rather than rejection: high-intent agents propose far more often and
+are matched at the same rate (\texttt{docs/THESIS.md}, H6). Neither tests the
+hypothesis, which is about a market with an exit margin.
+
+\emph{Refuted?} Neither confirmed nor refuted: untested, and reported as such.
+The cost-burn channel it exposes is the same one that kills H4 at high signalling
+cost.
+
+

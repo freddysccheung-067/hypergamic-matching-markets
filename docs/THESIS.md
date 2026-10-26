@@ -207,7 +207,7 @@ falls by a fifth, through `1 − τ̄` falling from 0.49 to 0.39, not through fe
 the signal becoming informative weakens the defence rather than ending it. And at `w = 0.2` the
 defence closes the market: raising `θ` for the most-swiped acceptors cuts reciprocity until
 the measured accept rate is zero, at which no proposal is worth its cost. Because `V` is
-normalised by its mean, the term moves `θ` between acceptors and barely moves mean `θ`, which
+normalized by its mean, the term moves `θ` between acceptors and barely moves mean `θ`, which
 is what "`θ` rises" asserts. (Not exactly zero: `V/V̄ − 1` averages to zero but is weighted by
 `1 − τ̄`, which correlates weakly with volume. Measured at epoch 5, the side mean of the term is
 +0.0003 against a per-agent sd of 0.040 at `w = 0.05`, and +0.0012 against 0.161 at `w = 0.2` —
@@ -237,10 +237,20 @@ regime.
 `N_sub` above a critical size and falls below it for small `N_sub`, at fixed `c`.
 *Killed if:* the ordering is monotone in `N_sub` — either B always wins (the thin-market penalty
 is not doing work) or always loses (the information gain is not doing work).
-*Measured (THEORY.md §10.5):* survives at `c_B = 0.01` against an oracle A, with the optimum at
-size_fraction 0.65 (+64.6 ± 9.9 over five seeds, residual accounting). Killed on the
-`c_B ≥ 0.05` slice, where B always loses, and against an NCF-mediated A, where B always wins. The
-curve's right-hand slope comes from top-k truncation, not from the thin-market penalty.
+*Measured (THEORY.md §10.5, revised 2026-10-25):* survives at `c_B = 0.01` against an oracle A,
+with the optimum at size_fraction 0.65 (+64.6 ± 9.9 over five seeds, residual accounting). Killed
+on the `c_B ≥ 0.05` slice, where B always loses, and against an NCF-mediated A, where B always
+wins. The curve's right-hand slope comes from top-k truncation, not from the thin-market penalty.
+
+**The regime turns out to decide this hypothesis.** The grid above was measured at
+`admissible_fraction = 0.2`, the inert gate where the market never responds to its own clearing
+outcomes, and it reproduces exactly there. Re-run at the shipped `0.02`
+(`data/processed/rigor/h4_shipped_gate/`), **no cell of the forty beats A at any size or cost**,
+and the difference falls almost monotonically with size. So H4 as stated is refuted at the
+configuration the rest of the study runs, and what survives is narrower: an interior optimum
+exists in a market whose threshold gate never binds. On twenty fresh seeds at the inert gate the
+optimum's location replicates (rank 1 of 10, +54.5) while its seed sd is 4.7× the published 9.86.
+See `docs/PREREGISTRATION.md` E2 and E6, and `paper/sections/results.tex`.
 
 **H5 — Exogenous drift and algorithmic mediation are separable.** The interaction term is
 estimated, not assumed, and is reported whatever its sign.
@@ -288,7 +298,7 @@ Stated here so that no downstream section has to hedge:
   dissolves. No agent proposes differently, sets a different threshold, or stays in a match longer
   because of it: survival depends on intent and alignment only, and the proposal decision does not
   read `d`. So B's penalty lowers B's welfare when defection happens and never prevents defection.
-  The proposal's "social penalty for casual defection" is modelled as a cost, not as a deterrent.
+  The proposal's "social penalty for casual defection" is modeled as a cost, not as a deterrent.
   Making it deter would mean feeding `d` into the proposal decision, so that an agent likely to
   defect stops proposing — a different model, and one whose H4 result has not been measured.
 

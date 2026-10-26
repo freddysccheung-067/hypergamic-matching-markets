@@ -9,7 +9,7 @@
 Ordered by how much each constrains what the results can mean, not by how easy
 it is to fix.
 
-\textbf{Every parameter is a modelling choice.} Nothing is calibrated to data:
+\textbf{Every parameter is a modeling choice.} Nothing is calibrated to data:
 the trait distributions are drawn for tractability, the taste and chemistry
 parameters have no empirical anchor, and neither the signalling cost, the
 defection penalty, nor the entry filter is estimated. The results bound what this
@@ -22,8 +22,9 @@ influence rather than an estimate. The mitigation is that the two most
 consequential knobs are reported as a function of their value. It is partial: a
 sweep over four knobs is not a calibration.
 
-\textbf{Five seeds carry every headline.} The power analysis says this is
-adequate for sign and inadequate for width on two quantities, and both matter. An
+\textbf{Five seeds carry most headlines, twenty carry six.} The power analysis
+says five is adequate for sign and inadequate for width on two quantities, and
+both matter. An
 interval on a model's seed-averaged quantity is not an interval on the model's
 answer. The five seeds were also not chosen for this purpose; they predate the
 twenty-seed run, which shows them to be an unusually low-variance block for two
@@ -36,16 +37,35 @@ honest reading is that the two affected quantities, algorithmic loss and clearin
 carry no headline here, and that a future study should choose
 seeds for the purpose rather than inherit them.
 
-The same caution applies to the H4 optimum without the review's help being
-needed: it was selected from forty cells on mean \emph{and} low variance, and
-Bonferroni corrects the first without undoing the second
-(\S\ref{sec:h4}).
+The H4 optimum carries a sharper caution than a multiplicity correction can
+address. It was selected from $\nInstitutionalCells$ cells on mean \emph{and} low variance, and
+Bonferroni corrects the first without undoing the second: on fresh seeds the cell
+replicates its rank and loses most of its claimed precision, its seed sd rising
+from $\optWelfareSd$ to $\hFourFreshSd$. And the whole grid was measured in a gate regime that does not
+respond to the market, which is not the configuration this paper otherwise runs.
+At the shipped gate no cell of the forty beats Environment A at all, so the
+interior optimum is a result about a regime rather than about the model
+(\S\ref{sec:h4regime}).
+
+\textbf{The committed 300-epoch run does not reproduce.} Its NCF arm cannot be
+regenerated from this code at 1, 2, 4, 8, 16 or 24 threads, nor from the
+pre-optimization source at 24; its other three arms regenerate exactly. The
+divergence is at the seventh decimal at epoch 5 and grows through the feedback
+loop, which is the signature of a different reduction order rather than a
+different model (\texttt{docs/REVIEW\_RESPONSE.md}, A3). The convergence numbers
+this paper quotes therefore come from a regeneration at one thread rather than
+from the committed run; the two agree within tolerances fixed before the
+regeneration was read (\texttt{docs/PREREGISTRATION.md} E7). One other archival
+directory is in a milder version of the same position: \texttt{rigor/base/}, which
+carries the twenty-seed headline, differs from a fresh run at the same thread
+count in the fourth decimal.
 
 \textbf{The thread count is part of the run's identity, and that was found late.}
 Torch's intra-op reductions are not bitwise associative, so the same seed at one
 thread and at eight gives different numbers; across a hundred epochs of this
-feedback loop the divergence reaches $0.006$--$0.015$ in exposure Gini, against a
-between-seed standard deviation of $0.011$. Every configuration now pins
+feedback loop the spread across thread counts reaches $\threadSpreadLo$--$\threadSpreadHi$
+in exposure Gini, against a between-seed standard deviation of
+$\betweenSeedSdTwenty$ over twenty seeds. Every configuration now pins
 \texttt{ncf.num\_threads} to~1 and the contract is tested, but the reproducibility
 guarantee this project claims is a guarantee at a named thread count, not an
 unconditional one (\texttt{docs/INTERFACES.md} \S3;
@@ -94,7 +114,7 @@ instead.
 
 \textbf{Validation establishes verification, not validity.} Agreement with
 closed-form results shows the machinery is correct; it establishes nothing about
-the recommender, because the deficit those theorems characterise is measured
+the recommender, because the deficit those theorems characterize is measured
 under a compatibility constraint on a single scalar, which is exactly what makes it
 tractable, while this model's constraint is visibility through an estimated
 multi-attribute utility. A matching deficit is not evidence that the

@@ -206,6 +206,21 @@ DATA_DIRS = [
     "thin_market",
     "thin_market_q0.95",
     "thin_market_q0.99",
+    # Subdirectories of rigor/. They were missed by an earlier version of the
+    # coverage test, which only walked the top level and so never noticed that
+    # rigor/base/ had no README at all.
+    "rigor/base",
+    "rigor/long_horizon",
+    "rigor/sensitivity",
+    "rigor/fresh",
+    "rigor/exploratory_1t",
+    "rigor/interventions",
+    "rigor/latefreeze",
+    "rigor/c4_shock0.5",
+    "rigor/c2_fresh_inert",
+    "rigor/c2_fresh_institutional",
+    "rigor/h4_shipped_gate",
+    "rigor/long_horizon_1t",
 ]
 
 
@@ -239,12 +254,21 @@ def test_every_data_directory_on_disk_is_in_the_list():
 
     Otherwise a new directory could be added and the test above would keep
     passing, because the test iterates the list rather than the filesystem.
+
+    Walks one level into each top-level directory as well: ``rigor/`` holds ten
+    subdirectories of committed output, and an earlier version of this test
+    checked only ``rigor/README.md``, which is how ``rigor/base/`` came to have no
+    README of its own.
     """
-    on_disk = {
-        p.name
-        for p in PROCESSED.iterdir()
-        if p.is_dir() and any(p.glob("*.csv"))
-    }
+    on_disk: set[str] = set()
+    for top in PROCESSED.iterdir():
+        if not top.is_dir():
+            continue
+        if any(top.glob("*.csv")):
+            on_disk.add(top.name)
+        for sub in top.iterdir():
+            if sub.is_dir() and any(sub.glob("*.csv")):
+                on_disk.add(f"{top.name}/{sub.name}")
     undocumented = on_disk - set(DATA_DIRS)
     assert not undocumented, (
         "these data directories exist but are not covered by DATA_DIRS, so their "

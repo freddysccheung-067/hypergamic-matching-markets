@@ -8,14 +8,14 @@ aggregate questions have closed-form answers and they were settled in October 20
 picture: universal hypergamy is feasible exactly when one side's status distribution first-order
 stochastically dominates the other's (Theorem 2.1, via Strassen), and when it is not, the minimal
 unmatched mass is the Hypergamy Deficit `D = sup_t (G_W(t) − G_M(t))₊` (Theorem 2.2, a
-continuum Hall marriage theorem). No behavioural strategy changes either fact (Theorem 4.3),
+continuum Hall marriage theorem). No behavioral strategy changes either fact (Theorem 4.3),
 status gains are transfers of rank rather than creations of it (Theorem 4.5), and under
 status-ranked preferences the unique stable matching is positive assortative (Theorem 5.1, the
 Gale–Shapley result of Gale & Shapley 1962 stated on the continuum). A Gaussian calibration to US
 heights gives a closed form for a required status gap, `D(δ) = (2Φ((δ − Δm)/2σ) − 1)₊`, which
 vanishes to about 14 cm and reaches roughly 0.74 at one foot.
 
-The consequences for anyone modelling this are severe. Unmatched mass is a functional of the two
+The consequences for anyone modeling this are severe. Unmatched mass is a functional of the two
 marginal status distributions alone. Effort, apps, and every other intervention that rearranges
 who meets whom without changing those marginals cannot move it (Theorem 4.3 makes this exact, and
 the paper says so in as many words). Two things the literature had treated as substantive — the
@@ -45,10 +45,10 @@ closely — concluding that preferences, not search frictions, explain most sort
 (2018) find a desirability hierarchy consistent across cities, both sexes pursuing partners about
 25% more desirable than themselves, with reply probability falling sharply in the gap.
 
-Why model rather than estimate? Because every instrument above observes *realised* matches inside
+Why model rather than estimate? Because every instrument above observes *realized* matches inside
 one institution. None can answer a counterfactual about a different institution, and the question
 here is institutional: what happens to exposure, clearing and welfare when the list an agent sees
-is produced by an engagement-optimising estimator rather than given. Chiappori & Salanié (2016)
+is produced by an engagement-optimizing estimator rather than given. Chiappori & Salanié (2016)
 make the estimation side precise — identifying matching parameters from observable partner
 characteristics alone is not credible — which is an argument that a structural model, not a
 reduced-form estimate, is the vehicle for a mechanism question. Kanoria & Saban (2021) and
@@ -97,8 +97,8 @@ utility, as a function of the horizon at which the estimator is evaluated.
 
 That is narrower than "recommender-mediated matching on multiple traits", deliberately.
 Chen, Hsieh & Lin (2023) already run a matching-model-based recommender on a live dating platform
-and measure realised matches, establishing that such a ranker improves outcomes. What they do
-not do is characterise unmatched mass against the visibility constraint, or price an excluded
+and measure realized matches, establishing that such a ranker improves outcomes. What they do
+not do is characterize unmatched mass against the visibility constraint, or price an excluded
 agent against an alternative institution. It explicitly does not claim: any closed form for the
 multidimensional deficit; that its ranker is novel; that its parameters correspond to any
 population; or that Bilderbeek's one-dimensional results extend to the multi-attribute case.

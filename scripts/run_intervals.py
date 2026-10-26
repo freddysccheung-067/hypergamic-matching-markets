@@ -68,6 +68,12 @@ REGIMES = {
     "base20": dict(
         dir="data/processed/rigor/base", epochs=100,
         note="phi=0.02, 100 epochs, full metrics incl. algorithmic_loss"),
+    # The 300-epoch run regenerated at 1 thread. long300 is kept because it is the
+    # committed record, but its NCF arm cannot be regenerated from this code
+    # (docs/REVIEW_RESPONSE.md A3); this is the series the paper quotes.
+    "long300_1t": dict(
+        dir="data/processed/rigor/long_horizon_1t", epochs=300,
+        note="phi=0.02, 300 epochs, regenerated at 1 thread (PREREGISTRATION E7)"),
 }
 
 
@@ -305,7 +311,8 @@ def build(regimes: list[str]) -> pd.DataFrame:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--regimes", default="inert20,live20,live100,long300,base20")
+    parser.add_argument("--regimes",
+                        default="inert20,live20,live100,long300,base20,long300_1t")
     parser.add_argument("--output", default="data/processed/rigor/intervals.csv")
     args = parser.parse_args()
 
