@@ -10,9 +10,8 @@
 \newcommand{\gapBaseTwenty}{+0.0237}
 \newcommand{\gapBaseTwentyLo}{+0.0199}
 \newcommand{\gapBaseTwentyHi}{+0.0274}
-% base20 BCa bounds, for the full-width comparison of A1
-\newcommand{\gapBaseTwentyBcaLo}{+0.0204}
-\newcommand{\gapBaseTwentyBcaHi}{+0.0271}
+% base20 BCa bounds, for the full-width comparison of A1. The individual
+% endpoints are not quoted in the prose; the widths they produce are.
 \newcommand{\gapBaseTwentyBcaWidth}{0.0067}
 \newcommand{\gapLiveBcaWidth}{0.0122}
 % The 300-epoch tail is in the convergence block below and the revision
@@ -124,6 +123,8 @@
 \newcommand{\firstBelowMarginMax}{262}
 \newcommand{\firstBelowMarginMean}{211}
 \newcommand{\tailRatioNinetyNine}{97}
+% ratio of two imprecise quantities; quoted as an order of magnitude only
+% (paper/sections/results.tex, the cold-start trajectory paragraph)
 \newcommand{\decayDeltaBic}{24.1}
 \newcommand{\widthRatioFiveTwenty}{1.8}
 % rigor/thread_sensitivity.csv (seeds 42-44, 1/4/8 threads) and rigor/base/
@@ -177,3 +178,15 @@
 \newcommand{\optWelfareTLo}{+52.37}
 \newcommand{\optWelfareTHi}{+76.86}
 \newcommand{\optWelfareMag}{64.62}
+
+% rigor/interventions: the warm-start arm against its own control
+\newcommand{\warmEpochZeroControl}{+0.9600}
+\newcommand{\warmEpochZeroTreated}{+0.7623}
+\newcommand{\warmReachZeroControl}{0.041}
+\newcommand{\warmReachZeroTreated}{0.861}
+\newcommand{\warmFinalControl}{+0.6769}
+\newcommand{\warmFinalTreated}{+0.6676}
+\newcommand{\warmTerminalDiff}{-0.00924}
+\newcommand{\warmTerminalT}{-4.78}
+\newcommand{\warmTerminalSd}{0.00432}
+\newcommand{\warmDecaySurviving}{70}

@@ -115,7 +115,7 @@ def table_ledger() -> None:
             f"[{float(h3_base['lo_t']):+.4f}, {float(h3_base['hi_t']):+.4f}]",
             f"[{float(h3_base['lo']):+.4f}, {float(h3_base['hi']):+.4f}]",
             "t",
-            "survives; the 100-epoch headline",
+            "survives; the 100-epoch headline. $t$ and BCa agree to $0.001$ here",
         ),
         (
             "H3",

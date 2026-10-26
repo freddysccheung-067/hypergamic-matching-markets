@@ -209,6 +209,74 @@ def _first_stays_below(series: dict[int, float], margin: float) -> int:
     return -1
 
 
+def warm_start() -> dict[str, float]:
+    """The warm-start arm of the mechanism intervention, against its own control.
+
+    Reads `data/processed/rigor/interventions/interventions_seed<seed>.csv`, one
+    row per (condition, epoch). Both arms share a population, a seed and a thread
+    count, so the terminal comparison is a paired per-seed difference and not a
+    difference of means over unrelated runs.
+
+    The decay share is defined as (that arm's own peak - its final) for the warm
+    arm over the same quantity for the control. Using each arm's own peak matters:
+    the warm arm starts informed, so its peak is lower and earlier, and measuring
+    both against a common peak would credit the warm start for a decay it never
+    had.
+    """
+    directory = RIGOR / "interventions"
+    frames: dict[str, dict[int, dict[int, float]]] = {"control": {}, "warm": {}}
+    for path in sorted(directory.glob("interventions_seed*.csv")):
+        seed = int(path.stem.split("seed")[-1])
+        for row in read_csv(path):
+            cond = row["condition"]
+            if cond in frames:
+                frames[cond].setdefault(seed, {})[int(row["epoch"])] = float(row["gini"])
+    if not frames["control"] or not frames["warm"]:
+        raise ValueError("interventions: missing control or warm arm")
+
+    def mean_at(cond: str, epoch: int) -> float:
+        vals = [s[epoch] for s in frames[cond].values() if epoch in s]
+        return sum(vals) / len(vals)
+
+    def decay(cond: str) -> float:
+        series = {
+            e: sum(s[e] for s in frames[cond].values() if e in s)
+            / len([s for s in frames[cond].values() if e in s])
+            for e in next(iter(frames[cond].values()))
+        }
+        peak_epoch = max(series, key=lambda e: series[e])
+        return series[peak_epoch] - series[max(series)]
+
+    terminal = [frames["warm"][s][99] - frames["control"][s][99]
+                for s in frames["control"] if 99 in frames["control"][s]
+                and 99 in frames["warm"].get(s, {})]
+    n = len(terminal)
+    mean_d = sum(terminal) / n
+    sd_d = (sum((x - mean_d) ** 2 for x in terminal) / (n - 1)) ** 0.5
+    return {
+        "epoch0_control": mean_at("control", 0),
+        "epoch0_warm": mean_at("warm", 0),
+        "reach0_control": _mean_reach("control", 0),
+        "reach0_warm": _mean_reach("warm", 0),
+        "final_control": mean_at("control", 99),
+        "final_warm": mean_at("warm", 99),
+        "terminal_diff": mean_d,
+        "terminal_sd": sd_d,
+        "terminal_t": mean_d / (sd_d / n ** 0.5),
+        "decay_share": decay("warm") / decay("control"),
+    }
+
+
+def _mean_reach(condition: str, epoch: int) -> float:
+    directory = RIGOR / "interventions"
+    vals = []
+    for path in sorted(directory.glob("interventions_seed*.csv")):
+        for row in read_csv(path):
+            if row["condition"] == condition and int(row["epoch"]) == epoch:
+                vals.append(float(row["reach"]))
+    return sum(vals) / len(vals)
+
+
 def revision_macros(f) -> list[str]:
     """Every result the revision of 2026-10-25 quotes, read from its own CSV.
 
@@ -239,6 +307,8 @@ def revision_macros(f) -> list[str]:
         rf"\newcommand{{\firstBelowMarginMax}}{{{max(firsts)}}}",
         rf"\newcommand{{\firstBelowMarginMean}}{{{_first_stays_below(mean_series, EQUIVALENCE_MARGIN)}}}",
         rf"\newcommand{{\tailRatioNinetyNine}}{{{f(mean_series[99] / m, 0)}}}",
+        "% ratio of two imprecise quantities; quoted as an order of magnitude only",
+        "% (paper/sections/results.tex, the cold-start trajectory paragraph)",
     ]
     fits = read_csv(LONG_HORIZON / "long_horizon_decay_fits.csv")
     peak_fit = [r for r in fits if r["fit_window"] == "from_peak_6"
@@ -385,6 +455,26 @@ def revision_macros(f) -> list[str]:
         rf"\newcommand{{\optWelfareMag}}{{{f(mc_values()['optimum_mean'], 2)}}}",
         "",
     ]
+
+    # The warm-start intervention (PREREGISTRATION E3ii). The frozen arm is
+    # omitted deliberately: freezing the weights freezes the shortlists, so it
+    # cannot test anything, and the paper says that rather than quoting a number
+    # from it.
+    warm = warm_start()
+    out += [
+        "% rigor/interventions: the warm-start arm against its own control",
+        rf"\newcommand{{\warmEpochZeroControl}}{{{f(warm['epoch0_control'], 4, True)}}}",
+        rf"\newcommand{{\warmEpochZeroTreated}}{{{f(warm['epoch0_warm'], 4, True)}}}",
+        rf"\newcommand{{\warmReachZeroControl}}{{{f(warm['reach0_control'], 3)}}}",
+        rf"\newcommand{{\warmReachZeroTreated}}{{{f(warm['reach0_warm'], 3)}}}",
+        rf"\newcommand{{\warmFinalControl}}{{{f(warm['final_control'], 4, True)}}}",
+        rf"\newcommand{{\warmFinalTreated}}{{{f(warm['final_warm'], 4, True)}}}",
+        rf"\newcommand{{\warmTerminalDiff}}{{{f(warm['terminal_diff'], 5, True)}}}",
+        rf"\newcommand{{\warmTerminalT}}{{{f(warm['terminal_t'], 2)}}}",
+        rf"\newcommand{{\warmTerminalSd}}{{{f(warm['terminal_sd'], 5)}}}",
+        rf"\newcommand{{\warmDecaySurviving}}{{{f(warm['decay_share'] * 100, 0)}}}",
+        "",
+    ]
     return out
 
 
@@ -415,9 +505,8 @@ def main() -> None:
         rf"\newcommand{{\gapBaseTwenty}}{{{f(base['point'], 4, True)}}}",
         rf"\newcommand{{\gapBaseTwentyLo}}{{{f(base['lo_t'], 4, True)}}}",
         rf"\newcommand{{\gapBaseTwentyHi}}{{{f(base['hi_t'], 4, True)}}}",
-        "% base20 BCa bounds, for the full-width comparison of A1",
-        rf"\newcommand{{\gapBaseTwentyBcaLo}}{{{f(base['lo'], 4, True)}}}",
-        rf"\newcommand{{\gapBaseTwentyBcaHi}}{{{f(base['hi'], 4, True)}}}",
+        "% base20 BCa bounds, for the full-width comparison of A1. The individual",
+        "% endpoints are not quoted in the prose; the widths they produce are.",
         rf"\newcommand{{\gapBaseTwentyBcaWidth}}"
         f"{{{f(float(base['hi']) - float(base['lo']), 4)}}}",
         rf"\newcommand{{\gapLiveBcaWidth}}"

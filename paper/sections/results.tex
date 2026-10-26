@@ -25,7 +25,8 @@ preferred is a small-sample question and the two disagree at five seeds. The
 $t$ interval is the one with nominal coverage at n = 5; the BCa bootstrap attains
 roughly 84\% there and returns a half-width narrower than the sample's own
 standard deviation (\texttt{docs/STATS.md} \S1). At twenty seeds the two agree to
-0.002. Where a row's interval has been widened for multiplicity, which is the H4
+within 0.001 on the H3 gap, which is the comparison that matters when the headline
+is a twenty-seed number. Where a row's interval has been widened for multiplicity, which is the H4
 row only, the caption and the row both say so: the H4 bounds are Bonferroni-$t$
 across the $\nInstitutionalCells$ institutional cells, and the uncorrected and Bonferroni-BCa bounds
 are beside them in the text (\S\ref{sec:h4}; \texttt{docs/STATS.md} \S5.3). Gaps
@@ -180,7 +181,7 @@ gap & $\gapEpochZero$ & $\gapEpochSix$ & $\gapEpochNineteen$ & $\gapEpochFortyNi
 \end{center}
 
 The peak is at epoch 6. The hundred-epoch figure is not a floor: at epoch 99 the
-gap is roughly a hundred times the residual it settles at, though both numbers are
+gap is roughly $\tailRatioNinetyNine$ times the residual it settles at, though both numbers are
 imprecise enough that the ratio is an order of magnitude, not a measured constant
 (\texttt{docs/STATS.md} \S3.2).
 
@@ -391,10 +392,54 @@ a fifth as large.
 
 So $\reachLowShock$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
 does not identify a cell where the mechanism is absent, only one where it runs more slowly. That withdraws the conclusion-reversing claim this paper made and
-leaves the mechanism untested rather than vindicated, since a cell where reach
-climbs slowly is not a cell where reach is held fixed. At 100 epochs the filter
-learns coverage in every cell, at rates spanning a factor of two, and none was run
-long enough to show where the convergence it drives stops.
+leaves the sweep unable to test the mechanism, since a cell where reach climbs
+slowly is not a cell where reach is held fixed. At 100 epochs the filter learns
+coverage in every cell, at rates spanning a factor of two, and none was run long
+enough to show where the convergence it drives stops.
+
+\subsection{Two interventions, and what only one of them settles}
+\label{sec:interventions}
+
+The mechanism the cold-start reading offers, that the filter learns whom it can
+represent, was supported by a correlation: the gap falls while reach rises, and
+nothing was manipulated. Two arms manipulate it, registered before either ran
+(\texttt{docs/PREREGISTRATION.md} E3, E3a), and only one of them can.
+
+\emph{The frozen ranker does not test anything, and that is a design fact rather
+than a null result.} Training is stopped at epoch 6, the gap's peak, and the
+market is left running. The NCF's exposure Gini is then constant to the last
+digit from the freeze epoch to epoch 99, identically on all five seeds. Freezing
+the weights freezes the score matrix, which freezes every shortlist, which fixes
+exposure. Every freeze point gives a flat arm, and re-running the freeze at epochs
+20 and 40 returns the same exact constancy
+(\texttt{data/processed/rigor/interventions/} and \texttt{latefreeze/}). The arm
+is included in the record because it is the obvious experiment and a reader should
+see why it is the wrong one: it varies something that is mechanically tied to the
+outcome it measures.
+
+\emph{The warm start does test something, and the answer is half against the
+prediction.} The ranker is pretrained on the epoch-0 swipe log for fifty passes
+before the loop starts, which raises reach at epoch 0 from
+$\warmReachZeroControl$ to $\warmReachZeroTreated$ of agents, against
+$\reachShipped$ shipped over a full run. As predicted, the epoch-0 gap falls
+sharply, from $\warmEpochZeroControl$ to $\warmEpochZeroTreated$. Contrary to
+prediction, the terminal gap falls too, from $\warmFinalControl$ to
+$\warmFinalTreated$, a paired per-seed difference of $\warmTerminalDiff$
+(sd $\warmTerminalSd$, $t(4) = \warmTerminalT$), where the registration expected
+it roughly unchanged. And $\warmDecaySurviving$\% of the decay survives an
+informed start.
+
+\emph{What that means.} If the filter's learning coverage were the whole story, a
+ranker that begins with coverage in hand should show most of the decay absent. It
+shows $\warmDecaySurviving$ per cent of it surviving, so the decay shrinks by
+rather less than a third. Learning coverage is part of what closes the
+gap, but the experiment does not license the stronger reading that it is most of
+it, and this paper therefore reports the mechanism as partly tested and not
+established. The honest summary is that the decay is robust to how informed the
+ranker starts, which is either a weaker mechanistic claim than the paper set out
+to make or a hint that something other than representational learning is at work.
+No experiment here distinguishes those two readings.
+
 
 \emph{How large.} The gap ranges from $\gapRangeLo$ to $\gapRangeHi$, a factor of about
 $\gapRangeRatio$, with no change in sign; the shipped cell sits mid-range. Quote the range
