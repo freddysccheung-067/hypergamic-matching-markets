@@ -101,12 +101,13 @@ difference of $\optWelfare$, $t$ interval $[\optWelfareTLo, \optWelfareTHi]$ (\t
 for (Figure~\ref{fig:thin}).
 
 \emph{The selection correction the claim requires.} The optimum is the maximum of
-forty cells, so an uncorrected interval on it is not an interval on anything.
+$\nInstitutionalCells$ cells, so an uncorrected interval on it is not an interval on anything.
 Corrected over that family, the Benjamini--Hochberg $q$-value is
 $\optWelfareQ$, Holm rejects, and the Bonferroni $t$ interval widens to
 $[\optWelfareLo, \optWelfareHi]$ (\texttt{docs/STATS.md} \S5.3;
-\texttt{multiple\_comparisons.csv}). At roughly fifteen standard errors
-($\optWelfareMag / (\optWelfareSd/\sqrt{5}) = \optWelfareT$) the correction is cheap.
+\texttt{multiple\_comparisons.csv}). At roughly $\optWelfareSeMultiple$ standard
+errors (a standard error of $\optWelfareSe$ on four degrees of freedom) the
+correction is cheap.
 
 \emph{The narrower finding.} Of seven cells where B beats A, only two survive
 correction ($0.65$ and $0.50$). The optimum is a two-cell feature, not a region;

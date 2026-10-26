@@ -27,7 +27,7 @@ roughly 84\% there and returns a half-width narrower than the sample's own
 standard deviation (\texttt{docs/STATS.md} \S1). At twenty seeds the two agree to
 0.002. Where a row's interval has been widened for multiplicity, which is the H4
 row only, the caption and the row both say so: the H4 bounds are Bonferroni-$t$
-across the 40 institutional cells, and the uncorrected and Bonferroni-BCa bounds
+across the $\nInstitutionalCells$ institutional cells, and the uncorrected and Bonferroni-BCa bounds
 are beside them in the text (\S\ref{sec:h4}; \texttt{docs/STATS.md} \S5.3). Gaps
 are always the paired per-seed difference, never a comparison of two arms'
 overlapping intervals.
@@ -43,7 +43,7 @@ The H4 row alone carries a multiplicity correction (Bonferroni across 40 cells)
 and its verdict says so; the other rows are uncorrected and their families are
 stated in the text. That row's regime is marked because it matters: the
 institutional grid was measured at the inert gate ($\phi = 0.2$), and re-run at
-the shipped gate ($\phi = 0.02$) no cell of the forty beats the global market, and the cell below reads $\hFourShippedOpt$ there (\S\ref{sec:h4regime}). Every row traces to
+the shipped gate ($\phi = 0.02$) no cell of the $\nInstitutionalCells$ beats the global market, and the cell below reads $\hFourShippedOpt$ there (\S\ref{sec:h4regime}). Every row traces to
 \texttt{data/processed/rigor/} and to \S\ref{sec:h3}, \S\ref{sec:h4} or
 \S\ref{sec:h5}. H1, H2 and H6 are absent because no interval is registered for
 them; see \S\ref{sec:limits}.}
@@ -70,7 +70,7 @@ absence of mechanism, not as a refutation (\S\ref{sec:h2}).
 \textbf{H4 (an interior institutional optimum).} Refuted at the configuration
 this paper runs. At $c_B = 0.01$ in the inert gate regime there is a
 non-monotone welfare difference with its optimum at subgraph size $0.65$, which
-survives Bonferroni and Holm; re-run at the shipped gate, no cell of the forty
+survives Bonferroni and Holm; re-run at the shipped gate, no cell of the $\nInstitutionalCells$
 beats the global market at any size or cost. The hypothesis therefore holds in a
 regime the rest of the paper does not use and fails in the one it does
 (\S\ref{sec:h4}; \S\ref{sec:h4regime} below).
@@ -398,7 +398,7 @@ long enough to show where the convergence it drives stops.
 
 \emph{How large.} The gap ranges from $\gapRangeLo$ to $\gapRangeHi$, a factor of about
 $\gapRangeRatio$, with no change in sign; the shipped cell sits mid-range. Quote the range
-with its condition, or the shipped cell with its regime, never $+0.025$ as
+with its condition, or the shipped cell with its regime, never the shipped number as
 ``the'' gap.
 
 \emph{A documented condition that does not reproduce.} The configuration states,
