@@ -25,8 +25,9 @@ Student-t intervals beside it on every row.
 | `sensitivity_summary.csv` | the 40 institutional cells with per-cell t, p, q | same |
 | `sensitivity.csv` | the 12 parameter-sweep cells with the four claim verdicts | `scripts/summarise_sensitivity.py` |
 | `sensitivity/` | the raw cells and their README | `scripts/run_sensitivity.py` |
-| `long_horizon/` | the 300-epoch run and its README | `scripts/run_ablation.py` |
-| `long_horizon_*.csv` | the gap series, decay fits, asymptote, stationarity | `scripts/analyse_long_horizon.py` |
+| `long_horizon/` | the committed 300-epoch run, **archival: does not reproduce** | `scripts/run_ablation.py` |
+| `long_horizon_1t/` | the 300-epoch run the paper actually quotes, regenerated at 1 thread | same, `experiments/long_horizon_1t.yaml` |
+| `long_horizon_*.csv` | the gap series, decay fits, asymptote, stationarity, for the regenerated series; the committed one's live inside `long_horizon/` | `scripts/analyse_long_horizon.py` |
 | `base/` | 20 seeds, full metrics table, all four arms | `scripts/run_rigor_base.py` |
 | `validation.csv` | Table 1's seven rows, recomputed rather than transcribed | `scripts/run_validation.py` |
 | `fresh/` | seeds 100–119, the pre-registered confirmation set | `scripts/run_rigor_base.py` |
