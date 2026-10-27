@@ -230,6 +230,24 @@ def test_every_arm_sees_the_same_arrivals():
         np.testing.assert_array_equal(a, b)
 
 
+def test_a_number_without_a_decimal_point_is_still_a_number():
+    """YAML 1.1 reads "1e-7" as a string; the config must coerce it, not crash.
+
+    Every R2-E16 job failed on this before computing anything, because the job
+    list passed --set ncf.init_perturbation=1e-7 through yaml.safe_load.
+    """
+    import yaml
+
+    assert isinstance(yaml.safe_load("1e-7"), str)
+    cfg = SimConfig.coerce(_small(ncf={"init_perturbation": yaml.safe_load("1e-7")},
+                                  simulation={"arrival_rate": "5e-2",
+                                              "departure_rate": "5e-2"}))
+    assert cfg.ncf.init_perturbation == 1e-7
+    assert cfg.simulation.arrival_rate == 0.05
+    with pytest.raises(ValueError, match="init_perturbation must be a number"):
+        SimConfig.coerce(_small(ncf={"init_perturbation": "tiny"}))
+
+
 @pytest.mark.parametrize("simulation, match", [
     ({"arrival_rate": 0.05, "departure_rate": 0.0}, "must equal"),
     ({"arrival_rate": 0.001, "departure_rate": 0.001}, "0 agents"),

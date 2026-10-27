@@ -1076,3 +1076,17 @@ differs by at most a factor of two between N = 500 and N = 2000.
 horizon is restated in cumulative swipes per agent (the running sum of
 `mean_swipes_per_agent`) and in cumulative optimizer steps (`grad_steps`). No
 prediction; it is a change of units.
+
+---
+
+## R2-E16a: execution note, written before any R2-E16 data exists
+
+**Written:** 2026-10-28. All 50 R2-E16 jobs exited within 0.1 s of starting and
+wrote no data. The job list passed `--set ncf.init_perturbation=1e-7`, which
+`yaml.safe_load` reads as the string "1e-7" (YAML 1.1 requires a decimal point in
+a float), and the config validator raised a TypeError. No other experiment was
+affected: every completed run's recorded config holds numbers, checked across all
+331 provenance records. The config now coerces its real-valued switches to float
+(`tests/python/test_revision_switches.py::test_a_number_without_a_decimal_point_is_still_a_number`),
+and the 50 jobs are rerun unchanged in design, from a worktree of the commit that
+contains the fix. This is a repair of the run, not a change to R2-E16.

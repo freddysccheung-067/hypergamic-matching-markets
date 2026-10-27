@@ -317,6 +317,16 @@ class NCFConfig:
     perturbation_seed: int = 0
 
     def __post_init__(self) -> None:
+        # YAML 1.1 reads "1e-7" (no decimal point) as a string, and a --set
+        # override reaches here through yaml.safe_load. Coerce the switches that
+        # take real values, so a number spelled without a decimal point is still a
+        # number and anything else fails here with the field's name.
+        for name in ("passes_per_round", "explore_share", "init_perturbation"):
+            value = getattr(self, name)
+            try:
+                setattr(self, name, float(value))
+            except (TypeError, ValueError):
+                raise ValueError(f"ncf.{name} must be a number; got {value!r}") from None
         if self.top_k < 1:
             raise ValueError(f"ncf.top_k must be >= 1; got {self.top_k}")
         if self.n_negatives < 0:
@@ -388,6 +398,13 @@ class SimulationConfig:
     departure_rate: float = 0.0
 
     def __post_init__(self) -> None:
+        # Same coercion as NCFConfig: "1e-3" from YAML is a string, not a float.
+        for name in ("arrival_rate", "departure_rate"):
+            value = getattr(self, name)
+            try:
+                setattr(self, name, float(value))
+            except (TypeError, ValueError):
+                raise ValueError(f"simulation.{name} must be a number; got {value!r}") from None
         if self.delta_eta_out_of_range():
             raise ValueError(
                 f"simulation.bayesian_eta must be in [0, 1]; got {self.bayesian_eta}"
