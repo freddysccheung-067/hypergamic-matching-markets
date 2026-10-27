@@ -668,3 +668,71 @@ exists to remove, and these were the numbers it had not reached yet. Every numbe
 in `paper/main.tex` and `paper/sections/*.tex` that is a result rather than a
 setting now reads a macro; `paper/verify.py` fails the build on an undefined one
 and reports an unused one.
+
+---
+
+# Second revision (2026-10-27)
+
+Entries in this section follow the second revision's brief. Its experiments are
+numbered E9 to E18, which collides with the entry headed "E9" above (a list of
+corrections, not an experiment). To keep every name unique, entries below carry
+the prefix **R2-** (for example R2-E9). The paper cites them by that name and by
+the commit hash at which each was registered.
+
+---
+
+## E3d: the primary decay measure for the warm start
+
+**Written:** 2026-10-27, before `scripts/analyze_warm_start.py` was run and before
+the paper was edited.
+
+**Disclosure, first.** The four decay fractions this entry chooses between had
+already been computed by hand from the per-seed CSVs when it was written, and the
+brief that ordered the entry quoted two of them. The rule that the primary measure
+is stated before the numbers are seen could therefore not be kept. What follows is
+a choice made with the numbers in view, and it says which way the alternative
+would have gone.
+
+**What was wrong.** The paper printed `\warmEpochZeroControl` (0.9600) and
+`\warmEpochZeroTreated` (0.7623) as epoch-0 *gaps*. They are NCF exposure Gini
+*levels*: 0.9600 is the popularity closed form 1 - 2k/N. And `\warmDecaySurviving`
+(70) was computed as (warm peak - warm final) / (control peak - control final) on
+the five-seed mean *levels*, a peak basis that measures the warm arm from its own
+later and lower peak. The README, E3b and `docs/REVIEW_RESPONSE.md` also quote
+"epoch-0 gaps" of +0.3055 and +0.1079; those are the epoch-0 NCF level minus the
+round-99 oracle level (0.9600 - 0.6545 and 0.7623 - 0.6545), a third construction
+that mixes two rounds. All of these are superseded by the table this entry
+specifies.
+
+**Primary measure.** The decay fraction on the NCF-minus-oracle gap, round-0
+basis, per seed:
+
+    (warm gap at round 0 - warm gap at round 99) / (control gap at round 0 - control gap at round 99)
+
+averaged over the five seeds, with a 95% Student-t interval on 4 df.
+
+**Why, in one sentence.** E3(ii) made its prediction about the gap at the start
+("the epoch-0 gap is much smaller ... most of the decay disappears"), "an informed
+start" means round 0, and on levels the oracle arm's own fall between round 0 and
+round 99, which is identical in both arms because the oracle never reads the
+ranker, is added to numerator and denominator alike and pulls the ratio toward one.
+
+**Which way the alternative goes.** The level basis the brief recommended gives a
+larger surviving fraction than the gap basis (about a third against about a fifth).
+Both say the informed start removes most of the decay, so no verdict depends on
+the choice. Both are printed.
+
+**All four are reported**, per seed and with an interval: level and gap, each on
+the round-0 and the peak basis. The peak-basis numbers are described as what they
+are: each arm is measured from its own maximum, the warm arm's maximum comes after
+it has climbed for two to five rounds from an informed start, and so a peak basis
+discards the part of the effect that the pretraining produced.
+
+**How the number is read.** An upper 95% bound below 0.5 means the informed start
+removed most of the decay; an interval containing 0.5 means about half; a lower
+bound above 0.5 means most of the decay survives. This rule is written with the
+numbers in hand, so it states how the paper reads the result rather than testing
+it.
+
+**Superseded later by R2-E13d**, which reruns the arm at 1 thread on 40 seeds and
+300 rounds. This entry governs the five-seed, 100-round data only.
