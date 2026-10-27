@@ -417,28 +417,56 @@ is included in the record because it is the obvious experiment and a reader shou
 see why it is the wrong one: it varies something that is mechanically tied to the
 outcome it measures.
 
-\emph{The warm start does test something, and the answer is half against the
-prediction.} The ranker is pretrained on the epoch-0 swipe log for fifty passes
-before the loop starts, which raises reach at epoch 0 from
-$\warmReachZeroControl$ to $\warmReachZeroTreated$ of agents, against
-$\reachShipped$ shipped over a full run. As predicted, the epoch-0 gap falls
-sharply, from $\warmEpochZeroControl$ to $\warmEpochZeroTreated$. Contrary to
-prediction, the terminal gap falls too, from $\warmFinalControl$ to
-$\warmFinalTreated$, a paired per-seed difference of $\warmTerminalDiff$
-(sd $\warmTerminalSd$, $t(4) = \warmTerminalT$), where the registration expected
-it roughly unchanged. And $\warmDecaySurviving$\% of the decay survives an
-informed start.
+\emph{The warm start does test something, and it supports the coverage reading.}
+The ranker is pretrained on the round-0 swipe log for fifty passes before the loop
+starts, which raises reach at round 0 from $\warmReachZeroControl$ to
+$\warmReachZeroTreated$ of agents. Two quantities have to be kept apart here. The
+exposure Gini \emph{level} of the NCF arm starts at $\warmLevelZeroControl$ in the
+control, which is the popularity closed form $1 - 2k/N$, and at
+$\warmLevelZeroTreated$ under the warm start. The \emph{gap}, that level minus the
+oracle's Gini on the same seed and round, starts at $\warmGapZeroControl$ in the
+control and at $\warmGapZeroTreated$ under the warm start, and ends at round 99 at
+$\warmGapFinalControl$ and $\warmGapFinalTreated$. The terminal difference is a
+paired per-seed $\warmTerminalDiff$ (sd $\warmTerminalSd$, $t(4) = \warmTerminalT$),
+where the registration expected none.
 
-\emph{What that means.} If the filter's learning coverage were the whole story, a
-ranker that begins with coverage in hand should show most of the decay absent. It
-shows $\warmDecaySurviving$ per cent of it surviving, so a third of the decay
-is removed and two thirds is not. Learning coverage is part of what closes the
-gap, but the experiment does not license the stronger reading that it is most of
-it, and this paper therefore reports the mechanism as partly tested and not
-established. The honest summary is that the decay is robust to how informed the
-ranker starts, which is either a weaker mechanistic claim than the paper set out
-to make or a hint that something other than representational learning is at work.
-No experiment here distinguishes those two readings.
+\emph{How much of the decay survives.} The registered measure is the gap on the
+round-0 basis, per seed (\texttt{docs/PREREGISTRATION.md} E3d): the warm arm's fall
+from round 0 to round 99 as a share of the control's. It is
+$\warmDecayGapZero$ percent, 95\% $t$ interval
+$[\warmDecayGapZeroLo, \warmDecayGapZeroHi]$ over five seeds, so the informed start
+removes about $\warmDecayRemovedGapZero$ percent of the decay.
+Table~\ref{tab:warmdecay} gives the other three constructions, and they do not
+agree. On levels the share is $\warmDecayLevelZero$ percent, larger, because the
+oracle's own Gini falls by $\warmOracleFall$ between round 0 and round 99 in both
+arms alike, and a level difference counts that fall in numerator and denominator.
+Measured from each arm's own peak the share is $\warmDecayGapPeak$ percent on gaps
+and $\warmDecayLevelPeak$ percent on levels, because the warm arm climbs for two to
+five rounds after its informed start before it decays, and a peak basis measures
+only the decay after that climb. A peak basis therefore discards the part of the
+effect the pretraining produced. An earlier draft of this paper printed the
+level, peak-basis ratio of the five-seed mean series, $\warmDecayLevelPeakPooled$
+percent, as the share of the gap that survives an informed start; that was the
+wrong quantity under the wrong name.
+
+\begin{table}[t]
+\centering
+\input{tables/warm_decay}
+\caption{Share of the control arm's decay that survives the warm start, four
+constructions. Level is NCF exposure Gini; gap is NCF minus oracle Gini on the same
+seed and round. Each ratio is computed per seed and averaged over five seeds
+(42--46); intervals are 95\% Student-$t$ on 4 degrees of freedom. 100 rounds, one
+thread. Source: \texttt{rigor/interventions/decay\_fractions\_summary.csv}.}
+\label{tab:warmdecay}
+\end{table}
+
+\emph{What that means.} A ranker that starts with most of its coverage already in
+hand has most of the gap's decay already behind it, which is what the
+coverage-learning reading predicts. The warm start supports that reading. It
+cannot say which part of training does the work: fifty passes over one round's
+log add gradient steps without adding rounds of data, so the arm does not
+separate estimator convergence from the data stream. The frozen arm cannot
+separate them either, for the structural reason above.
 
 
 \emph{How large.} The gap ranges from $\gapRangeLo$ to $\gapRangeHi$, a factor of about
@@ -464,6 +492,6 @@ times as far. The defensible statement is that no claim here
 rests on $\delta$ at any weight ratio tested, not that the results require $\beta/\alpha
 \geq 2$.
 
-\emph{Refuted?} The sweep refutes the unconditional form of the cold-start
-explanation and the stated $\beta/\alpha$ condition. It does not refute H3's
-ordering, the one result that survives every cell.
+\emph{Refuted?} The sweep refutes the stated $\beta/\alpha$ condition. It does not
+refute the cold-start explanation, which no cell of it isolates, and it does not
+refute H3's ordering, the one result that survives every cell.

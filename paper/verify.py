@@ -38,7 +38,7 @@ MACRO_DEF_RE = re.compile(r"\\newcommand\{\\([A-Za-z0-9]+)\}")
 MACRO_USE_RE = re.compile(
     r"\\((?:gap|gini|mcr|rsi|reach|opt|hFive|hFour|tail|tost|stat|nSweep"
     r"|nInstitutional|nReject|fwer|algLoss|finalEpoch|firstBelow|decay|width"
-    r"|thread|betweenSeed|cfour|betaAlpha|shockVs)[A-Za-z0-9]*)"
+    r"|thread|betweenSeed|cfour|betaAlpha|shockVs|warm)[A-Za-z0-9]*)"
 )
 # Any TeX control word. Used to decide whether a *defined* number macro appears in
 # the prose at all, which a prefix list cannot do: a macro whose prefix the list

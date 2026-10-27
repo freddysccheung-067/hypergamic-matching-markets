@@ -209,62 +209,32 @@ def _first_stays_below(series: dict[int, float], margin: float) -> int:
     return -1
 
 
-def warm_start() -> dict[str, float]:
-    """The warm-start arm of the mechanism intervention, against its own control.
+def warm_start() -> dict[str, dict[str, float]]:
+    """The warm-start arm against its own control, from the decay-fraction summary.
 
-    Reads `data/processed/rigor/interventions/interventions_seed<seed>.csv`, one
-    row per (condition, epoch). Both arms share a population, a seed and a thread
-    count, so the terminal comparison is a paired per-seed difference and not a
-    difference of means over unrelated runs.
+    ``scripts/analyze_warm_start.py`` computes every quantity per seed and writes
+    ``decay_fractions_summary.csv`` (mean, sd, 95% t bounds over seeds). This
+    reads that file and nothing else, so the paper and the analysis cannot hold
+    two versions of one ratio.
 
-    The decay share is defined as (that arm's own peak - its final) for the warm
-    arm over the same quantity for the control. Using each arm's own peak matters:
-    the warm arm starts informed, so its peak is lower and earlier, and measuring
-    both against a common peak would credit the warm start for a decay it never
-    had.
+    A *level* is the NCF arm's exposure Gini. A *gap* is that level minus the
+    oracle arm's Gini on the same population, seed and round. The two are kept
+    apart in every key and every macro name, because an earlier draft printed
+    levels under the name of gaps.
     """
-    directory = RIGOR / "interventions"
-    frames: dict[str, dict[int, dict[int, float]]] = {"control": {}, "warm": {}}
-    for path in sorted(directory.glob("interventions_seed*.csv")):
-        seed = int(path.stem.split("seed")[-1])
-        for row in read_csv(path):
-            cond = row["condition"]
-            if cond in frames:
-                frames[cond].setdefault(seed, {})[int(row["epoch"])] = float(row["gini"])
-    if not frames["control"] or not frames["warm"]:
-        raise ValueError("interventions: missing control or warm arm")
+    path = RIGOR / "interventions" / "decay_fractions_summary.csv"
+    rows = {r["quantity"]: r for r in read_csv(path)}
 
-    def mean_at(cond: str, epoch: int) -> float:
-        vals = [s[epoch] for s in frames[cond].values() if epoch in s]
-        return sum(vals) / len(vals)
+    def stat(name: str) -> dict[str, float]:
+        r = rows[name]
+        return {k: float(r[k]) for k in ("mean", "sd", "lo_t95", "hi_t95", "t_stat",
+                                          "min", "max") if r.get(k) not in (None, "")}
 
-    def decay(cond: str) -> float:
-        series = {
-            e: sum(s[e] for s in frames[cond].values() if e in s)
-            / len([s for s in frames[cond].values() if e in s])
-            for e in next(iter(frames[cond].values()))
-        }
-        peak_epoch = max(series, key=lambda e: series[e])
-        return series[peak_epoch] - series[max(series)]
-
-    terminal = [frames["warm"][s][99] - frames["control"][s][99]
-                for s in frames["control"] if 99 in frames["control"][s]
-                and 99 in frames["warm"].get(s, {})]
-    n = len(terminal)
-    mean_d = sum(terminal) / n
-    sd_d = (sum((x - mean_d) ** 2 for x in terminal) / (n - 1)) ** 0.5
-    return {
-        "epoch0_control": mean_at("control", 0),
-        "epoch0_warm": mean_at("warm", 0),
-        "reach0_control": _mean_reach("control", 0),
-        "reach0_warm": _mean_reach("warm", 0),
-        "final_control": mean_at("control", 99),
-        "final_warm": mean_at("warm", 99),
-        "terminal_diff": mean_d,
-        "terminal_sd": sd_d,
-        "terminal_t": mean_d / (sd_d / n ** 0.5),
-        "decay_share": decay("warm") / decay("control"),
-    }
+    out = {q: stat(q) for q in rows if not q.endswith("_pooled")}
+    out["reach0_control"] = {"mean": _mean_reach("control", 0)}
+    out["reach0_warm"] = {"mean": _mean_reach("warm", 0)}
+    out["level_peak_pooled"] = {"mean": float(rows["level_peak_pooled"]["mean"])}
+    return out
 
 
 def _mean_reach(condition: str, epoch: int) -> float:
@@ -456,29 +426,53 @@ def revision_macros(f) -> list[str]:
         "",
     ]
 
-    # The warm-start intervention (PREREGISTRATION E3ii). The frozen arm is
+    # The warm-start intervention (PREREGISTRATION E3ii, E3d). The frozen arm is
     # omitted deliberately: freezing the weights freezes the shortlists, so it
     # cannot test anything, and the paper says that rather than quoting a number
     # from it.
+    #
+    # Names say what a macro holds. Level = NCF exposure Gini; Gap = NCF minus
+    # oracle Gini on the same seed and round; Zero = round 0; Final = round 99.
+    # Decay shares are percentages, emitted bare so the prose writes "percent".
     warm = warm_start()
+
+    def pct(key: str, part: str = "mean") -> str:
+        return f(warm[key][part] * 100, 1)
+
     out += [
-        "% rigor/interventions: the warm-start arm against its own control",
-        rf"\newcommand{{\warmEpochZeroControl}}{{{f(warm['epoch0_control'], 4, True)}}}",
-        rf"\newcommand{{\warmEpochZeroTreated}}{{{f(warm['epoch0_warm'], 4, True)}}}",
-        rf"\newcommand{{\warmReachZeroControl}}{{{f(warm['reach0_control'], 3)}}}",
-        rf"\newcommand{{\warmReachZeroTreated}}{{{f(warm['reach0_warm'], 3)}}}",
-        rf"\newcommand{{\warmFinalControl}}{{{f(warm['final_control'], 4, True)}}}",
-        rf"\newcommand{{\warmFinalTreated}}{{{f(warm['final_warm'], 4, True)}}}",
-        rf"\newcommand{{\warmTerminalDiff}}{{{f(warm['terminal_diff'], 5, True)}}}",
-        rf"\newcommand{{\warmTerminalT}}{{{f(warm['terminal_t'], 2)}}}",
-        rf"\newcommand{{\warmTerminalSd}}{{{f(warm['terminal_sd'], 5)}}}",
-        rf"\newcommand{{\warmDecaySurviving}}{{{f(warm['decay_share'] * 100, 0)}}}",
+        "% rigor/interventions/decay_fractions_summary.csv (scripts/analyze_warm_start.py)",
+        rf"\newcommand{{\warmLevelZeroControl}}{{{f(warm['control_level_0']['mean'], 4)}}}",
+        rf"\newcommand{{\warmLevelZeroTreated}}{{{f(warm['warm_level_0']['mean'], 4)}}}",
+        rf"\newcommand{{\warmGapZeroControl}}{{{f(warm['control_gap_0']['mean'], 4, True)}}}",
+        rf"\newcommand{{\warmGapZeroTreated}}{{{f(warm['warm_gap_0']['mean'], 4, True)}}}",
+        rf"\newcommand{{\warmGapFinalControl}}{{{f(warm['control_gap_final']['mean'], 4, True)}}}",
+        rf"\newcommand{{\warmGapFinalTreated}}{{{f(warm['warm_gap_final']['mean'], 4, True)}}}",
+        rf"\newcommand{{\warmOracleFall}}"
+        rf"{{{f(warm['oracle_0']['mean'] - warm['oracle_final']['mean'], 4)}}}",
+        rf"\newcommand{{\warmReachZeroControl}}{{{f(warm['reach0_control']['mean'], 3)}}}",
+        rf"\newcommand{{\warmReachZeroTreated}}{{{f(warm['reach0_warm']['mean'], 3)}}}",
+        rf"\newcommand{{\warmTerminalDiff}}{{{f(warm['terminal_diff']['mean'], 5, True)}}}",
+        rf"\newcommand{{\warmTerminalT}}{{{f(warm['terminal_diff']['t_stat'], 2)}}}",
+        rf"\newcommand{{\warmTerminalSd}}{{{f(warm['terminal_diff']['sd'], 5)}}}",
+        "% Decay surviving an informed start, percent, mean over seeds of per-seed ratios.",
+        "% Primary (E3d): gap, round-0 basis.",
+        rf"\newcommand{{\warmDecayGapZero}}{{{pct('gap_round0')}}}",
+        rf"\newcommand{{\warmDecayGapZeroLo}}{{{pct('gap_round0', 'lo_t95')}}}",
+        rf"\newcommand{{\warmDecayGapZeroHi}}{{{pct('gap_round0', 'hi_t95')}}}",
+        rf"\newcommand{{\warmDecayRemovedGapZero}}"
+        rf"{{{f(100 - warm['gap_round0']['mean'] * 100, 1)}}}",
+        rf"\newcommand{{\warmDecayLevelZero}}{{{pct('level_round0')}}}",
+        rf"\newcommand{{\warmDecayLevelPeak}}{{{pct('level_peak')}}}",
+        rf"\newcommand{{\warmDecayGapPeak}}{{{pct('gap_peak')}}}",
+        "% The construction the earlier draft printed: level, peak basis, ratio of the",
+        "% five-seed mean series.",
+        rf"\newcommand{{\warmDecayLevelPeakPooled}}{{{pct('level_peak_pooled')}}}",
         "",
     ]
     return out
 
 
-def main() -> None:
+def build_lines() -> list[str]:
     live = regime_row("gini_gap_ncf_minus_oracle", "live100")
     base = regime_row("gini_gap_ncf_minus_oracle", "base20")
 
@@ -633,9 +627,24 @@ def main() -> None:
     ]
 
     lines += revision_macros(f)
+    return lines
 
+
+def render() -> str:
+    """The full text of ``tables/numbers.tex``, without writing it.
+
+    Split from :func:`main` so a test can regenerate the file in memory and
+    compare it against the committed one: a stale ``numbers.tex`` then fails the
+    test suite rather than surviving until someone happens to rebuild.
+    """
+    return "\n".join(build_lines())
+
+
+def main() -> None:
+    text = render()
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(lines), encoding="utf-8")
+    OUT.write_text(text, encoding="utf-8")
+    lines = text.split("\n")
     print(f"wrote {OUT.relative_to(ROOT)} ({len(lines)} lines, "
           f"{sum(1 for ln in lines if ln.startswith(chr(92) + 'newcommand'))} macros)")
 

@@ -179,14 +179,28 @@
 \newcommand{\optWelfareTHi}{+76.86}
 \newcommand{\optWelfareMag}{64.62}
 
-% rigor/interventions: the warm-start arm against its own control
-\newcommand{\warmEpochZeroControl}{+0.9600}
-\newcommand{\warmEpochZeroTreated}{+0.7623}
+% rigor/interventions/decay_fractions_summary.csv (scripts/analyze_warm_start.py)
+\newcommand{\warmLevelZeroControl}{0.9600}
+\newcommand{\warmLevelZeroTreated}{0.7623}
+\newcommand{\warmGapZeroControl}{+0.2633}
+\newcommand{\warmGapZeroTreated}{+0.0657}
+\newcommand{\warmGapFinalControl}{+0.0224}
+\newcommand{\warmGapFinalTreated}{+0.0132}
+\newcommand{\warmOracleFall}{0.0422}
 \newcommand{\warmReachZeroControl}{0.041}
 \newcommand{\warmReachZeroTreated}{0.861}
-\newcommand{\warmFinalControl}{+0.6769}
-\newcommand{\warmFinalTreated}{+0.6676}
 \newcommand{\warmTerminalDiff}{-0.00924}
 \newcommand{\warmTerminalT}{-4.78}
 \newcommand{\warmTerminalSd}{0.00432}
-\newcommand{\warmDecaySurviving}{70}
+% Decay surviving an informed start, percent, mean over seeds of per-seed ratios.
+% Primary (E3d): gap, round-0 basis.
+\newcommand{\warmDecayGapZero}{21.7}
+\newcommand{\warmDecayGapZeroLo}{15.0}
+\newcommand{\warmDecayGapZeroHi}{28.4}
+\newcommand{\warmDecayRemovedGapZero}{78.3}
+\newcommand{\warmDecayLevelZero}{33.5}
+\newcommand{\warmDecayLevelPeak}{70.5}
+\newcommand{\warmDecayGapPeak}{69.7}
+% The construction the earlier draft printed: level, peak basis, ratio of the
+% five-seed mean series.
+\newcommand{\warmDecayLevelPeakPooled}{69.6}

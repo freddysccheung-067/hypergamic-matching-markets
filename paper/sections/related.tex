@@ -89,13 +89,11 @@ settings fairness criteria for different stakeholders conflict.
 Every one of these predicts a loop that \emph{persists or compounds}. The result
 here points the other way, and the distinction this paper offers is between a
 ranker's deficiency being coverage, which training could fix, and preference
-distortion, which it would not. That distinction is not in the loop literature,
-and the honest state of it after this study is that it remains a hypothesis: the
-trajectory is consistent with it, and neither of the interventions run here
-separates training from reaching (\S\ref{sec:sensitivity},
-\texttt{docs/PREREGISTRATION.md} E3). A reader should check it hardest of
-anything in the paper, and the paper reports that it does not survive being
-checked.
+distortion, which it would not. That distinction is not in the loop literature.
+The trajectory is consistent with it, and the warm-start arm supports it: a ranker
+pretrained before the loop has most of the decay behind it
+(\S\ref{sec:interventions}). What remains open is which part of training does the
+work, since that arm adds gradient steps without adding data.
 
 \subsection{Cold start, exploration, and the dynamic market}
 

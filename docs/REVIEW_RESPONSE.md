@@ -117,21 +117,32 @@ mechanism's scope, and it is not that either, for the same reason. What it is: a
 place where the same process runs at half speed, which neither confirms nor refutes
 the mechanism.
 
-**The mechanism is now reported as untested, which is what the review's second
-paragraph asked for.** The earlier response conceded that reach is never manipulated
-and said no intervention had been run. Two have now been run
-(`docs/PREREGISTRATION.md` E3). The frozen ranker is **uninformative**: freezing the
-weights freezes the shortlists, so the arm is flat by construction and the within-arm
-test cannot separate training from drift (E3b, E3c). The warm start **meets half its
-prediction and refutes the other half**: the epoch-0 gap falls from +0.3055 to
-+0.1079 as predicted, the terminal gap also falls (paired −0.00924, t(4) = −4.78)
-where it was predicted unchanged, and two thirds of the decay survives. The paper
-reports the mechanism as a hypothesis this study does not establish.
+**The mechanism is now tested by one arm, and that arm supports it.** The earlier
+response conceded that reach is never manipulated and said no intervention had been
+run. Two have now been run (`docs/PREREGISTRATION.md` E3). The frozen ranker is
+**uninformative**: freezing the weights freezes the shortlists, so the arm is flat by
+construction and the within-arm test cannot separate training from drift (E3b, E3c).
+The warm start **supports the coverage reading**: the round-0 gap falls from +0.2633
+to +0.0657, the terminal gap also falls (paired −0.00924, t(4) = −4.78) where it was
+predicted unchanged, and only **21.7% of the gap's decay survives** (95% t interval
+15.0 to 28.4, five seeds; E3d).
 
-So the disposition is: **the review is right about the conclusion and wrong about
-the reason.** The mechanism claim should not be made, and it is not made — but not
-because the `shock_scale` 0.5 cell contradicts it. Nothing in this grid contradicts
-it. It has not been tested in a way that could be.
+**Correction, 2026-10-27.** An earlier version of this paragraph said the round-0
+gap fell "from +0.3055 to +0.1079" and that "two thirds of the decay survives", and
+read the arm as evidence against the mechanism. Both numbers were wrong. The first
+pair is the round-0 NCF level minus the round-99 oracle level (0.9600 − 0.6545 and
+0.7623 − 0.6545), which mixes two rounds; the true round-0 gaps are +0.2633 and
++0.0657. The second was a peak-basis ratio on levels, which measures the warm arm
+from its own later peak and so discards most of what the pretraining did. All four
+constructions are now in `data/processed/rigor/interventions/decay_fractions_summary.csv`
+and in the paper's table of them; the registered one is the gap on the round-0
+basis. The conclusion reverses: the warm start removes about four fifths of the
+decay, which is what the coverage reading predicts.
+
+So the disposition is: **the review is right that the mechanism needed a test, and
+wrong about the reason.** Nothing in the sweep grid contradicts the mechanism; the
+`shock_scale` 0.5 cell is a slower instance of it. The warm start is the test, and
+it supports the mechanism without separating gradient steps from data.
 
 
 ## 1.6 No stated rule for BCa over t — fixed
