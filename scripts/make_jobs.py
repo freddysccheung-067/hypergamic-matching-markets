@@ -78,6 +78,31 @@ def tier2(args) -> list[dict]:
     for seed in TEN:
         jobs.append(horizon_job(args, 2, "R2-E13c", "e13c_offpolicy", seed, 300, "oracle,random",
                                 flags=["--shadow"]))
+    root = args.data_root
+    for seed in TEN:
+        out = f"{root}/e15_institutional"
+        jobs.append({"id": f"e15_institutional-s{seed}", "cwd": args.worktree, "priority": 2,
+                     "cmd": [args.python, "scripts/run_institutional_horizon.py", "--seed",
+                             str(seed), "--rounds", "300", "--window-start", "250",
+                             "--output-dir", out],
+                     "done": f"{out}/seed{seed}.json"})
+        out = f"{root}/e15i_inert"
+        jobs.append({"id": f"e15i_inert-s{seed}", "cwd": args.worktree, "priority": 2,
+                     "cmd": [args.python, "scripts/run_institutional_horizon.py", "--experiment",
+                             "R2-E15i", "--seed", str(seed), "--rounds", "5", "--window-start",
+                             "0", "--a-arms", "oracle", "--costs", "0.01", "--set",
+                             "population.admissible_fraction=0.2", "--output-dir", out],
+                     "done": f"{out}/seed{seed}.json"})
+        out = f"{root}/h5r"
+        jobs.append({"id": f"h5r-s{seed}", "cwd": args.worktree, "priority": 2,
+                     "cmd": [args.python, "scripts/run_appendix.py", "h5", "--seed", str(seed),
+                             "--output-dir", out],
+                     "done": f"{out}/seed{seed}.json"})
+    out = f"{root}/h1r"
+    jobs.append({"id": "h1r", "cwd": args.worktree, "priority": 2,
+                 "cmd": [args.python, "scripts/run_appendix.py", "h1", "--seeds", "100-109",
+                         "--output-dir", out],
+                 "done": f"{out}/h1.json"})
     return jobs
 
 
