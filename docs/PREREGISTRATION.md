@@ -736,3 +736,343 @@ it.
 
 **Superseded later by R2-E13d**, which reruns the arm at 1 thread on 40 seeds and
 300 rounds. This entry governs the five-seed, 100-round data only.
+
+---
+
+## R2-0: rules common to every R2 entry
+
+**Written:** 2026-10-27, before any R2 run.
+
+- Every run is at `ncf.num_threads = 1`, from a git worktree of a committed tree,
+  through `scripts/run_horizon.py` (or the scripts named in an entry), and writes
+  a provenance record beside its data.
+- Seed sets: **exploratory** 42 to 61, **confirmation** 100 to 119. Where an entry
+  uses ten seeds they are 100 to 109; five, 100 to 104.
+- The **margin** is 0.002 Gini (E5). "Inside the margin" means |gap| < 0.002.
+  The **entry round** of a seed is the first round from which its gap stays
+  inside the margin to the end of the run; a seed that never stays inside is
+  censored at the horizon and reported as censored.
+- A **gap** is NCF exposure Gini minus oracle exposure Gini on the same seed and
+  round. Every comparison is a paired per-seed difference. Intervals are 95%
+  Student-t over seeds unless stated; TOST uses the 90% interval by
+  construction. Benjamini-Hochberg is applied within the family an entry names.
+- A deviation from any entry is appended to this file, with its reason, before
+  the result it affects is read.
+
+---
+
+## R2-E9: the canonical long-horizon run
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** Both seed sets (40 seeds), all four arms, shipped configuration, 300
+rounds. The R2-E12 diagnostics are recorded on the NCF arm. Output
+`data/processed/horizon/e09_canonical/`. Every horizon number in the paper is
+taken from this run; the archived `rigor/base/`, `rigor/long_horizon/` and
+`rigor/long_horizon_1t/` stop being headline sources. The round-99 values are
+read from this run too.
+
+**Primary quantities, per seed set.** The seed-mean gap per round with a t
+interval; the peak gap and its round; each seed's entry round; the tail mean
+over rounds 250 to 299 per seed, its t interval, and TOST at the margin on 19 df.
+The confirmation set is primary; the exploratory set is the replication.
+
+**Predictions.** (i) The seed-mean peak gap lies in [+0.27, +0.34], at a round in
+3 to 10. (ii) TOST passes on the tail for both sets. (iii) At least 15 of 20
+seeds in each set have an entry round at or before 299. (iv) The round-99 mean
+gap lies in [+0.015, +0.035]. (v) Seeds 42 to 46 reproduce
+`rigor/long_horizon_1t/` exactly, every printed digit, rounds 0 to 299, all arms.
+
+**Kill condition for the transient reading.** The tail mean's 95% interval lies
+wholly above +0.002 on the confirmation set. The paper then reports a small
+persistent gap after a long transient. A 90% interval that crosses the margin
+without the 95% interval clearing it is reported as inconclusive. More than five
+censored seeds in a set means the transient outlasts 300 rounds, and R2-E10
+decides the reading.
+
+---
+
+## R2-E12: mechanism diagnostics without intervention
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** Recorded on every round of the R2-E9 NCF arm
+(`src/python/diagnostics.py`): mean and 10/50/90th percentiles over agents of the
+Spearman correlation between an agent's NCF scores and true utilities over the
+other side; the share of each shortlist inside the side's modal list and the
+share of shortlists identical to it; the share of within-agent score variance an
+additive per-candidate term explains; mean Jaccard overlap of each NCF shortlist
+with the oracle shortlist under the same θ.
+
+**Predictions.** (i) At round 0, on every one of the 40 seeds: NCF Gini within
+0.002 of 1 - 2k/N = 0.96, reach within 0.002 of 2k/N = 0.04, modal share above
+0.95 and item share above 0.9. (ii) Per seed, the Pearson correlation across
+rounds 6 to 299 between the gap and mean Spearman is below -0.8 for at least 36
+of 40 seeds. (iii) In the seed-mean series, the identical share is below 0.1 by
+round 100 and the item share is below 0.5 by round 100. (iv) The Spearman rank
+correlation between round and seed-mean Jaccard over rounds 6 to 299 exceeds 0.9.
+
+**Kill condition.** (ii) failing means ranking quality, as measured, does not
+track the gap, and the coverage reading needs a different measured driver.
+
+## R2-E11: the sweep at 300 rounds, as trajectory claims
+
+**Written:** 2026-10-27, before the run. Re-registers C1 to C4 of `docs/STATS.md`
+§4.1, which were terminal claims at 100 rounds.
+
+**Design.** The eight off-shipped cells (taste_sigma 0.2 and 1.0, shock_scale 0.5
+and 3.0, beta/alpha 1.0 and 3.0, delta 0.0 and 1.0; beta/alpha is set through
+beta at alpha 1.0), seeds 100 to 109, NCF and oracle, 300 rounds. The shipped cell
+is seeds 100 to 109 of R2-E9. Per cell: peak gap and its round, entry rounds,
+gap at round 299 with t and BCa intervals, reach trajectory.
+
+**Claims.** C1t: the peak gap is positive with a t interval excluding zero. C2t:
+the transient ends inside 300 rounds, meaning TOST on the rounds 250 to 299 tail
+passes at the margin. C3t: reach at round 299 is at least 0.75. C4t: the clearing
+rate at round 299 has an interval excluding zero. C5t (new): the tail mean is
+negative with a t interval excluding zero, a reversal.
+
+**Predictions.** C1t holds in all nine cells. C2t holds in at least seven of
+nine. C3t fails at shock_scale 0.5 and holds elsewhere. C4t holds in all nine.
+C5t occurs at shock_scale 0.5 and nowhere else. Prior data exist for two cells
+and the predictions for those two lean on them: the shipped cell (five seeds,
+`rigor/long_horizon_1t/`) and shock_scale 0.5 (five seeds, `rigor/c4_shock0.5/`,
+reach 0.490 and gap -0.0012 at round 299).
+
+**Kill condition.** C1t failing in any cell ends the claim that the ordering
+holds across the sweep.
+
+---
+
+## R2-E13d: the warm start, redone
+
+**Written:** 2026-10-27, before the run. Supersedes E3d's data, not its measure.
+
+**Design.** `ncf.warm_start_epochs = 50`, both seed sets (40 seeds), NCF arm, 300
+rounds. Controls are the R2-E9 NCF arm and oracle arm on the same seeds. Every
+quantity is reported both as a level and as a gap.
+
+**Primary measure, as E3d:** the decay fraction on the gap, round-0 basis, per
+seed, (warm gap at 0 - warm gap at F) / (control gap at 0 - control gap at F),
+with **F = 299**, the run's last round; t interval per seed set. The other three
+constructions, and all four at F = 99, are reported beside it.
+
+**Predictions.** (i) Round-0 reach under the warm start exceeds 0.8 on every seed.
+(ii) The primary measure's upper 95% bound is below 0.5 on both seed sets. (iii)
+Both peak-basis measures exceed 0.5 on both sets.
+
+**Kill condition.** (ii) failing on the confirmation set: the informed start does
+not remove most of the decay, and the paper says so.
+
+## R2-E10: floor or slow decay
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** Seeds 100 to 109, NCF and oracle, 1000 rounds. Rounds 0 to 299 must
+reproduce R2-E9 exactly, which is checked.
+
+**Fits,** to the seed-mean gap from the peak round T onward, with s = t - T + 1:
+exponential to a constant K + A exp(-λ s); pure exponential A exp(-λ s); power
+law A s^(-b). Fitted by nonlinear least squares on rounds T to 500. The
+**primary comparison is out-of-sample**: RMSE of each fit's prediction of rounds
+501 to 999. AIC and BIC on the fitting window are reported as secondary, with the
+caveat that consecutive rounds are not independent. Half-life: ln 2 / λ for the
+exponential forms; for the power law, the s at which the fit falls to half its
+value at s = 1. Its interval is the 2.5 and 97.5 percentiles of 2000 seed
+bootstrap resamples, each refit.
+
+**What counts as a positive floor.** Both of: the tail mean over rounds 950 to
+999 has a 95% t interval wholly above +0.002; and the out-of-sample winner is the
+exponential to a constant with a bootstrap K interval wholly above +0.002. A K
+interval above zero but below +0.002 is reported as "a floor inside the margin".
+
+**What counts as continued slow decay.** The paired difference between the
+rounds 900 to 949 and 950 to 999 means is positive with a t interval excluding
+zero, or the power law wins out of sample.
+
+**Prediction.** No positive floor. TOST passes on the rounds 950 to 999 tail. No
+prediction about which form wins.
+
+**Kill condition.** A positive floor as defined: the thesis becomes a small
+persistent gap after a long transient.
+
+---
+
+## R2-E13a: training dose
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** `ncf.passes_per_round` in {0.5, 2, 4}, seeds 100 to 109, NCF arm, 300
+rounds; dose 1 is R2-E9. Oracle from R2-E9. The gap is plotted against rounds and
+against cumulative optimizer steps.
+
+**Statistic.** Per seed and dose, T(d) = the first round from which the gap stays
+below 0.05 (primary) or below 0.15 (secondary), plus one; censored at 300.
+Elasticity = OLS slope of log T on log d over all seeds and doses, with a seed
+bootstrap interval.
+
+**Prediction: the curves collapse on optimizer steps** (elasticity at most -0.75).
+Reason: the swipe log's positives are each agent's top-k admissible candidates by
+true utility and its negatives are uniform draws, so after θ relaxes in the first
+few rounds the training distribution does not depend on the ranker, and the
+ranker's state is a function of how many steps it has taken on that distribution.
+
+**Reading.** At most -0.75: the transient is estimator convergence. At least
+-0.25: the curves collapse on rounds and the data stream drives the transient,
+and R2-E13b/c say which part. Between: partial, reported as such.
+
+---
+
+## R2-E13b: exploration
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** `ncf.explore_share` in {0.05, 0.2} (one and four of 20 slots), seeds
+100 to 109, NCF arm with `--prefix 19` and `--prefix 16` respectively, 300 rounds.
+Oracle comparators: the oracle arm on the same seeds with the same prefix. Control:
+R2-E9 at share 0.
+
+**Quantities.** The exploiting-part gap (Gini over the first k - m entries of
+every NCF list minus the same for the oracle) and the whole-list gap.
+
+**Prediction.** The exploiting-part gap differs from the share-0 control's gap by
+less than 0.01 at rounds 49, 99 and 299, and by less than 0.02 at round 20, at
+both shares (paired t interval inside the band). Reason: as in R2-E13a, the swipe
+log does not depend on the shortlists except through θ. The whole-list gap is
+smaller than the control's at round 20 at share 0.2, mechanically.
+
+**Kill condition.** A difference outside the band with an interval excluding
+zero: the shortlists feed back into what the ranker learns.
+
+## R2-E13c: off-policy data
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** The oracle arm and the random arm, seeds 100 to 109, 300 rounds, each
+with a shadow ranker (`shadow_ranker=True`) that trains every round on the swipe
+log its own market generates and is never shown to the market. The shadow is
+initialized exactly as the NCF arm on the same seed (checked by a test: identical
+round-0 exposure). Its exposure is measured under its own top 20.
+
+**Quantity.** Off-policy gap = shadow Gini minus the R2-E9 oracle Gini on the same
+seed and round, compared with the on-policy gap of R2-E9, paired by seed.
+
+**Prediction.** For both data sources, the off-policy gap differs from the
+on-policy gap by less than 0.01 at rounds 49, 99 and 299 and by less than 0.02 at
+round 20 (paired t interval inside the band). Reason: the only channel by which
+the market's own shortlists reach the training data is θ, through which acceptors
+receive proposals and so relax their thresholds.
+
+**Kill condition.** A difference outside the band with an interval excluding
+zero: feedback through θ is a material part of the transient.
+
+---
+
+## R2-E15: the institutional comparison outside the transient
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** The 10 x 4 grid (size_fraction in {0.02, 0.05, 0.10, 0.15, 0.25, 0.35,
+0.50, 0.65, 0.80, 1.00} x c_B in {0.01, 0.05, 0.10, 0.25}) at the shipped gate
+(admissible_fraction 0.02), seeds 100 to 109, 300 rounds, against two A arms:
+oracle A and NCF A. Welfare is averaged over rounds 250 to 299, after the R2-E9
+entry rounds. Per cell and seed: residual welfare difference, B minus A, on the
+common basis. Script `scripts/run_institutional_horizon.py`.
+
+**Analysis.** Per cell, mean over seeds with a t interval (9 df) and a two-sided
+one-sample t test; Benjamini-Hochberg at q = 0.05 over the 40 cells, separately
+for each A arm. "B beats A" in a cell means a positive mean that survives BH.
+
+**Predictions.** Against oracle A, no cell has B beating A. Against NCF A, at
+least as many cells have B beating A as against oracle A, and the count is not
+predicted.
+
+**Decision rule, from the brief.** Any cell where B beats NCF A after the
+transient becomes the paper's main institutional result. If no cell beats either
+A arm, the negative is reported in one paragraph.
+
+## R2-E15i: the inert-gate grid on fresh seeds
+
+**Written:** 2026-10-27, before the run. A check that the archived inert-regime
+result is a property of the regime and reproduces from current code.
+
+**Design.** admissible_fraction 0.2, the c_B = 0.01 slice, seeds 100 to 109, 5
+rounds, oracle A, as the archived grid. **Prediction.** size_fraction 0.65 ranks
+in the top three of ten by mean.
+
+## R2-H1r and R2-H5r: the appendix hypotheses at the shipped gate
+
+**Written:** 2026-10-27, before the run. The archived H1 curve and H5 factorial
+were measured at admissible_fraction 0.2.
+
+**H1r.** Round-0 swipe log at the shipped gate, seeds 100 to 109, the eleven costs
+of `scripts/run_separating.py`. Prediction: the seed-mean E[τ | proposal] is
+non-decreasing in c over every cost at which proposals remain.
+
+**H5r.** The factorial of `scripts/run_institutional.py` (gamma 0.02, 40 rounds,
+window 10) at the shipped gate, seeds 100 to 109. Prediction: the interaction
+term's 95% t interval includes zero.
+
+---
+
+## R2-E14: arrivals and the steady state
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** `simulation.arrival_rate = departure_rate` in {0.005, 0.01, 0.02}
+(5, 10 and 20 agents per round), seeds 100 to 109, NCF and oracle, 600 rounds,
+tenure cohorts recorded. A departing agent is drawn uniformly; the newcomer takes
+the slot with fresh traits, a fresh embedding, no history, and θ calibrated
+against the market it enters. Every arm on a seed sees the same arrivals.
+
+**Steady state.** The steady-state gap is each seed's mean gap over rounds 500 to
+599, then a t interval over seeds. Stationarity is checked as in E5's procedure:
+paired t test of rounds 590 to 599 against 580 to 589 (stationary if p >= 0.05),
+and the largest step in the seed-mean series over the last 20 rounds below 10%
+of the round-599 seed sd. A rate that fails the check is reported as not yet
+stationary.
+
+**Cohorts.** For tenure bands [0, 10), [10, 50) and [50, ∞) rounds: each band's
+share of exposure divided by its share of agents, averaged over rounds 500 to
+599, per arm, and the NCF-to-oracle ratio of that quantity.
+
+**Predictions.** (i) The steady-state gap increases with the arrival rate (seed
+means ordered 0.005 < 0.01 < 0.02). (ii) At 0.02 its 95% interval excludes zero.
+(iii) For the newest band, the NCF exposure ratio is below the oracle's at every
+rate. No prediction is made about whether any rate's gap exceeds the margin.
+
+**Kill condition.** A gap at 0.02 whose interval includes zero, or no ordering in
+the rate: the cold-start reading does not carry to a market with arrivals.
+
+## R2-E16: floating-point sensitivity
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** Seeds 100 to 104, ten runs each with `ncf.init_perturbation = 1e-7`
+and `ncf.perturbation_seed` 1 to 10, NCF arm, 300 rounds. Gap against the R2-E9
+oracle. Within-seed spread: per seed and round, the sd of the gap over its ten
+runs, averaged over the five seeds. Between-seed spread: per round, the sd of the
+gap over the twenty R2-E9 confirmation seeds.
+
+**Predictions.** (i) At round 0 the within-seed spread is below 0.001. (ii) At
+some round between 10 and 150 it reaches at least 0.3 times the between-seed
+spread at that round.
+
+## R2-E17: population size
+
+**Written:** 2026-10-27, before the run.
+
+**Design.** N in {500, 2000}, k = 20, admissible_fraction = 20 / N (ten admissible
+candidates at round 0, as at N = 1000, and the gate live since 20/N < 2k/N),
+seeds 100 to 109, NCF and oracle, 300 rounds. N = 1000 is R2-E9.
+
+**Predictions.** (i) Round-0 NCF Gini within 0.003 of 1 - 2k/N at each N. (ii)
+The seed-mean peak gap increases with N. (iii) T(0.05) as in R2-E13a, in rounds,
+differs by at most a factor of two between N = 500 and N = 2000.
+
+## R2-E18: the horizon in data units
+
+**Written:** 2026-10-27. No simulation. For R2-E9, R2-E11, R2-E13 and R2-E17 the
+horizon is restated in cumulative swipes per agent (the running sum of
+`mean_swipes_per_agent`) and in cumulative optimizer steps (`grad_steps`). No
+prediction; it is a change of units.
