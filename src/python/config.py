@@ -296,6 +296,25 @@ class NCFConfig:
     # learning.
     freeze_after: int | None = None
     warm_start_epochs: int = 0
+    # ── Second-revision switches (docs/PREREGISTRATION.md R2-E13a/b, R2-E16) ──
+    # Each defaults to the shipped behaviour and is omitted from to_dict at its
+    # default, so the config dict every C++ call and every config hash receives is
+    # the one it received before the switch existed.
+    #
+    # `passes_per_round` is the training dose: passes over the round's swipe log.
+    # A whole part of n means n full passes; a fractional part f adds one pass over
+    # a uniform subsample of round(f * rows) rows. 1.0 is one full pass, the
+    # shipped loop.
+    passes_per_round: float = 1.0
+    # `explore_share` replaces the last round(share * top_k) entries of every NCF
+    # shortlist with candidates drawn uniformly from the rest of the other side.
+    # 0.0 is a pure exploiting ranker.
+    explore_share: float = 0.0
+    # `init_perturbation` adds init_perturbation * N(0, 1) to every NCF weight
+    # after initialization, from a generator seeded by `perturbation_seed`. It is
+    # the floating-point sensitivity probe; 0.0 draws nothing.
+    init_perturbation: float = 0.0
+    perturbation_seed: int = 0
 
     def __post_init__(self) -> None:
         if self.top_k < 1:
@@ -314,9 +333,19 @@ class NCFConfig:
             raise ValueError(
                 f"ncf.warm_start_epochs must be >= 0; got {self.warm_start_epochs}"
             )
+        if not (math.isfinite(self.passes_per_round) and self.passes_per_round > 0.0):
+            raise ValueError(
+                f"ncf.passes_per_round must be finite and > 0; got {self.passes_per_round}"
+            )
+        if not 0.0 <= self.explore_share < 1.0:
+            raise ValueError(f"ncf.explore_share must be in [0, 1); got {self.explore_share}")
+        if not (math.isfinite(self.init_perturbation) and self.init_perturbation >= 0.0):
+            raise ValueError(
+                f"ncf.init_perturbation must be finite and >= 0; got {self.init_perturbation}"
+            )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "embed_dim": self.embed_dim,
             "mlp_layers": list(self.mlp_layers),
             "lr": self.lr,
@@ -328,6 +357,14 @@ class NCFConfig:
             "freeze_after": self.freeze_after,
             "warm_start_epochs": self.warm_start_epochs,
         }
+        if self.passes_per_round != 1.0:
+            out["passes_per_round"] = self.passes_per_round
+        if self.explore_share != 0.0:
+            out["explore_share"] = self.explore_share
+        if self.init_perturbation != 0.0:
+            out["init_perturbation"] = self.init_perturbation
+            out["perturbation_seed"] = self.perturbation_seed
+        return out
 
 
 @dataclass
@@ -341,6 +378,14 @@ class SimulationConfig:
     # the same thing at any trait scale. 0.0 is the no-drift cell and leaves every
     # pre-existing number untouched.
     status_drift: float = 0.0
+    # Open market (docs/PREREGISTRATION.md R2-E14): the share of agents that leave
+    # at the start of each round after the first, each replaced in the same slot
+    # by a fresh agent with new traits, a new embedding and no history. The
+    # population has a fixed capacity (docs/INTERFACES.md §1), so arrivals must
+    # equal departures; both default to 0.0, which draws nothing and is omitted
+    # from to_dict.
+    arrival_rate: float = 0.0
+    departure_rate: float = 0.0
 
     def __post_init__(self) -> None:
         if self.delta_eta_out_of_range():
@@ -351,18 +396,34 @@ class SimulationConfig:
             raise ValueError(f"simulation.n_generations must be >= 1; got {self.n_generations}")
         if not math.isfinite(self.status_drift):
             raise ValueError(f"simulation.status_drift must be finite; got {self.status_drift}")
+        for name in ("arrival_rate", "departure_rate"):
+            value = getattr(self, name)
+            if not 0.0 <= value < 1.0:
+                raise ValueError(f"simulation.{name} must be in [0, 1); got {value}")
+        if self.arrival_rate != self.departure_rate:
+            # A growing or shrinking market would need rows the fixed-capacity state
+            # matrix does not have. docs/ROADMAP.md records this as the limit.
+            raise ValueError(
+                "simulation.arrival_rate must equal simulation.departure_rate: the "
+                "population has a fixed capacity, so every arrival takes a departed "
+                f"agent's slot; got {self.arrival_rate} and {self.departure_rate}"
+            )
 
     def delta_eta_out_of_range(self) -> bool:
         return not 0.0 <= self.bayesian_eta <= 1.0
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "n_epochs": self.n_epochs,
             "bayesian_eta": self.bayesian_eta,
             "n_generations": self.n_generations,
             "turnover_fraction": self.turnover_fraction,
             "status_drift": self.status_drift,
         }
+        if self.arrival_rate != 0.0 or self.departure_rate != 0.0:
+            out["arrival_rate"] = self.arrival_rate
+            out["departure_rate"] = self.departure_rate
+        return out
 
 
 @dataclass
@@ -433,6 +494,14 @@ class SimConfig:
             raise ValueError(
                 f"ncf.top_k ({self.ncf.top_k}) must be < n/2 ({pool}), the size of the "
                 "candidate pool"
+            )
+        # An arrival rate below 1/(2N) rounds to no arrivals at all; a run that
+        # asked for an open market and got a closed one would look healthy.
+        rate = self.simulation.arrival_rate
+        if rate > 0.0 and round(rate * self.population.n) < 1:
+            raise ValueError(
+                f"simulation.arrival_rate ({rate}) replaces round({rate} * "
+                f"{self.population.n}) = 0 agents per round"
             )
 
         # θ acts only when it cuts an agent's admissible set below k (THEORY.md §3):

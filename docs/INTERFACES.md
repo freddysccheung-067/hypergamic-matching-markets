@@ -353,6 +353,29 @@ states the correct version.
 | `welfare_selected` | float | entrants only, as the per-entrant mean × N so it is in the same units as `welfare_common`. Equals `welfare_total` on an A row; NaN on a lone run |
 | `welfare_selection_artifact` | float | `welfare_selected − welfare_common`. Exactly 0 on an A row. **Not sign-constrained**: see THEORY.md §10.4; NaN on a lone run |
 
+### 6.1 Per-round records outside the frame
+
+The frame above is frozen. Quantities added in the second revision live on the
+`Simulation` instead, one entry per round, and change nothing that is computed:
+
+| attribute | when kept | contents |
+|---|---|---|
+| `round_log` | always | `epoch`, cumulative optimizer steps `grad_steps` (0 for an arm that does not learn), `n_swipes`; plus the diagnostics of `src/python/diagnostics.py` when `record_diagnostics` is set on the `ncf` arm, and `shadow_gini`, `shadow_reach`, `shadow_grad_steps` when the arm was built with `shadow_ranker=True` |
+| `lists_log` | `record_lists` | the shortlists the matching saw, `(n_side, k)` int32 arrays of dense slots, padded with `-1` |
+| `arrivals_log`, `arrival_round` | `simulation.arrival_rate > 0` | which rows changed hands at which round, and each slot's current occupant's arrival round |
+| `outcomes` | `record_outcomes` | as before, now only from round `record_outcomes_from` on (default 0) |
+
+Five config keys were added with them, each a no-op at its default and omitted
+from `to_dict()` there, so the config dict every C++ call receives, and every
+config hash, is unchanged: `ncf.passes_per_round` (1.0), `ncf.explore_share`
+(0.0), `ncf.init_perturbation` (0.0) with `ncf.perturbation_seed`, and
+`simulation.arrival_rate` = `simulation.departure_rate` (0.0). Arrivals replace
+agents in place, so the state matrix keeps its `N` rows, the ranker keeps one
+embedding row per slot, and the swipe seeding `(seed, agent_id, k, epoch)` stays
+valid; the two rates must be equal because a fixed-capacity matrix cannot grow.
+`tests/python/test_revision_switches.py` checks each default against committed
+1-thread output.
+
 ## 7. Module layout
 
 ```
