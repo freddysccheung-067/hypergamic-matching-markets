@@ -127,6 +127,19 @@ def tier3(args) -> list[dict]:
     return jobs
 
 
+def post_hoc(args) -> list[dict]:
+    """R2-E15s, registered after R2-E15 was read: the grid over its first five rounds."""
+    jobs = []
+    for seed in TEN:
+        out = f"{args.data_root}/e15s_five"
+        jobs.append({"id": f"e15s_five-s{seed}", "cwd": args.worktree, "priority": 0,
+                     "cmd": [args.python, "scripts/run_institutional_horizon.py", "--experiment",
+                             "R2-E15s", "--seed", str(seed), "--rounds", "5", "--window-start",
+                             "0", "--a-arms", "oracle", "--output-dir", out],
+                     "done": f"{out}/seed{seed}.json"})
+    return jobs
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -135,7 +148,7 @@ def main() -> int:
     parser.add_argument("--python", required=True)
     parser.add_argument("--data-root", required=True)
     args = parser.parse_args()
-    build = {1: tier1, 2: tier2, 3: tier3}[args.tier]
+    build = {0: post_hoc, 1: tier1, 2: tier2, 3: tier3}[args.tier]
     for job in build(args):
         print(json.dumps(job))
     return 0
