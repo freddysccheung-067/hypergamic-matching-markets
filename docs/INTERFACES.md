@@ -356,14 +356,17 @@ states the correct version.
 ### 6.1 Per-round records outside the frame
 
 The frame above is frozen. Quantities added in the second revision live on the
-`Simulation` instead, one entry per round, and change nothing that is computed:
+`Simulation` instead, one entry per round, and change nothing that is computed.
+(The attribute names below are written without code formatting on purpose:
+`tests/python/test_metrics.py` reads every row of §6 that begins with a code span
+as a frame column, and these are not columns.)
 
 | attribute | when kept | contents |
 |---|---|---|
-| `round_log` | always | `epoch`, cumulative optimizer steps `grad_steps` (0 for an arm that does not learn), `n_swipes`; plus the diagnostics of `src/python/diagnostics.py` when `record_diagnostics` is set on the `ncf` arm, and `shadow_gini`, `shadow_reach`, `shadow_grad_steps` when the arm was built with `shadow_ranker=True` |
-| `lists_log` | `record_lists` | the shortlists the matching saw, `(n_side, k)` int32 arrays of dense slots, padded with `-1` |
-| `arrivals_log`, `arrival_round` | `simulation.arrival_rate > 0` | which rows changed hands at which round, and each slot's current occupant's arrival round |
-| `outcomes` | `record_outcomes` | as before, now only from round `record_outcomes_from` on (default 0) |
+| round_log | always | `epoch`, cumulative optimizer steps `grad_steps` (0 for an arm that does not learn), `n_swipes`; plus the diagnostics of `src/python/diagnostics.py` when `record_diagnostics` is set on the `ncf` arm, and `shadow_gini`, `shadow_reach`, `shadow_grad_steps` when the arm was built with `shadow_ranker=True` |
+| lists_log | `record_lists` | the shortlists the matching saw, `(n_side, k)` int32 arrays of dense slots, padded with `-1` |
+| arrivals_log, arrival_round | `simulation.arrival_rate > 0` | which rows changed hands at which round, and each slot's current occupant's arrival round |
+| outcomes | `record_outcomes` | as before, now only from round `record_outcomes_from` on (default 0) |
 
 Five config keys were added with them, each a no-op at its default and omitted
 from `to_dict()` there, so the config dict every C++ call receives, and every

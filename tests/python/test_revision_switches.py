@@ -65,6 +65,9 @@ def test_explicit_defaults_are_bit_identical_to_omitted_ones():
     assert omitted.equals(explicit)
 
 
+@pytest.mark.skipif(sys.platform != "win32",
+                    reason="the committed series was written on Windows; bitwise "
+                           "reproduction holds within one toolchain (docs/INTERFACES.md §3.1)")
 def test_shipped_run_reproduces_the_committed_one_thread_series():
     """Seed 42 at N = 1000, 1 thread, rounds 0-4, against rigor/exploratory_1t.
 

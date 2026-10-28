@@ -1,108 +1,122 @@
-"""The numbers the paper prints agree with the CSVs they claim to come from.
+"""The numbers the paper prints agree with the files they come from.
 
-Two kinds of check. The first regenerates ``paper/tables/numbers.tex`` in memory
-and compares it with the committed file, so a macro cannot go stale against its
-data. The second recomputes a derived number from the raw per-seed CSVs with code
-written here, independently of the scripts that produced it, and compares it with
-the value the paper prints. A ratio computed on the wrong quantity, or under the
-wrong name, fails the second kind even when the first passes, which is how the
-warm-start decay share went wrong once.
+Two kinds of check. The first renders ``paper/tables/numbers.tex`` afresh and
+compares it with the committed file, so no macro can go stale against its CSV.
+The second recomputes the paper's headline numbers from the raw per-seed files
+with code written here, independently of the analysis scripts, and compares them
+with the printed macros. A ratio computed on the wrong quantity, or under the
+wrong name, fails the second kind even when the first passes; that is how the
+warm-start decay share once went wrong.
 """
 
 from __future__ import annotations
 
-import csv
 import importlib.util
-import math
 import pathlib
 import re
-import statistics
 
+import numpy as np
+import pandas as pd
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PAPER = ROOT / "paper"
-RIGOR = ROOT / "data" / "processed" / "rigor"
+H = ROOT / "data" / "processed" / "horizon"
 NUMBERS = PAPER / "tables" / "numbers.tex"
-SEEDS = (42, 43, 44, 45, 46)
+CONF = range(100, 120)
+
+pytestmark = pytest.mark.skipif(not (H / "e09_canonical").is_dir(),
+                                reason="the horizon result files are not present")
 
 
-def _macros() -> dict[str, str]:
+def macros() -> dict[str, str]:
     text = NUMBERS.read_text(encoding="utf-8")
     return dict(re.findall(r"\\newcommand\{\\([A-Za-z]+)\}\{([^}]*)\}", text))
 
 
-def _gini(path: pathlib.Path, column: str, value: str) -> dict[int, float]:
-    with path.open(newline="", encoding="utf-8") as fh:
-        return {int(r["epoch"]): float(r["gini"]) for r in csv.DictReader(fh)
-                if r[column] == value}
+def value(name: str) -> float:
+    return float(macros()[name].replace("{,}", ""))
 
 
-def _load_gen_numbers():
+def gap_wide(directory: pathlib.Path, seeds, ref: pathlib.Path | None = None) -> pd.DataFrame:
+    """Per (round, seed): NCF Gini minus oracle Gini, from the seed CSVs only."""
+    d = pd.concat([pd.read_csv(p) for p in sorted(directory.glob("seed*.csv"))])
+    d = d[d.seed.isin(seeds)]
+    o = d if ref is None else pd.concat([pd.read_csv(p) for p in sorted(ref.glob("seed*.csv"))])
+    ncf = d[d.arm == "ncf"].pivot(index="round", columns="seed", values="gini")
+    orc = o[o.arm == "oracle"].pivot(index="round", columns="seed", values="gini")
+    return ncf - orc[ncf.columns]
+
+
+def test_numbers_tex_is_current_with_its_csvs() -> None:
     spec = importlib.util.spec_from_file_location("gen_numbers", PAPER / "gen_numbers.py")
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None
     spec.loader.exec_module(module)
-    return module
-
-
-def test_numbers_tex_is_current_with_its_csvs() -> None:
-    expected = _load_gen_numbers().render()
     committed = NUMBERS.read_text(encoding="utf-8").replace("\r\n", "\n")
-    assert committed == expected, (
-        "paper/tables/numbers.tex differs from a fresh render; "
-        "run python paper/gen_numbers.py"
-    )
+    assert committed == module.render(), "numbers.tex is stale: run python paper/gen_numbers.py"
 
 
-def _warm_ratios() -> dict[str, list[float]]:
-    """The four decay fractions per seed, recomputed from the raw CSVs."""
-    out: dict[str, list[float]] = {"level0": [], "gap0": [], "levelpeak": [], "gappeak": []}
-    for seed in SEEDS:
-        path = RIGOR / "interventions" / f"interventions_seed{seed}.csv"
-        control = _gini(path, "condition", "control")
-        warm = _gini(path, "condition", "warm")
-        oracle = _gini(RIGOR / "exploratory_1t" / f"metrics_seed{seed}.csv", "arm", "oracle")
-        last = max(control)
-        cg = {e: control[e] - oracle[e] for e in control}
-        wg = {e: warm[e] - oracle[e] for e in warm}
-        out["level0"].append((warm[0] - warm[last]) / (control[0] - control[last]))
-        out["gap0"].append((wg[0] - wg[last]) / (cg[0] - cg[last]))
-        out["levelpeak"].append((max(warm.values()) - warm[last])
-                                / (max(control.values()) - control[last]))
-        out["gappeak"].append((max(wg.values()) - wg[last]) / (max(cg.values()) - cg[last]))
-    return out
+def test_round_99_gap_and_peak() -> None:
+    g = gap_wide(H / "e09_canonical", CONF)
+    assert f"{g.loc[99].mean():+.4f}" == macros()["gapNinetyNine"]
+    assert f"{g.mean(axis=1).max():+.3f}" == macros()["peakGap"]
+    assert str(int(g.mean(axis=1).idxmax())) == macros()["peakRound"]
 
 
-@pytest.mark.parametrize("key, macro", [
-    ("gap0", "warmDecayGapZero"),
-    ("level0", "warmDecayLevelZero"),
-    ("gappeak", "warmDecayGapPeak"),
-    ("levelpeak", "warmDecayLevelPeak"),
-])
-def test_warm_decay_fraction_matches_the_printed_macro(key: str, macro: str) -> None:
-    recomputed = 100 * statistics.fmean(_warm_ratios()[key])
-    assert f"{recomputed:.1f}" == _macros()[macro]
+def entry(gap: np.ndarray) -> int | None:
+    inside = np.abs(gap) < 0.002
+    if not inside[-1]:
+        return None
+    out = np.flatnonzero(~inside)
+    return int(out[-1] + 1) if out.size else 0
 
 
-def test_warm_decay_interval_matches_the_printed_bounds() -> None:
-    values = [100 * v for v in _warm_ratios()["gap0"]]
-    n = len(values)
-    mean = statistics.fmean(values)
-    half = 2.7764451051977987 * statistics.stdev(values) / math.sqrt(n)  # t(0.975, 4)
-    macros = _macros()
-    assert f"{mean - half:.1f}" == macros["warmDecayGapZeroLo"]
-    assert f"{mean + half:.1f}" == macros["warmDecayGapZeroHi"]
+def test_entry_rounds_cover_all_forty_seeds() -> None:
+    g = gap_wide(H / "e09_canonical", list(range(42, 62)) + list(CONF))
+    rounds = [entry(g[s].to_numpy()) for s in g.columns]
+    assert None not in rounds
+    assert str(min(rounds)) == macros()["entryMinAll"]
+    assert str(max(rounds)) == macros()["entryMaxAll"]
 
 
-def test_warm_levels_and_gaps_are_not_the_same_quantity() -> None:
-    """The control's round-0 level is the popularity closed form; its gap is not.
+def test_warm_start_decay_share_is_the_gap_from_round_zero() -> None:
+    """Phase 1's defect class: the share must be computed on gaps, from round 0."""
+    warm = gap_wide(H / "e13d_warm", CONF, ref=H / "e09_canonical")
+    ctrl = gap_wide(H / "e09_canonical", CONF)
+    shares = [(warm[s].iloc[0] - warm[s].iloc[-1]) / (ctrl[s].iloc[0] - ctrl[s].iloc[-1])
+              for s in warm.columns]
+    assert f"{100 * np.mean(shares):.1f}" == macros()["warmShareConf"]
 
-    At round 0 every agent on a side sees nearly the same twenty candidates, so
-    the NCF level is 1 - 2k/N = 0.96 at k = 20, N = 1000. A macro that holds that
-    number must be named a level.
-    """
-    macros = _macros()
-    assert macros["warmLevelZeroControl"] == "0.9600"
-    assert float(macros["warmGapZeroControl"]) < 0.5
-    assert "warmEpochZeroControl" not in macros
+
+def test_open_market_gap_at_one_percent() -> None:
+    g = gap_wide(H / "e14_arrivals" / "r0.01", range(100, 110))
+    assert f"{g.loc[500:599].mean().mean():+.3f}" == macros()["openGapMid"]
+
+
+def test_long_tail_residual() -> None:
+    g = gap_wide(H / "e10_long", range(100, 110))
+    assert f"{g.loc[950:999].mean().mean():+.5f}" == macros()["longTail"]
+
+
+def test_every_macro_the_prose_uses_is_defined() -> None:
+    defined = set(macros())
+    used: set[str] = set()
+    for path in [PAPER / "main.tex", *sorted((PAPER / "sections").glob("*.tex"))]:
+        text = re.sub(r"(?<!\\)%.*", "", path.read_text(encoding="utf-8"))
+        used |= set(re.findall(r"\\([A-Za-z]+)", text))
+    # A name that numbers.tex could have defined but did not: anything not a
+    # LaTeX or package command. The candidates are the macros the paper defines.
+    known_latex = {"newcommand"}
+    # Every macro this paper defines is camelCase, which no LaTeX command it uses
+    # is (\delta, \item, \exp are all lowercase).
+    missing = {u for u in used if u not in defined and u[0].islower()
+               and any(ch.isupper() for ch in u) and any(
+        u.startswith(p) for p in ("gap", "peak", "entry", "tail", "tost", "warm", "open",
+                                  "half", "long", "fit", "rmse", "dose", "off", "exp",
+                                  "check", "cohort", "trend", "stat", "step", "best",
+                                  "beats", "inert", "hOne", "hFive", "reg", "sd", "rank",
+                                  "mcr", "fp", "corr", "jaccard", "spearman", "item",
+                                  "modal", "identical", "oracle", "reach", "censored",
+                                  "rows", "shock", "delta", "alg", "gini", "late", "bca"))}
+    assert not (missing - known_latex), sorted(missing - known_latex)

@@ -168,24 +168,34 @@ def compute() -> list[dict[str, str]]:
     })
 
     # ── 4. The popularity closed form, Gini 1 - 2k/N and reach 2k/N ───────────
+    # Recorded as a bound, not as the error itself: the error is a last-bit
+    # rounding residue whose exact value differs between platforms, and the
+    # committed file is compared against a fresh computation on every platform.
     worst = popularity_check(shipped_config(), (500, 1000, 2000), (0, 1, 2), 5)
+    if not worst < 1e-12:
+        raise RuntimeError(f"popularity closed form off by {worst}")
     rows.append({
         "check": "Popularity ranker: Gini $1-2k/N$",
         "n": "$N=500$, 1000, 2000",
-        "measured": f"max error {worst:.1e}",
+        "measured": "error below $10^{-12}$",
         "detail": "rounds 1--4, 3 seeds per $N$",
         "evidence": "Gini and reach, $k=20$",
         "verdict": "agrees",
     })
 
     # ── 5. Truncated deferred acceptance on top-k lists ───────────────────────
+    # The count against true preferences depends on the ranker's floating-point
+    # history, which is not the same across platforms, so the committed row records
+    # what is structural: none on the lists, some against full preferences.
     on_lists, against_truth, checked = truncated_da_check(shipped_config(300), SEEDS, 4)
+    if on_lists != 0 or against_truth <= 0:
+        raise RuntimeError(f"truncated DA: {on_lists} on the lists, {against_truth} against truth")
     rows.append({
         "check": "Truncated DA on top-$k$ lists",
         "n": "$N=300$",
-        "measured": f"{on_lists} blocking pairs on the lists",
+        "measured": "0 blocking pairs on the lists",
         "detail": f"{checked} matchings (NCF, oracle; 5 seeds, 4 rounds)",
-        "evidence": f"{against_truth / checked:,.0f} per matching against true preferences".replace(",", "{,}"),
+        "evidence": "blocking pairs remain against full preferences",
         "verdict": "stable on its lists",
     })
     return rows

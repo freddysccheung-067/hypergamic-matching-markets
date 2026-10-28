@@ -5,5 +5,5 @@ Deficit identity (Hall),$N=300$,exact on 5 seeds,0.2433 / 0.3367 / 0.2200 / 0.28
 "Exact supremum, unequal variances","$N=5{,}000$",0.4135,seed sd 0.0090,supremum 0.4031,agrees
 Common rankings: unique stable matching,$N=300$,same matching both ways,identical matching on all five seeds,"0 blocking pairs, 5 seeds",agrees
 Perturbed rankings,$N=300$,22 / 8 / 11 / 12 / 8 pairs differ,1\% status noise,"uniqueness fails, stability holds",agrees
-Popularity ranker: Gini $1-2k/N$,"$N=500$, 1000, 2000",max error 2.2e-16,"rounds 1--4, 3 seeds per $N$","Gini and reach, $k=20$",agrees
-Truncated DA on top-$k$ lists,$N=300$,0 blocking pairs on the lists,"40 matchings (NCF, oracle; 5 seeds, 4 rounds)","17{,}911 per matching against true preferences",stable on its lists
+Popularity ranker: Gini $1-2k/N$,"$N=500$, 1000, 2000",error below $10^{-12}$,"rounds 1--4, 3 seeds per $N$","Gini and reach, $k=20$",agrees
+Truncated DA on top-$k$ lists,$N=300$,0 blocking pairs on the lists,"40 matchings (NCF, oracle; 5 seeds, 4 rounds)",blocking pairs remain against full preferences,stable on its lists

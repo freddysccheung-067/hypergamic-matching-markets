@@ -147,10 +147,17 @@ def main() -> int:
     parser.add_argument("--worktree", required=True)
     parser.add_argument("--python", required=True)
     parser.add_argument("--data-root", required=True)
+    parser.add_argument("--output", default=None,
+                        help="write the job list to this file instead of printing it")
     args = parser.parse_args()
     build = {0: post_hoc, 1: tier1, 2: tier2, 3: tier3}[args.tier]
-    for job in build(args):
-        print(json.dumps(job))
+    lines = [json.dumps(job) for job in build(args)]
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
+        print(f"wrote {len(lines)} jobs to {args.output}")
+    else:
+        print("\n".join(lines))
     return 0
 
 

@@ -221,7 +221,15 @@ DATA_DIRS = [
     "rigor/c2_fresh_institutional",
     "rigor/h4_shipped_gate",
     "rigor/long_horizon_1t",
+    # The second revision. Every run under horizon/ wrote a run record stating its
+    # thread count, so the directory's own README covers every experiment below it,
+    # and each experiment directory carries a README of its own as well.
+    "horizon",
 ]
+HORIZON_DIRS = ["e09_canonical", "e10_long", "e11_sweep", "e13a_dose", "e13b_explore",
+                "e13c_offpolicy", "e13d_warm", "e14_arrivals", "e15_institutional",
+                "e15i_inert", "e15s_five", "e16_fp", "e17_size", "h1r", "h5r"]
+DATA_DIRS += [f"horizon/{d}" for d in HORIZON_DIRS]
 
 
 def test_every_data_directory_documents_its_thread_count():
@@ -267,7 +275,7 @@ def test_every_data_directory_on_disk_is_in_the_list():
         if any(top.glob("*.csv")):
             on_disk.add(top.name)
         for sub in top.iterdir():
-            if sub.is_dir() and any(sub.glob("*.csv")):
+            if sub.is_dir() and (any(sub.glob("*.csv")) or any(sub.glob("*/*.csv"))):
                 on_disk.add(f"{top.name}/{sub.name}")
     undocumented = on_disk - set(DATA_DIRS)
     assert not undocumented, (
