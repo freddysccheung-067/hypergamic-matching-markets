@@ -1,0 +1,48 @@
+\footnotesize
+\begin{tabular}{lp{6.2cm}p{4.4cm}l}
+\hline
+Experiment & Registered prediction & Measured & Held \\
+\hline
+R2-E9 & peak gap in [0.27, 0.34] at a round in 3-10 & 0.313 at 6; 0.310 at 6 & yes \\
+R2-E9 & tail equivalent to zero (TOST at 0.002), both sets & passes both & yes \\
+R2-E9 & at least 15 of 20 seeds enter the margin by round 299 & 20 and 20 of 20 & yes \\
+R2-E9 & round-99 gap in [0.015, 0.035] & 0.0253; 0.0225 & yes \\
+R2-E9 & seeds 42-46 reproduce the earlier one-thread run exactly & max difference 0 & yes \\
+R2-E12 & round-0 Gini within 0.002 of 0.96, all 40 seeds & max deviation 2.5e-05 & yes \\
+R2-E12 & round-0 reach within 0.002 of 0.04, all 40 seeds & max deviation 0.003 & \textbf{no} \\
+R2-E12 & round-0 modal share above 0.95 and item share above 0.9 & min 0.990 and 0.9999 & yes \\
+R2-E12 & gap-Spearman correlation below -0.8 on 36 of 40 seeds & 0 of 40 (median +0.87) & \textbf{no} \\
+R2-E12 & identical share below 0.1 by round 100 & rounds 15, 15 & yes \\
+R2-E12 & item share below 0.5 by round 100 & rounds 135, 131 & \textbf{no} \\
+R2-E12 & rank correlation of round and Jaccard above 0.9 & 1.000; 1.000 & yes \\
+R2-E11 & C1t holds in all nine cells & 9 of 9 & yes \\
+R2-E11 & C2t holds in at least seven of nine & 7 of 9 & yes \\
+R2-E11 & C3t fails at chemistry 0.5 and nowhere else & fails at chemistry 0.5 & yes \\
+R2-E11 & C4t holds in all nine cells & 9 of 9 & yes \\
+R2-E11 & C5t (a reversal) at chemistry 0.5 and nowhere else & at beta/alpha 3, chemistry 0.5 & \textbf{no} \\
+R2-E13d & round-0 reach under the warm start above 0.8, every seed & minimum 0.774 & \textbf{no} \\
+R2-E13d & primary measure's upper bound below 0.5, both sets & 0.236; 0.261 & yes \\
+R2-E13d & both peak-basis measures above 0.5, both sets & min 0.683 & yes \\
+R2-E10 & no positive floor & none & yes \\
+R2-E10 & tail (rounds 950-999) equivalent to zero & passes & yes \\
+R2-E13a & elasticity of T(0.05) in the dose at most -0.75 & -0.994 & yes \\
+R2-E13b & exploiting-part gap within the band of the control's & 2 of 8 checks inside & \textbf{no} \\
+R2-E13b & whole-list gap below the control's at round 20, share 0.2 & upper bound -0.139 & yes \\
+R2-E13c & off-policy gap within the band of the on-policy gap & 5 of 8 checks inside & \textbf{no} \\
+R2-E15 & no cell has B beating the oracle A & 4 cells & \textbf{no} \\
+R2-E15 & at least as many cells beat NCF A as beat the oracle A & 6 against 4 & yes \\
+R2-E15i & size 0.65 ranks in the top three of ten, inert gate & rank 1 & yes \\
+R2-H1r & mean intent of proposers non-decreasing in the cost & non-decreasing & yes \\
+R2-H5r & interaction interval includes zero & [-47.9, +5.4] & yes \\
+R2-E14 & steady gap increases with the rate & 0.0165 < 0.0403 < 0.1011 & yes \\
+R2-E14 & at rate 0.02 the interval excludes zero & lower bound +0.0959 & yes \\
+R2-E14 & newest band under-exposed relative to the oracle at every rate & 2 of 3 rates & \textbf{no} \\
+R2-E16 & within-seed spread at round 0 below 0.001 & 0 & yes \\
+R2-E16 & within/between ratio reaches 0.3 in rounds 10-150 & max 1.22 & yes \\
+R2-E17 & round-0 Gini within 0.003 of 1 - 2k/N at each N & max 2.9e-04 & yes \\
+R2-E17 & peak gap increases with N & 0.324 , 0.314 , 0.300 & \textbf{no} \\
+R2-E17 & T(0.05) within a factor of two between N = 500 and 2000 & 95 and 136 rounds & yes \\
+\hline
+\multicolumn{3}{l}{Held} & 29 of 39 \\
+\hline
+\end{tabular}

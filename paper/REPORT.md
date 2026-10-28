@@ -1,5 +1,9 @@
 # Drafting report
 
+> **Archival.** The report of the first drafting session. The second revision's
+> report is [docs/REVISION_REPORT.md](../docs/REVISION_REPORT.md); the tables and
+> figures this file names were replaced and are no longer in `paper/`.
+
 Branch `paper/draft`, created from `main` with `rigor/statistical-hardening`
 merged in (`--no-ff`). `lit/positioning` was already an ancestor of that line —
 its tip was `main` itself — so the second merge was a no-op and made no commit.

@@ -1,205 +1,290 @@
 % ---------------------------------------------------------------------------
-% Section 3: Model. The three layers, the two environments, the utility, the
-% theta gate and its binding condition.
-% Sources: docs/THESIS.md, experiments/base.yaml, docs/THEORY.md (referenced,
-% not transcribed). No empirical numbers appear in this section except the
-% binding condition, which is arithmetic from the shipped config.
+% Section 3: Model. Every symbol, value and rule here is the shipped code's:
+% include/agent.h (utility), src/cpp/population.cpp (sampling, calibration),
+% src/cpp/simulation.cpp (swipe log), src/cpp/matching.cpp (deferred
+% acceptance, theta update), src/python/ncf.py (ranker), src/python/metrics.py.
 % ---------------------------------------------------------------------------
 
 \section{Model}
 \label{sec:model}
 
-The model is a finite two-sided market cleared once per epoch, with a learned
-ranker standing between the two sides. Three layers run in a loop: agents form
-preferences, a collaborative filter decides what each agent can see, a matching
-algorithm clears the market over what was visible, and the clearing outcome
-feeds back into the acceptance threshold that gates the next epoch's visibility.
-This section describes each layer, the two institutional environments the paper
-compares, the utility that drives them, and the condition under which the
-feedback channel is live rather than decorative.
+The market has $N$ agents, $N/2$ on each side: a proposing side $M$ and an
+accepting side $W$. It runs in discrete \emph{rounds}. In each round a learned
+ranker gives every agent a shortlist of $k$ agents from the other side, and a
+truncated deferred-acceptance pass clears the market over those shortlists and
+nothing else. Throughout, a \emph{round} is one pass of the market loop of
+Algorithm~\ref{alg:round}, and a \emph{training pass} is one sweep of the
+ranker's optimizer over one round's training log. The shipped configuration has
+$N = 1000$, $k = 20$ and one training pass per round. Table~\ref{tab:params}
+lists every parameter with its shipped and swept values.
 
-\subsection{The agent layer}
+\subsection{Agents and utility}
+\label{sec:utility}
 
-Agents are split into a proposer side $M$ and an acceptor side $W$ of equal
-size. Each carries a four-dimensional state vector $[s, a, c, t]$: status,
-attractiveness, sociability and age. Status is drawn lognormal; the other three
-are clipped to the unit interval. Every trait is $z$-scored against population
-statistics before it reaches a utility, so each weight below is expressed
-against a unit-variance trait and the weights are directly comparable to one
-another. The choice to $z$-score is load-bearing for interpretation: it means
-only the \emph{rank order} of a trait within the population matters, and a
-distribution with no variance would annihilate its term.
-
-Two further agent attributes drive the institutional comparison. A private
-\emph{intent} type $\tau_i \in (0,1]$ is each agent's willingness to commit,
-invisible to others. A pairwise \emph{alignment} $g_{ij} \in [0,1]$ measures
-value compatibility and enters the dissolution hazard rather than the utility.
-
-\subsection{The recommender layer}
-
-A neural collaborative filter with a generalized matrix factorisation path and
-an MLP path is trained on the swipe log, the record of which pairs were liked, and
-scores every unseen pair. Each agent then keeps a top-$k$
-shortlist of length $k = 20$ from those scores, and \emph{nothing outside that
-shortlist is visible to the matching step}. This is the architectural commitment
-the paper rests on: the filter is not a convenience wrapper around a preference
-list, it \emph{is} the preference list. It is also why a preference expressed
-over this list is not the preference the same agent holds over the population,
-which is the point of departure for the whole exercise.
-
-The ranker is deliberately off-the-shelf. It is cited for the estimator and not
-for a result about markets, and the contribution would be void if it depended on
-a novel architecture.
-
-\subsection{The matching layer}
-
-Clearing is a truncated deferred-acceptance pass over the shortlists, returning
-the matched pairs and a blocking-pair count. Truncation matters: with lists
-truncated at $k$, the procedure is the classical algorithm run on top-$k$ lists
-rather than on full lists \citep{gale1962}, and the classical stability
-guarantee does not carry over unchanged \citep{roth1999}. It also means the
-clearing bias is a property of the procedure class and not of the algorithm
-specifically, as the wage-forming counterpart of the same procedure shows
-\citep{kelso1982}. A full-information arm ranks by true utility under the same
-proposer direction and the same shortlist length, and is the benchmark against
-which algorithmic loss is measured.
-
-Two properties of the clearing step bound what any $W$-side level can mean.
-Deferred acceptance with $M$ proposing returns the proposer-optimal matching,
-which is simultaneously the acceptor-pessimal one: among all stable matchings,
-every acceptor receives her worst \citep{roth1982,knuth1996}. Since hypergamy
-lives in the acceptor's utility, this bias lands on exactly the side the paper
-is about. The full-information and mediated arms use the same direction, so the
-\emph{gap} between them is far less affected than either absolute level. Any
-$W$-side level reported here is a lower bound across stable matchings and must
-never be compared against a $W$-proposing baseline without saying so.
-
-\subsection{The utility}
-
-Utility is additive over four terms: a status term, an attractiveness term, a
-distance penalty, and an indicator bonus for a status surplus. The bonus is what
-makes the model hypergamic rather than merely assortative. It rewards a partner at or
-above the agent's own status by a margin $\delta$, and is the
-model's operationalisation of the requirement that a partner rank at or above
-you rather than beside you.
-
-Two parameters modify the utility's realized shape. A per-agent lognormal
-multiplier with coefficient of variation $\sigma_{\text{taste}}$ introduces taste
-heterogeneity, so different agents weight the same traits differently, which is the same
-device by which idiosyncratic tastes are added to a transferable-utility
-marriage model \citep{choo2006}. A persistent pairwise chemistry shock with
-standard deviation $\sigma_{\text{shock}}$, drawn once per ordered pair and held
-across epochs, enters in absolute utility units. Neither has an empirical
-anchor, and \S\ref{sec:sensitivity} treats both as knobs whose value changes the
-headline rather than as estimates.
-
-\subsection{The two environments}
-
-Environment A is the global market: a large population, visibility mediated
-globally by the learned ranker, no signalling cost, no entry filter.
-
-Environment B is a subgraph of the \emph{same} population. Agents are drawn into
-a pool of size at most $\phi N$, filtered on an observable value score, and
-within the pool visibility is complete, since every entrant sees every other, so B has
-information and no liquidity where A has liquidity and no information.
-The comparison is therefore a comparative static in an \emph{institutional}
-parameter at a fixed population, which is a different exercise from the
-comparative statics in market size that the matching literature already treats
-\citep{crawford1991}; changing the subgraph size does move one side's size, and
-that channel is separated from the institution effect by holding the population
-fixed and varying only the shares.
-Proposing in B costs $c_B > 0$ and succeeds with probability $p$, so a
-proposal's presence carries information about the proposer's intent. A
-defection penalty $d$ is charged to a defector after a match dissolves.
-
-The signalling mechanism is the model's core. An agent proposes only when
-$\tau_i V_{ij} p > c$, so the set of proposers is exactly
-$\{i : \tau_i > c/(V_{ij}p)\}$, and the separating threshold is
+Agent $i$ carries four traits $x_i = (s_i, a_i, c_i, t_i)$: status,
+attractiveness, sociability and age, drawn independently as
 \begin{equation}
-\tau^*(c) = \frac{c}{\bar V p}.
-\label{eq:tau-star}
+s_i = e^{0.8 Z}, \quad a_i = [0.5 + 0.15 Z]_0^1, \quad
+c_i = [0.5 + 0.15 Z]_0^1, \quad t_i = 30 + 6 Z,
+\label{eq:traits}
 \end{equation}
-At $c \to 0$ the threshold vanishes, every type proposes, and a received
-proposal carries no information about intent: the posterior equals the
-population mean. This is a pooling outcome reached through a \emph{cost}
-channel rather than through unobservable quality \citep{akerlof1970}, and the
-paper treats it as an analogy to the classical lemons result rather than as an
-application of it. At $c > 0$ the threshold is positive, low-intent agents exit
-by their own incentive to avoid the cost, and the posterior rises: a separating
-outcome in the single-crossing sense \citep{spence1973}. A and B are therefore
-two settings of one parameter, not two theories.
+with a fresh standard normal $Z$ for each draw and $[\cdot]_0^1$ clipping to the
+unit interval. Each trait is standardized against the whole population, so
+$z(s_i) = (s_i - \bar s)/\hat\sigma_s$ with the sample mean and the sample
+standard deviation over all $N$ agents. Status is standardized on its own
+lognormal scale, so $z(s)$ is right-skewed. Agent $i$ also carries three taste
+multipliers $m^{\alpha}_i, m^{\beta}_i, m^{\gamma}_i$, independent lognormal with
+log-mean $-\sigma_\tau^2/2$ and log-sd $\sigma_\tau$, so each has mean one.
 
-An agent who cannot infer intent from a proposal must use something else, and
-the model's rational response is to raise the bar on observables. That is the
-acceptance threshold $\theta$, and its derivation from the pooling result rather
-than its assumption as an exogenous contagion is the content of H2.
+The utility of $i$ for a candidate $j$ on the other side is
+\begin{equation}
+U_{ij} = m^{\alpha}_i \alpha\, z(s_j) + m^{\beta}_i \beta\, z(a_j)
+       - m^{\gamma}_i \gamma\, d_{ij}
+       + \lambda\, \mathbf{1}[i \in W]\, \mathbf{1}\!\left[z(s_j) \ge z(s_i) + \delta\right]
+       + \sigma_L L_{ij},
+\label{eq:utility}
+\end{equation}
+where $d_{ij} = \lVert z(x_i) - z(x_j) \rVert_2$ is the distance between the
+standardized trait vectors. The fourth term is the status-surplus bonus: an
+acceptor gains $\lambda$ from a candidate whose standardized status exceeds her
+own by at least $\delta$. It is the only asymmetry between the sides, and it is
+one variant of the utility rather than the subject of the paper
+(\S\ref{sec:where}). The last term is persistent pairwise chemistry: $L_{ij}$ is a
+standard logistic draw computed from a hash of the run seed and two per-agent
+keys, fixed for the life of the pair and asymmetric ($L_{ij} \ne L_{ji}$). Its
+standard deviation is $\sigma_L \pi/\sqrt3$, which at the shipped $\sigma_L = 1.5$
+is $2.72$ utility units.
 
-\subsection{Welfare, and the comparability rule}
+Agents also carry an intent $\tau_i \sim \mathrm{Beta}(2,2)$, a values score $g_i
+\sim \mathrm{Beta}(2,2)$ and an eligibility flag for the institutional comparison.
+They enter only that comparison (\S\ref{sec:institutional},
+Appendix~\ref{app:hypotheses}) and change no exposure quantity.
 
-Welfare is defined per epoch over the whole population: the value created by
-matched pairs, less the signalling cost spent on proposals, less the loss from
-dissolved matches including the defection penalty.
+\subsection{Acceptance thresholds and the gate}
+\label{sec:gate}
 
-The accounting rule is what makes the comparison meaningful. Agents excluded
-by B's entry filter are not deleted, and agents who fail to match inside B are
-not dropped: every agent appears in the welfare sum exactly once, and an agent B
-excludes is scored at whatever A would have given them. Without this rule an
-entry filter would look like a gain for the purely arithmetic reason that it
-removes the agents it cannot serve. This is a response to a known objection
-rather than a safeguard the project devised, since restricting choice can raise the
-welfare of those inside the restriction \citep{halaburda2018}, and the model prices the
-cost to non-participants instead of ignoring it.
+Each agent has an acceptance threshold $\theta_i$ in utility units, and its
+\emph{admissible set} is $A_i = \{ j : U_{ij} \ge \theta_i \}$. At round 0,
+$\theta_i$ is the $n_A$-th largest of $i$'s utilities over the other side, with
+$n_A = \mathrm{round}(\phi N/2)$, so every agent starts with exactly $n_A$
+admissible candidates. After each round,
+\begin{equation}
+\theta_i \leftarrow \theta_i + \eta \left( \frac{m_i}{p_i} - \theta_i \right)
+\quad \text{if } p_i > 0,
+\label{eq:theta}
+\end{equation}
+where $p_i$ is the number of proposals $i$ made (on $M$) or received (on $W$) in
+that round's matching, $m_i \in \{0, 1\}$ is whether $i$ was matched, and $\eta =
+0.1$. An agent with no proposal keeps its threshold. The yield $m_i/p_i$ lies in
+$[0, 1]$ while the initial threshold is the tenth-highest utility an agent has,
+far above one, so the update lowers $\theta_i$ geometrically toward the unit
+interval for every agent who takes part in the matching.
 
-Both accountings are computed. The common one, over all $N$ agents, is the
-number the paper reports. The selected one, over entrants only, is computed so
-that the selection artifact can be reported honestly rather than hidden, and is
-never quoted as a headline.
-
-\subsection{The $\theta$ gate and its binding condition}
-
-The one feedback channel in the model runs from clearing outcomes to
-visibility. After each epoch, an acceptor whose received proposal count is
-informative updates $\theta$; $\theta$ is the quantile of her own utility
-distribution above which a candidate is admissible, so raising $\theta$ shortens
-her admissible set and lowering it lengthens it.
-
-The gate binds only under a condition that is worth stating exactly, because
-several results below are regime-specific and the regime is set by it. Let
-$\phi$ be the target admissible fraction, the share of candidates an agent finds
-admissible at epoch 0, and let $k$ be the shortlist length. An agent's
-admissible set at epoch 0 has about $\phi N$ members. The gate can only truncate
-an agent's visibility if that set is \emph{shorter} than the shortlist, since
-otherwise she takes the top $k$ of a larger pool wherever $\theta$ sits and the
-update moves nothing. So the gate binds when
+The threshold can change what an agent sees only if the admissible set is
+shorter than the shortlist. The candidate set is the other side, of size $N/2$,
+so $|A_i| = \phi N/2$ at round 0 and the gate binds then exactly when
 \begin{equation}
 \phi < \frac{2k}{N}.
 \label{eq:gate}
 \end{equation}
-At the shipped values $k = 20$ and $N = 1000$ this is $\phi < 0.04$. The config
-ships $\phi = 0.02$, inside the binding region; the earlier shipped value was
-$\phi = 0.2$, outside it, and the ablation data for that regime is labelled
-\emph{inert} throughout. The factor of two in \eqref{eq:gate} reflects that the
-relevant comparison is against the candidate set on each agent's own side of the
-market rather than against the whole population.
+At $N = 1000$ and $k = 20$ this is $\phi < 0.04$; the shipped $\phi = 0.02$ gives
+ten admissible candidates against a shortlist of twenty. As thresholds fall the
+admissible sets grow past $k$ and the gate stops binding, within a few rounds
+for agents who propose or are proposed to.
 
-Three consequences follow, and they are used later. First, $\phi$ and $k$
-interact: raising the shortlist length or lowering the population requires
-lowering $\phi$ to keep the gate live, and the configuration validator warns
-when the rule is broken. Second, the difference between an inert run and a live
-run is a statement about whether the market responds to its own clearing
-outcomes, so an ablation measured at $\phi = 0.2$ is not a noisy version of one
-measured at $0.02$; it is a different dynamical system. Third, the gate's
-liveness is a property of one epoch's calibration, and it relaxes: the update
-pulls $\theta$ toward a yield in the unit interval from an initial value far
-above it, so the gate truncates at the start and stops truncating within a few
-epochs. That relaxation is why the live and inert regimes produce nearly
-identical final-epoch gaps despite different trajectories.
+\subsection{The training log}
+\label{sec:log}
 
-Those three facts decide one of this paper's results rather than merely
-qualifying it. The institutional comparison was measured at $\phi = 0.2$, outside
-the binding region, and re-run at the shipped $\phi = 0.02$ it reverses
-(\S\ref{sec:h4regime}). A reader who wants to know why a small arithmetic
-condition in this section matters at the level of a conclusion has it here: an
-inert gate means the market is deaf to its own outcomes, and an institution
-measured in a deaf market is not being compared under the same learning dynamics
-as one measured in a live one.
+Each round the ranker trains on a log built afresh from the current population
+and thresholds. For every agent $i$ on either side:
+\begin{itemize}
+\item the \emph{positives} are the $\min(k, |A_i|)$ members of $A_i$ with the
+  highest $U_{ij}$, each labeled 1;
+\item the \emph{negatives} are $k n_{-}$ candidates drawn uniformly without
+  replacement from the rest of the other side, each labeled 0, with $n_{-} = 4$.
+\end{itemize}
+A positive is determined by the utility and the threshold; there is no
+randomness in it. The negative draw for agent $i$ in round $r$ comes from a
+generator seeded with (run seed, $i$, $k$, $r$), so every round has fresh
+negatives and the log does not depend on the thread count. Logs are not
+accumulated: the ranker sees one round's log at a time, and what it retains is in
+its weights. At the shipped values an agent contributes at most $k(1 + n_{-}) =
+100$ rows to a log, and \rowsPerRound{} on average over a run.
+
+\textbf{The log does not depend on the ranker's shortlists.} Its positives are
+exactly the shortlists an oracle with the same thresholds would hand out, and its
+negatives are uniform. The ranker's own choices reach its training data through
+one channel only: they decide who proposes to whom, which moves thresholds by
+\eqref{eq:theta}, which changes admissible sets. This is the fact that answers
+the convergence objection of \S\ref{sec:intro}, and \S\ref{sec:what-ends} tests
+it.
+
+\subsection{The ranker}
+\label{sec:ranker}
+
+The ranker is neural collaborative filtering in the fused form of
+\citet{he2017}: a generalized matrix factorization branch and a multilayer
+perceptron branch over one id space, in which every agent is both a user and a
+candidate. Each branch has its own user and item embeddings of dimension 64. The
+perceptron maps the concatenated pair embedding through layers of width 128, 64
+and 32 with ReLU activations, and a linear output layer reads the element-wise
+product of the factorization embeddings beside the perceptron's output to give a
+logit $\hat y_{uv}$. Embeddings are initialized $N(0, 0.01^2)$ and dense layers
+with the library default. Training minimizes binary cross-entropy on the logits
+with positive weight 4, using Adam \citep{kingma2015} at learning rate $10^{-3}$
+and weight decay $10^{-5}$, in batches of 4096 rows shuffled by a seeded
+generator. The weights and the optimizer state persist across rounds. One
+training pass over a round's log is about \stepsPerPass{} optimizer steps at the
+shipped values; the dose experiment of \S\ref{sec:what-ends} changes the number
+of passes.
+
+Agent $u$'s shortlist $S_u$ is the $k$ candidates on the other side with the
+highest $\hat y_{uv}$. It is \emph{not} restricted to $A_u$: the ranker ranks the
+whole other side. An agent's \emph{exposure} $e_j$ in a round is the number of
+shortlists that contain it, $0 \le e_j \le N/2$.
+
+The architecture is deliberately standard. \citet{rendle2020} show that a tuned
+dot product beats this learned similarity at recommendation accuracy; no result
+here depends on the ranker being a good one, only on its being learned from the
+log above, and \S\ref{sec:limits} returns to what a different ranker could
+change.
+
+\subsection{Clearing}
+\label{sec:clearing}
+
+The matching is deferred acceptance \citep{gale1962} with $M$ proposing, run on
+the shortlists: a proposer works down his own shortlist, and an acceptor holds
+the best proposal from among the proposers \emph{on her shortlist} and rejects
+everyone else, including proposers she has never been shown. The result is
+stable with respect to the shortlists and in general not with respect to true
+preferences (Table~\ref{tab:validation}). With $M$ proposing it is the
+proposer-optimal stable matching of the truncated lists and the acceptor-pessimal
+one \citep{roth1982,knuth1996}. Every arm uses the same proposing side, so the
+comparisons below are between rankers, not between directions.
+
+\subsection{Comparison arms}
+\label{sec:arms}
+
+Four rules produce shortlists on the same population, utilities, seed and
+matching code; only the rule differs, and each arm runs its own threshold
+dynamics.
+\begin{itemize}
+\item \textbf{NCF}: the learned ranker above.
+\item \textbf{Oracle}: the top $k$ of $A_i$ by true utility, shorter when
+  $|A_i| < k$. It is the benchmark a learned ranker falls short of, not an
+  achievable institution: it knows the chemistry term, which nothing observable
+  reveals.
+\item \textbf{Random}: $\min(k, |A_i|)$ members of $A_i$ drawn uniformly without
+  replacement, from a generator seeded with (run seed, round).
+\item \textbf{Popularity}: one list per side, the $k$ agents of the other side
+  with the highest exposure in the previous round, ties to the lower index. In
+  round 0, which has no history, it ranks by true utility.
+\end{itemize}
+
+\subsection{Metrics}
+\label{sec:metrics}
+
+All metrics are per round. With exposures $e_1, \ldots, e_N$ over all agents of
+both sides, sorted ascending as $e_{(1)} \le \cdots \le e_{(N)}$:
+\begin{align}
+G &= \frac{2 \sum_{i=1}^{N} i\, e_{(i)}}{N \sum_{i=1}^{N} e_{(i)}} - \frac{N+1}{N}
+  && \text{exposure Gini,} \label{eq:gini}\\
+R &= \frac{1}{N} \left| \{ j : e_j > 0 \} \right|
+  && \text{reach,} \notag\\
+\Delta &= G_{\mathrm{NCF}} - G_{\mathrm{oracle}}
+  && \text{the gap, same seed and round.} \notag
+\end{align}
+The gap is the paper's quantity. It measures concentration in excess of the
+oracle's, and the oracle's own Gini is near $\giniOracleTail$
+(\S\ref{sec:transient}): that much concentration comes from preferences, because
+agents with high status and attractiveness are on many agents' true top-$k$. A
+positive gap is concentration the ranker adds to that, not concentration as
+such.
+
+Two more metrics are reported. The \emph{clearing rate} is $2 \mu / N$ for $\mu$
+matched pairs. \emph{Algorithmic loss} is $(W^{*} - W)/W^{*}$, where $W = \sum
+(U_{ij} + U_{ji})$ over matched pairs and $W^{*}$ is the same sum for deferred
+acceptance on complete true-preference lists. In the fully concentrated market,
+where every list on a side is the same $k$ agents, exactly $k$ pairs can form and
+the clearing rate is $2k/N$; when lists spread it is larger (Supplementary note
+S1).
+
+\subsection{An open market}
+\label{sec:open}
+
+Every run except those of \S\ref{sec:arrivals} has a closed population: no agent
+arrives or leaves. In the open-market runs a share $\nu$ of the $N$ slots changes
+hands at the start of every round after the first. The departing agents are drawn
+uniformly at random, so tenure is geometric with mean $1/\nu$ rounds, and each is
+replaced in the same slot by a fresh agent: new traits, tastes, chemistry key,
+intent and values from the distributions of \S\ref{sec:utility}; a threshold
+calibrated against the market it enters; the ranker's four embedding rows for the
+slot re-drawn from the initial distribution, with the shared layers kept. This is
+replacement, not net arrival: the market's size is fixed. The departures and the
+newcomers depend only on the run seed and the round, so every arm on a seed sees
+the same population at every round.
+
+The code also supports generational turnover, in which the least-matched fifth
+of the population is replaced at fixed intervals. No experiment reported here
+uses it.
+
+\subsection{The second environment}
+\label{sec:env-b}
+
+The institutional comparison of \S\ref{sec:institutional} sets the market above,
+Environment A, against Environment B: a subgraph of the same population in which
+every member sees every other member. An agent is eligible for B if its
+eligibility flag is set and $g_i \ge g_{\min} = 0.3$; a share $\phi_B$ of each
+side is drawn into B, and the sides are balanced by dropping the excess. Inside B
+the shortlist is the oracle rule restricted to members, and proposing costs
+$c_B$. An agent $i$ proposes to $j$ only if
+\begin{equation}
+\tau_i\, U_{ij}\, p > c_B,
+\label{eq:signal}
+\end{equation}
+where $p$ is the acceptance rate measured on the previous round's log for $i$'s
+side (0.5 before any measurement). A matched pair survives the round with
+probability
+\begin{equation}
+\sigma_{ij} = \sigma_0 (\tau_i \tau_j)^{\sigma_\alpha} g_{ij}^{\sigma_\beta},
+\qquad g_{ij} = 1 - |g_i - g_j|,
+\label{eq:survival}
+\end{equation}
+with $\sigma_0 = 1$ and $\sigma_\alpha = \sigma_\beta = 0.5$. When a pair dissolves
+the member with lower intent defects; the partner loses $L(1 - \tau_{\mathrm{def}})$
+with $L = 1$, and in B the defector is charged $d = 0.5$. In A the same survival
+draw applies with $d = 0$ and no proposal cost. Welfare in a round is $\sum (\tau_i
+U_{ij} + \tau_j U_{ji})$ over matched pairs, less proposal costs, less dissolution
+losses. Agents B excludes are scored at the payoff they would get in A with B's
+matched agents removed from A's market, so that excluding an agent cannot raise
+B's welfare by itself.
+
+\begin{algorithm}[t]
+\caption{One round $r$ of the market. $\mathcal{L}$ is the round's training log.}
+\label{alg:round}
+\begin{algorithmic}[1]
+\If{$r > 0$ and $\nu > 0$} replace a share $\nu$ of the slots (\S\ref{sec:open})
+\EndIf
+\State $\mathcal{L} \gets$ positives and negatives for every agent (\S\ref{sec:log})
+\State take $\rho$ training passes of the ranker over $\mathcal{L}$ ($\rho = 1$ shipped)
+\For{each agent $u$}
+  \State $S_u \gets$ the top $k$ of the other side by score
+\EndFor
+\State match by deferred acceptance, $M$ proposing, on $\{S_u\}$ (\S\ref{sec:clearing})
+\State record exposure $e$, $G$, $R$, the clearing rate and welfare
+\For{each agent $i$ with $p_i > 0$}
+  \State $\theta_i \gets \theta_i + \eta\,(m_i/p_i - \theta_i)$
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+\begin{table}[t]
+\centering
+\input{tables/params}
+\caption{Every parameter of the model, with its value in the shipped
+configuration and the values swept. All are modeling choices: none is estimated
+from data. The swept values are those of the sensitivity sweep
+(\S\ref{sec:where}), the dose, exploration and population-size experiments
+(\S\ref{sec:what-ends}) and the open market (\S\ref{sec:arrivals}).}
+\label{tab:params}
+\end{table}

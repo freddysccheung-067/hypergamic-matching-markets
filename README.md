@@ -304,18 +304,33 @@ an estimated utility and no closed form is known.
 
 ## Documentation
 
-**The paper.** [paper/main.tex](paper/main.tex) is an 8,400-word manuscript built from the
-committed data, with [docs/STATS.md](docs/STATS.md) supplying every interval it quotes and
-[docs/LITERATURE.md](docs/LITERATURE.md) every citation. It is **uncompiled** — no TeX
-distribution is installed on the development machine — so `paper/verify.py` checks structure
-(inputs resolve, refs have labels, citations have bib entries) rather than typesetting. Three
-tables regenerate from the CSVs via `paper/tables.py`. [docs/REVIEW.md](docs/REVIEW.md) is an
-adversarial review recommending rejection; [docs/REVIEW_RESPONSE.md](docs/REVIEW_RESPONSE.md)
-answers it item by item, fixing six findings and declining one with evidence.
+**The paper.** [paper/main.pdf](paper/main.pdf), built from [paper/main.tex](paper/main.tex).
+Every number in it is a macro written by `paper/gen_numbers.py` from a CSV under
+`data/processed/horizon/`, every table by `paper/tables.py` and every figure by
+`paper/figures.py`; `tests/python/test_paper_numbers.py` fails if a printed number differs from
+its file. The experiments and their registrations are in
+[docs/PREREGISTRATION.md](docs/PREREGISTRATION.md) (entries R2-0 to R2-E18), and
+[docs/REVISION_REPORT.md](docs/REVISION_REPORT.md) records what the second revision changed.
+
+### Building the paper
+
+One command, from a clean checkout, with [Tectonic](https://tectonic-typesetting.github.io/)
+on `PATH` (or at `$TECTONIC`):
+
+    python paper/build.py
+
+It regenerates the numbers, tables and figures from the committed result files, compiles
+`paper/main.tex`, and fails on an overfull box or an undefined reference. `python
+paper/build.py --analysis` first reruns every analysis from the per-seed files. Rerunning the
+simulations themselves is `scripts/make_jobs.py` and `scripts/run_queue.py`; their cost is in
+[docs/COMPUTE_PLAN.md](docs/COMPUTE_PLAN.md).
+
+[docs/REVIEW.md](docs/REVIEW.md) is an earlier adversarial review;
+[docs/REVIEW_RESPONSE.md](docs/REVIEW_RESPONSE.md) answers it item by item.
 
 - [docs/THESIS.md](docs/THESIS.md) — what the repository is about, the two environments, and the six hypotheses with their kill conditions
 - [docs/THEORY.md](docs/THEORY.md) — full mathematical formulation, including §10 on the institutional model
-- [docs/STATS.md](docs/STATS.md) — the interval, power and multiple-comparison work; the source of every quoted bound
+- [docs/STATS.md](docs/STATS.md) — the first revision's interval, power and multiple-comparison work (archival; the paper's statistics are in its Design section and Supplementary notes)
 - [docs/validation.md](docs/validation.md) — checks against closed-form results
 - [docs/LITERATURE.md](docs/LITERATURE.md) — 35 verified sources with what each settles and what this project adds
 - [docs/NOVELTY.md](docs/NOVELTY.md) — the narrowest defensible statement of the contribution, and its strongest objection

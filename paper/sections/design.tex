@@ -1,207 +1,109 @@
 % ---------------------------------------------------------------------------
-% Section 4: Design. What is simulated, at what n, why those arms, what is
-% held fixed.
-% Sources: experiments/base.yaml, data/processed/*/README.md, docs/STATS.md
-% sections 1-5. Every number here is a configuration value or a committed n.
+% Section 4: Design. Defines once every term the results use.
 % ---------------------------------------------------------------------------
 
 \section{Design}
 \label{sec:design}
 
-This section states what was run, at what sample size, against what controls,
-and what was held fixed, so a reader can tell which numbers in
-\S\ref{sec:results} are comparable to which and can re-derive any of them from
-the shipped configuration without re-running the simulation.
+Every experiment runs the model of \S\ref{sec:model} at the shipped configuration
+except where it says otherwise, at one thread, from a committed tree, and writes
+each seed's data beside a record of the commit, the full configuration and its
+hash, and the library versions. Table~\ref{tab:experiments} lists the
+experiments.
 
-\subsection{Regimes, and why the horizon is a design variable}
+\begin{table}[t]
+\centering
+\input{tables/experiments}
+\caption{The experiments, one row per registration, with the commit every seed of
+it ran from. Seeds 100--119 are the confirmation set and 42--61 the exploratory set
+(\S\ref{sec:design}). Every experiment was registered before it ran except the two
+rows marked post hoc; a third post-hoc check, a trend test, needed no new run.
+Source: \texttt{data/processed/horizon/run\_index.csv}, built from the per-seed
+run records.}
+\label{tab:experiments}
+\end{table}
 
-The shipped configuration is $N = 1000$ agents, shortlist length $k = 20$, gate
-target $\phi = 0.02$, nominal horizon 100 epochs. Five regimes appear, and the
-differences between them are results in their own right:
+\paragraph{Seeds.} There are two sets. The \emph{exploratory} set, seeds 42 to 61,
+contains the five seeds every earlier result of this project used. The
+\emph{confirmation} set, seeds 100 to 119, took no part in any earlier choice. The
+confirmation set is primary and the exploratory set replicates it; experiments
+with ten seeds use 100 to 109 and those with five use 100 to 104. A seed fixes a
+population (traits, tastes, chemistry, intents and values) and every random
+stream downstream of it. The arms of an experiment share each seed's population,
+so every comparison is a paired per-seed difference.
 
-\begin{center}
-\begin{tabular}{llll}
-\hline
-regime & $\phi$ & epochs & what it isolates \\
-\hline
-\texttt{inert20} & 0.2 & 20 & gate never binds; market deaf to its own outcomes \\
-\texttt{live20} & 0.02 & 20 & gate binds, then relaxes \\
-\texttt{live100} & 0.02 & 100 & the shipped horizon \\
-\texttt{base20} & 0.02 & 100 & the same horizon, twenty seeds \\
-\texttt{long300} & 0.02 & 300 & convergence, not a steady state \\
-\hline
-\end{tabular}
-\end{center}
+\paragraph{Rounds, passes and the margin.} A \emph{round} is one pass of
+Algorithm~\ref{alg:round}; a \emph{training pass} is one sweep of the optimizer
+over a round's log, about \stepsPerPass{} optimizer steps at the shipped values. Most
+experiments run 300 rounds; the floor test runs 1000 and the open market 600. The
+\emph{margin} is $0.002$ Gini. A seed's gap is \emph{inside the margin} in a round
+when its absolute value is below $0.002$, and the seed's \emph{entry round} is the
+first round from which its gap stays inside the margin to the end of the run. A
+seed outside the margin at the last round is \emph{censored}. An entry round
+differs from the first round a seed is inside the margin whenever the gap
+re-crosses the margin after first touching it; only the entry round is used.
 
-The institutional comparison uses a sixth: $\phi = 0.2$, the inert gate, at five
-epochs per paired run. That is the same gate as \texttt{inert20} and it is the
-regime in which H4 holds and in which it is refuted at the shipped gate
-(\S\ref{sec:h4regime}).
+\paragraph{Pre-registration.} Each experiment's design, the quantity read, a
+prediction with a number in it and a kill condition were committed before the
+experiment ran, at commit \texttt{\regCommit} of the repository's
+pre-registration file. Three departures are labeled where their results appear:
+the primary warm-start measure was fixed after the candidate numbers had been
+computed on earlier data (Supplementary note S4), and a comparator check
+(\S\ref{sec:what-ends}) and the five-round institutional grid
+(\S\ref{sec:institutional}) were added after the registered results were read.
+Table~\ref{tab:predictions} lists every registered prediction and whether it
+held, scored from the result files by a script rather than by reading.
 
-The inert regime is retained rather than discarded because the difference
-between it and the live regime is the evidence that the feedback channel matters
-at all. The two 20-epoch regimes differ in $\phi$ alone; the two live regimes
-differ in horizon alone, and their first epochs agree only approximately. The
-four arms of the 300-epoch run and the 100-epoch run are bit-identical through
-epoch 4 and then diverge in the NCF arm alone, reaching $3\times10^{-4}$ in
-exposure Gini by epoch 19; the other three arms stay bit-identical. That is the
-signature of a different floating-point reduction order in the training path, not
-of a different model, and it is why every figure in this paper names the run it
-came from: \texttt{ablation\_h100} and the committed \texttt{rigor/long\_horizon}
-are two runs and not one run at two lengths. Their seed-42 NCF Ginis at epoch 99
-differ in the third decimal ($\giniSeedFortyTwoShort$ against
-$\giniSeedFortyTwoLong$), which changes no verdict, but the second directory cannot
-be regenerated from this code at any thread count tested
-(\texttt{docs/REVIEW\_RESPONSE.md}, A3). The 300-epoch trajectory this paper quotes
-is therefore \texttt{rigor/long\_horizon\_1t}, the same design regenerated at one
-thread and checked against the committed run before it was quoted
-(\texttt{docs/PREREGISTRATION.md} E7).
+\paragraph{Statistics.} Intervals are 95\% Student-$t$ intervals over seeds
+unless stated. The replicate is the seed, never the round: the rounds of one run
+are one trajectory. BCa bootstrap intervals (10{,}000 resamples) accompany the
+headline round-99 gap as a check, and at twenty seeds their bounds differ from the
+$t$ bounds by at most $\bcaAgree$. Equivalence is tested by two one-sided tests
+against $\pm 0.002$ \citep{lakens2017}, whose interval is the 90\% $t$ interval by
+construction. Benjamini--Hochberg at $q = 0.05$ corrects the forty cells of the
+institutional grid, separately for each comparison arm.
 
-\subsection{Arms}
+\paragraph{Why one run is not a measurement.} A perturbation of $10^{-7}$ to every
+initial weight of the ranker, applied ten times to each of five seeds, leaves the
+first rounds unchanged and first moves the gap at round \fpFirstRound. The spread
+over a seed's ten runs then grows to $\fpRatioNinetyNine$ of the spread across
+twenty seeds at round 99 and to $\fpRatioTwoNinetyNine$ at round 299
+(Figure~\ref{fig:fp}). A single run's late-round gap is as much a property of its
+floating-point history as of its population. Every number here is therefore a
+mean over seeds with an interval over seeds, and every run is at one thread,
+because the thread count changes the order of floating-point reductions and so is
+part of a run's identity.
 
-The A-side ablation compares four arms on a shared population, seed and utility
-set, so differences are attributable to the visibility rule rather than to
-sampling:
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.62\linewidth]{figures/fp}
+\caption{Standard deviation of the gap between seeds (twenty confirmation seeds)
+and within a seed (ten runs whose initial weights differ by $10^{-7}$, averaged
+over five seeds), by round. Source: \texttt{data/processed/horizon/e16\_fp/} and
+\texttt{e09\_canonical/}.}
+\label{fig:fp}
+\end{figure}
 
-\begin{itemize}
-\item \textbf{ncf}, the learned ranker. The treatment arm.
-\item \textbf{oracle}, which ranks by true utility under the same proposer
-  direction and shortlist length. The benchmark, not a deployable institution.
-\item \textbf{popularity}, which ranks by aggregate engagement; its exposure Gini
-  sits at the analytic closed form, which checks the exposure machinery.
-\item \textbf{random}, which ranks uniformly, because distance from uniformity is
-  not a measure of harm and without it a reader cannot tell whether the ranker's
-  concentration is unusual or what any non-personalised rule does.
-\end{itemize}
-
-{\sloppy
-The institutional comparison adds Environment B at four signalling costs
-($c_B \in \{0.01, 0.05, 0.10, 0.25\}$) crossed with ten subgraph sizes
-($\phi_B \in \{0.02$, $0.05$, $0.10$, $0.15$, $0.25$, $0.35$, $0.50$, $0.65$,
-$0.80$, $1.00\}$): forty cells, five seeds, both accountings. Environment A
-there is the \emph{oracle} arm, so nothing is estimated in either environment;
-the NCF-mediated comparison is reported separately and reverses the ordering. The
-drift decomposition is a $2\times2$ factorial over exogenous drift and
-algorithmic mediation, each on or off, from which the three terms are estimated.
-\par}
-
-\subsection{Sampling and what counts as a replicate}
-
-Five seeds (42 through 46) underlie the horizon, sweep and institutional results,
-and twenty the shipped-horizon ones. This is the design
-decision most likely to be objected to, so the response is registered rather than
-deferred. A seed is a population, not a run: each draws fresh traits, intents,
-alignments and pairwise shocks and holds them fixed across arms, so arms are
-compared \emph{paired} by seed and every gap is a per-seed difference.
-
-\textbf{Which quantities rest on twenty seeds and which on five.} So that a
-reader is never guessing: the exposure Gini, the NCF--oracle gap, the clearing
-rate, rank satisfaction, reach and algorithmic loss at the shipped
-hundred-epoch regime are all quoted from a twenty-seed run. Everything else is
-five. That includes every horizon claim (the 300-epoch series, its decay fits,
-its asymptote and its stationarity tests), every sensitivity-sweep claim (twelve
-cells, five seeds each), the institutional grid and its optimum, and the drift
-decomposition. A number in \S\ref{sec:results} that is not one of the six named
-above is a five-seed number, and the text says so where the distinction could
-mislead.
-
-A twenty-seed run (42 through 61) was executed at the shipped regime. A power
-calculation against the twenty-seed standard deviation requires fewer than five
-seeds to detect every headline effect at 80\% power, with raw requirements below
-one in every case, and no headline changes sign or crosses zero at any seed count
-from five to twenty (\texttt{docs/STATS.md} \S2.4). That is a statement about
-\emph{sign}, not \emph{width}. Two quantities behave badly on width: the five
-seeds are the minimum-variance contiguous block of the sixteen available for
-algorithmic loss and second-lowest for clearing, so their standard deviations
-understate the population's by roughly a factor of three and two and a half
-(\S2.2). Every interval on those two is reported from the twenty-seed run, and no
-headline rests on a five-seed interval for either.
-
-\subsection{Intervals, multiplicity and the sweep}
-
-The estimating method is fixed before results are read and differs by seed count
-for a measured reason. At five seeds the Student-$t$ interval is quoted; at
-twenty, the BCa bootstrap with 10,000 resamples. The BCa interval is reported
-beside the $t$ interval at five but never quoted alone, because at that size its
-half-width is narrower than the sample's own standard deviation (\texttt{docs/STATS.md}
-\S1). Bootstraps are seeded from a fixed constant and regenerate byte for byte.
-
-Two families are corrected. The institutional grid holds 200 rows but 40 distinct
-cells (ten sizes by four costs), each replicated over five seeds; a cell is what
-was selected over, so its seeds are replicates rather than five further chances
-to win, and the family is 40. Uncorrected family-wise error under independence
-would be $\fwerUncorrected$, but the cells are not independent, since adjacent sizes share
-populations and the same seeds are reused, so the realized rate is lower and is
-not claimed; the nominal figure is quoted as an upper bound. The decomposition
-corrects over its three terms.
-
-Every committed result sits at one setting of four knobs, each swept at three
-levels with the others shipped: taste heterogeneity
-$\sigma_{\text{taste}} \in \{0.2, 0.5, 1.0\}$, chemistry noise
-$\sigma_{\text{shock}} \in \{0.5, 1.5, 3.0\}$, the weight ratio
-$\beta/\alpha \in \{1, 2, 3\}$ and the hypergamy margin $\delta \in \{0, 0.5, 1\}$:
-twelve cells, five seeds, 100 epochs. Four claims were fixed with their
-thresholds before the cells were read, so a reader can disagree with the
-thresholds rather than only with the verdicts: that the gap excludes zero and is
-positive (C1), that its point estimate is at most 0.05 (C2), that the ranker
-reaches at least 75\% of agents (C3), and that clearing is non-degenerate (C4).
-C2's ceiling and C3's floor are the two judgments most exposed to the charge of
-being chosen after the fact, and the only mitigation is that they were written
-down first. The shipped cell appears in three axes with identical numbers
-($\gapShippedSweep$, reach $\reachShipped$), which checks that the axes are independent.
-
-\subsection{Validation against closed-form results}
-\label{sec:validation-design}
-
-Before the recommender is asked anything, the matching and survival-function
-machinery is checked against proved results. This is verification, not
-validation: agreement with a theorem shows the code is correct and says nothing
-about whether the model describes a population.
-
-Two tools are used because the results are of two kinds. The deficit results
-concern the largest matching under a \emph{compatibility} constraint, which is a
-maximum-cardinality bipartite matching problem and is solved as one; a
-stable-matching procedure does not compute it. Its finite form is the deficiency
-version of Hall's marriage theorem \citep{hall1935}, of which the preprint's
-continuum deficit is the limit. The uniqueness result is the stability question
-and is tested with deferred acceptance \citep{gale1962}; that a common ranking
-makes the stable matching unique is the collapse of the stable-matching lattice to
-a point \citep{knuth1996}.
-
-Table~\ref{tab:validation} reports both. The most informative check is the last:
-adding noise of order one percent of the status scale to each agent's own view of
-the other side leaves stability intact, with zero blocking pairs in both proposer
-directions, while uniqueness fails. The theorem's conclusion therefore rests
-on the lists being \emph{common}, not merely correlated with status.
+\paragraph{Verification.} Table~\ref{tab:validation} checks the matching and
+exposure machinery against results known exactly: the deficit identity that
+follows from Hall's theorem under a nested constraint and its Gaussian closed
+form, uniqueness of the stable matching under common rankings, the popularity
+ranker's closed form, and stability of truncated deferred acceptance on its own
+lists. Agreement shows the machinery is correct. It says nothing about whether
+the model describes a population.
 
 \begin{table}[t]
 \centering
 \input{tables/validation}
-\caption{Validation against the closed-form results: the deficit identity and
-height-deficit form in the first five rows \citep{hall1935,bilderbeek2026},
-assortative uniqueness and its precondition in the last two
-\citep{gale1962,knuth1996}. The theorem numbers are the preprint's; the deficit
-and uniqueness results themselves are classical. Generated by \texttt{paper/tables.py} from
-\texttt{data/processed/rigor/validation.csv}, which
-\texttt{scripts/run\_validation.py} writes by recomputing the quantities
-\texttt{tests/python/test\_validation.py} asserts; a test compares the committed
-file against a fresh computation, so the table cannot silently disagree with the
-checks it reports.}
+\caption{Verification against exact results. Rows 1--4: the minimal unmatched
+share under a nested compatibility constraint, by exact maximum matching, against
+the supremum formula that follows from Hall's theorem \citep{hall1935}, and
+against its Gaussian closed form. Rows 5--6: deferred acceptance under common
+rankings and under rankings perturbed by 1\% noise \citep{gale1962,knuth1996}.
+Row 7: the popularity ranker's exposure Gini against $1 - 2k/N$. Row 8: blocking
+pairs of truncated deferred acceptance against its own lists and against full
+preferences. Source: \texttt{data/processed/rigor/validation.csv}, written by
+\texttt{scripts/run\_validation.py}; a test fails if the file differs from a
+fresh computation.}
 \label{tab:validation}
 \end{table}
-
-What this licenses is narrow: it shows the deficit and stability machinery is
-correct, and does not show the recommender's unmatched mass has a closed form.
-The reasons are structural. The deficit is a supremum because the
-compatibility constraint is a nested upper set on a single scalar, and a top-$k$
-list from an estimated multi-attribute utility has neither property.
-
-\subsection{What was not run}
-
-Three gaps are stated rather than left for discovery. The 300-epoch convergence
-run exists only at the shipped cell, so convergence is established at one point
-and not across the sweep, which is 100 epochs deep everywhere. The
-full-information benchmark materialises an $O(N^2)$ preference matrix and is
-capped at $N = 5000$, so larger-population results are NCF-only and lose their
-reference. And the model has no attrition mechanism, so one hypothesis cannot be
-tested at all (\S\ref{sec:h6}).

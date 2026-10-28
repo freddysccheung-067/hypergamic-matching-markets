@@ -1,182 +1,78 @@
 % ---------------------------------------------------------------------------
-% Section 2: Related work (target 1,000 words). Adapted from
-% docs/RELATED_WORK.md. Two sources discussed there are not cited here because
-% they are absent from docs/LITERATURE.md.
+% Section 2: Related work. One paragraph per strand. Each paper's claim is the
+% one its abstract or publisher record states (paper/refs_check.csv).
 % ---------------------------------------------------------------------------
 
 \section{Related work}
 \label{sec:related}
 
-\subsection{The closed-form result, and what it settles}
+\paragraph{Feedback loops and long-run fairness.} A system that learns from data
+its own decisions produce can mislead itself. \citet{ensign2018} prove that
+predictive policing sends police back to the same areas regardless of the true
+rate when discovered incidents feed the next allocation. \citet{sinha2016}
+recover the ratings a recommender has not influenced by deconvolving its feedback
+loop, and \citet{schnabel2016} treat recommendations as treatments to obtain
+unbiased estimators under selection. \citet{chaney2018} show by simulation that
+training on algorithmically confounded data homogenizes behavior without raising
+utility, \citet{mansoury2020} that a feedback loop amplifies popularity bias and
+hits minority-group users hardest, and \citet{jiang2019} separate the echo chamber
+from the filter bubble and propose ways to slow degeneration. \citet{damour2020}
+argue that static or single-step analyses miss long-term consequences and make
+simulation the instrument for them; \citet{liu2018} show that even one step of
+feedback can turn a fairness criterion harmful. \citet{perdomo2020} give the frame
+this paper fits: retraining on a distribution the model's own deployment shapes,
+and conditions under which it converges to a performatively stable point. Here the
+ranker retrains every round on data its past shortlists shape weakly, and the gap
+is the path to that point. The claim that one horizon can mislead is
+\citet{damour2020}'s; what is added is a measurement of the transient for a
+learned ranker in a matching market, of its length, and of what sets it.
 
-For a marriage market where status is a single scalar and unions must be
-hypergamous, the aggregate questions have closed-form answers.
-A recent preprint argues the picture \citep{bilderbeek2026}: universal hypergamy is
-feasible exactly when one side's status distribution first-order stochastically
-dominates the other's, and when it is not, the minimal unmatched mass is the
-hypergamy deficit $D = \sup_t\,(G_W(t) - G_M(t))_+$. The finite-population
-condition underneath it is Hall's marriage theorem \citep{hall1935}, of which
-this deficit is the maximum deficiency; the preprint's contribution is the
-continuum form and its application. This is checked against the simulator below
-rather than taken on trust. No behavioral strategy changes either fact,
-status gains are transfers of rank rather than creations of it, and under
-status-ranked preferences the stable matching is unique and positive assortative.
-Existence of a stable matching is \citet{gale1962}; uniqueness under a common
-ranking is a property of the lattice they generate, set out by \citet{knuth1996},
-because when every agent on a side ranks the other side identically the
-proposer-optimal and acceptor-optimal matchings coincide.
+\paragraph{Exposure fairness.} \citet{singh2018} define fair rankings by
+constraints on the exposure each item receives, and \citet{biega2018} amortize
+attention across a sequence of rankings so individual position bias evens out.
+Both design a ranking to meet an exposure target. Here exposure is the number of
+shortlists an agent appears on, and the gap is measured against an oracle, not a
+target: the oracle's own Gini of about $\giniOracleTail$ is concentration that
+comes from preferences, which no fair-exposure constraint was meant to remove.
+\citet{fleder2009} show that recommenders built on sales and ratings can reduce
+sales diversity, a one-sided analogue of the concentration measured here.
 
-The consequences for anyone modeling this are severe. Unmatched mass is a
-functional of the two marginal status distributions alone, so interventions that
-rearrange who meets whom without changing those marginals cannot move it. This
-paper does not re-derive the result; it reproduces it against the simulator
-(\S\ref{sec:validation-design}) and then changes the constraint.
+\paragraph{Reciprocal recommenders and matching platforms.} \citet{pizzato2010}
+introduce the reciprocal recommender for online dating, \citet{tomita2022}
+describe a matching-theory recommender deployed on a dating platform, and
+\citet{chen2023} run a matching-model ranker in a field experiment and find less
+recommendation inequality and more matches. \citet{kanoria2021} show that a
+platform restricting what agents can do can raise welfare, \citet{halaburda2018}
+that a platform can compete by limiting choice, \citet{arnosti2021} how design can
+cut wasted search and screening, and \citet{rios2021} how a national admissions
+clearinghouse was designed and run. \citet{mladenov2020} show that matching each
+user to the best provider performs poorly when providers need engagement to stay
+viable. Each of these designs or evaluates a ranker or a platform; none measures
+how long a learned ranker's effect on exposure takes to settle.
 
-\subsection{The empirical record, and why a model is the instrument}
+\paragraph{Matching theory.} Deferred acceptance finds a stable matching
+\citep{gale1962}; the proposer-optimal stable matching is the acceptor-pessimal
+one, and no procedure is both stable and strategy-proof \citep{roth1982,knuth1996}.
+\citet{roth1999} show that truncating a list changes outcomes,
+\citet{ashlagi2017} that a slight imbalance makes the stable matching essentially
+unique, and \citet{akbarpour2020} study markets in which agents arrive and depart.
+Under a compatibility constraint that is nested in a scalar status, the minimal
+unmatched mass follows from Hall's marriage theorem \citep{hall1935} in its
+deficiency form as a supremum over thresholds. Table~\ref{tab:validation} checks
+the simulator against these results. A learned top-$k$ visibility constraint is
+not nested, and no closed form is known for it.
 
-The empirical literature is consistent and mostly about marginals.
-\citet{becker1973} supplies the complementarity condition: supermodular surplus
-implies positive assortative matching, so measured sorting is evidence about the
-surplus function. \citet{schwartz2005} trace US educational homogamy from 1940 to
-2003, falling then rising. \citet{eika2019} find assortative mating accounts for
-a non-negligible share of cross-sectional household income inequality while
-\emph{changes} in assortative mating barely move trends: a level effect without a trend effect, and a warning about which one a cross-sectional model
-can speak to. \citet{esteve2016} show the educational gender-gap reversal
-shifting marriage patterns toward hypogamy with no preference change required.
+\paragraph{Hypergamy as an economic object.} \citet{saintpaul2015} derives
+hypergamous matching from a trade-off in which women forgo more attractive mating
+opportunities to credibly signal legitimate children; \citet{almas2023} use
+parental earnings rank as a predetermined measure and find hypergamy an important
+feature of matching in Norway; \citet{esteve2016} show the reversal of the
+educational gender gap moving marriage toward hypogamy with no change in
+preferences required. This paper's status bonus is a stylized version of the
+preference these works study, and nothing here tests them.
 
-On the micro side, \citet{fisman2006} randomise speed-dating encounters and find
-trait weights differing by sex and selectivity rising with group size;
-\citet{lin2013} show trait salience is not separable, which bounds the additive
-utility used here. In online settings, \citet{hitsch2010} estimate mate
-preferences, feed them into deferred acceptance, and find predicted stable
-matches track observed ones closely, concluding that preferences rather than
-frictions explain most sorting. \citet{bruch2018} find a desirability hierarchy
-consistent across cities, with reply probability falling sharply in the
-desirability gap.
-
-Why model rather than estimate? Because every instrument above observes
-\emph{realized} matches inside one institution, and none can answer a
-counterfactual about a different one. The question here is institutional: what
-happens when the list an agent sees is produced by an engagement-optimizing
-estimator rather than given. \citet{kanoria2021} and \citet{halaburda2018} take
-the same view from the design side, deriving platform welfare from a model of
-restricted choice rather than estimating it. \citet{galichon2022} make the
-structural position precise for identification, which is why this paper reports
-welfare only inside the model. The precedent for computing when the closed form
-does not apply is the clearinghouse work of \citet{roth1999peranson}.
-
-\subsection{Rankers, feedback loops, and the visibility constraint}
-
-\citet{he2017} establish the collaborative-filtering architecture used here and
-make no claim about markets. \citet{pizzato2010} introduce the reciprocal
-recommender and show that accounting for both sides lifts top-ten success
-substantially; \citet{tomita2022} describe deploying a matching-theory-based
-recommender on a live platform. Reciprocity-aware ranking is solved engineering,
-and a paper claiming novelty for its ranker would be claiming novelty for
-something built in 2010. \citet{chen2023} go further, running a
-matching-model-based ranker on a live platform and measuring realized matches. That is
-the strongest constraint on any novelty claim here: same intersection, different
-question.
-
-The loop literature is more directly adversarial. \citet{chaney2018} show that
-training on data confounded by the system's own recommendations homogenises users
-without raising utility. \citet{mansoury2020} show a loop amplifying popularity
-bias and hitting minority-group users hardest. \citet{jiang2019} separate the
-echo chamber from the filter bubble. \citet{abdollahpouri2019} frames popularity
-bias as a fairness problem, and \citet{sonboli2022} show that in multisided
-settings fairness criteria for different stakeholders conflict.
-
-Every one of these predicts a loop that \emph{persists or compounds}. The result
-here points the other way, and the distinction this paper offers is between a
-ranker's deficiency being coverage, which training could fix, and preference
-distortion, which it would not. That distinction is not in the loop literature.
-The trajectory is consistent with it, and the warm-start arm supports it: a ranker
-pretrained before the loop has most of the decay behind it
-(\S\ref{sec:interventions}). What remains open is which part of training does the
-work, since that arm adds gradient steps without adding data.
-
-\subsection{Cold start, exploration, and the dynamic market}
-
-Three literatures bound the question and are not engaged elsewhere in this
-section. The first is \emph{cold start} in recommender systems: \citet{schein2002}
-define the problem as one where recommendations are required for items no user has
-rated, and the standard taxonomy separates item from user cold start. The gap
-measured here is a cold-start quantity in exactly that sense, because the ranker is being asked to rank agents it has no interactions for, but the literature's usual remedies (content features, hybrid models, side information) are not what the
-trajectory shows happening, which is the ranker accumulating interactions until
-coverage saturates.
-
-The second is \emph{exploration}. \citet{li2010} treat the choice of what to show
-as a contextual bandit and make optimism about unseen items the mechanism by which
-an estimator learns. That is precisely the intervention this paper could not
-implement: an explore-then-exploit ranker would deliberately show low-estimate
-agents, which would move reach directly rather than through training. None of the
-four arms here explores. A reader who expects the bandit framing should know that
-the shipped ranker is pure exploitation, that this is why the cold start exists at
-all, and that the paper does not test whether exploring would remove it.
-
-The third is \emph{dynamic matching markets}. \citet{akbarpour2020} model a market
-where agents arrive and depart stochastically and study the trade-off between
-thickness, information and waiting. This paper's market has neither arrivals nor
-departures: generational turnover replaces agents but nobody enters an otherwise
-empty market and nobody leaves in response to an outcome. That is why every result
-here is about a transient that ends, rather than about a steady state that could persist. In a market with continuous arrivals some share of the population is
-always at epoch zero, and the steady-state gap is the object of interest there. It
-has not been measured (\texttt{docs/ROADMAP.md} \S1).
-
-Two further results bound what mediation can be credited with.
-\citet{roth1999} show truncating a preference list changes outcomes
-strategically, so a top-$k$ list is not a neutral convenience.
-\citet{ashlagi2017} show that in an unbalanced random market even a slight
-imbalance produces an essentially unique stable matching with the long side
-matched near-randomly, so some measured asymmetry is competition rather than
-curation. Both cautions apply: the truncation here is imposed rather than
-chosen, and the market is balanced, so the competition channel is held at zero by
-design rather than measured away.
-
-\subsection{Institutional design and the selection problem}
-
-\citet{kanoria2021} show a platform that restricts agents' actions can raise
-welfare. \citet{halaburda2018} show a platform can compete by limiting the
-choices it offers, because restricting one agent's choice also restricts her
-competitors'. \citet{hoppe2009} give the sharpest constraint on the interior
-optimum sought here: with two-sided incomplete information the output gain from
-assortative matching can be exactly offset by signalling costs, which is what
-failure at high signalling cost looks like.
-
-That literature also names the objection this paper had to design around. If an
-institution excludes agents, its measured welfare improves for the arithmetic
-reason that excluded agents are no longer counted. The comparability rule of
-\S\ref{sec:model} is therefore a response to a known objection, not a safeguard
-invented here, and both accountings are reported so the artifact is visible.
-
-Two results bound any $W$-side number. \citet{roth1982} establishes that no
-procedure is both always stable and always strategy-proof, with the
-proposer-optimal matching simultaneously the acceptor-pessimal one;
-\citet{knuth1996} supplies the lattice structure that makes those one statement.
-Since hypergamy lives in the acceptor's utility, this bias lands where the
-paper's question is, and every acceptor-side level reported is a lower bound
-across stable matchings.
-
-\subsection{What is new here}
-
-Thirty-eight sources were examined for whether any already does
-recommender-mediated matching on multiple traits. Thirty-five do not. Three
-require the claim restated: \citet{chen2023}, \citet{pizzato2010} and
-\citet{tomita2022} between them rule out any novelty claim resting on the ranker.
-The gap that survives is narrower than ``recommender-mediated matching'' and is a
-conjunction of three specific absences: no characterisation of unmatched mass
-against the visibility constraint, no institutional comparison on a common
-welfare basis, and no horizon. What this paper adds is the
-recommender-intermediated setting in which visibility is a truncated top-$k$ list
-over an estimated multi-attribute utility and no closed form is known. It claims
-nothing for its ranker, and no progress on the multidimensional-status,
-search-friction or endogenous-status problems the closed-form literature names as
-open.
-
-\subsection*{A note on verification}
-
-Reproducing a closed form is verification: it establishes that the machinery is
-correct, not that the model describes anything. \citet{windrum2007} and
-\citet{fagiolo2007} set out why empirical validation of an agent-based model is a
-family of practices rather than a single test, and why calibration alone does not
-resolve it. This paper claims verification and declines the validation question.
+\paragraph{Simulation methodology.} \citet{windrum2007} and \citet{fagiolo2007}
+set out why validating an agent-based model is a family of practices rather than
+a single test. This paper claims verification against closed forms, not
+validation against data. Its equivalence test is the two one-sided tests
+procedure of \citet{lakens2017}.
