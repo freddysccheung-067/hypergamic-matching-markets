@@ -1112,3 +1112,44 @@ head against this non-exploring ranker's head of the same length, which removes
 the comparator's ordering effect because both heads come from NCF rankings. It
 is reported beside the registered comparison, never instead of it, and labeled
 post hoc.
+
+---
+
+## R2-E14-check: a trend test for the open market, written before it is computed
+
+**Written:** 2026-10-28, after R2-E14's registered stationarity check was read (it
+fails at every rate) and before this test is computed. **Not registered in
+advance.**
+
+**Why.** The registered check's step criterion (largest step in the seed-mean
+series over 20 rounds below 10% of the seed sd) was written for the closed
+market, whose series stops moving. In the open market each round's arrivals add
+noise to every round's mean, so the criterion can fail for a series with no
+trend. A trend test asks the question directly.
+
+**Design.** Per seed and rate, the least-squares slope of the gap on the round
+over rounds 400 to 599; a 95% t interval over the ten seeds. **Reading.** The
+implied change over the 200 rounds (slope times 200) with its interval. If the
+interval lies inside the margin, the drift over the last 200 rounds is reported as
+smaller than the margin; if the slope is negative with an interval excluding zero,
+the open-market gap is reported as still falling and the rounds 500 to 599 level
+as an upper bound. Reported beside the registered check, labeled post hoc.
+
+---
+
+## R2-E15s: the five-round grid on fresh seeds, written before it runs
+
+**Written:** 2026-10-28, after R2-E15 was read. **Not registered in advance.**
+
+**Why.** The paper's claim that the institutional comparison changes sign with
+the horizon contrasts R2-E15 (rounds 250 to 299) with a five-round reading. The
+only five-round reading at the shipped gate is archived (`rigor/h4_shipped_gate/`,
+seeds 42 to 46, from earlier code), and no number from it may be quoted. This
+rerun gives the five-round reading from this revision's code on the R2-E15 seeds.
+
+**Design.** The 10 x 4 grid at the shipped gate, seeds 100 to 109, oracle A, 5
+rounds, welfare averaged over rounds 0 to 4 as the archived grid did:
+`scripts/run_institutional_horizon.py --rounds 5 --window-start 0 --a-arms
+oracle`. Same analysis as R2-E15 (per-cell t interval, BH at q = 0.05 over 40
+cells). **Expectation, not a test:** the archived run found no cell above zero,
+so no cell is expected to beat A here. Reported beside R2-E15, labeled post hoc.
