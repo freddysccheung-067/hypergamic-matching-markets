@@ -1,42 +1,23 @@
 # Literature
 
-Thirty-eight sources, ordered by how much they bear on this project rather than alphabetically.
-The five marked **★ load-bearing** are the entries a reviewer would use to decide whether the
+Thirty-seven sources, ordered by how much they bear on this project rather than alphabetically.
+The four marked **★ load-bearing** are the entries a reviewer would use to decide whether the
 work is novel, correct, or redundant.
 
 Every entry below was verified: bibliographic data against the Crossref or OpenAlex record for
 the DOI, and the claim against the abstract, landing page, or full text. Where an abstract was
-unavailable from the publisher — or the paper is paywalled and only an author copy was reachable
-— the entry says so. One entry (Bilderbeek, 2026) is not indexed anywhere and was verified by
-reading the document itself. The last three entries were added in the revision of 2026-10-25 to
-cover cold start, exploration, and dynamic matching, and each was checked against the publisher
-record before being cited.
+unavailable from the publisher, or the paper is paywalled and only an author copy was reachable,
+the entry says so. A source listed here before could not be verified as a real publication and
+was removed (`docs/UNVERIFIED_REFS.md`). The last three entries were added in the revision of
+2026-10-25 to cover cold start, exploration, and dynamic matching, and each was checked against
+the publisher record before being cited.
 
----
-
-## ★ E. Bilderbeek (2026). *Hypergamy Is Solved: Feasibility, Deficit, and Equilibrium in Status-Ordered Matching Markets, with an Application to the Six-Foot Rule*. Self-published, University of Chicago, 23 October 2026. No DOI; circulated as a PDF.
-
-**Claim.** For any marriage market with continuous status distributions, universal hypergamy is
-feasible exactly when one side's status distribution first-order stochastically dominates the
-other's; when it is not, the minimal unmatched mass is the Hypergamy Deficit
-`D = sup_t (G_W(t) − G_M(t))₊`; no behavioral strategy changes either fact; and under
-status-ranked preferences or supermodular transferable utility the equilibrium is the comonotone
-coupling, whose hypergamy index is `H* = Leb{F_M⁻¹ > F_W⁻¹}`.
-
-**Method.** Proof, in the language of optimal transport: a continuum Hall marriage theorem
-(Theorem 2.2), a Gaussian closed form for a required status gap (Theorem 3.3), a Strassen
-feasibility condition (Theorem 2.1), invariance results (Theorems 4.3 and 4.5), and a
-Gale–Shapley uniqueness result (Theorem 5.1). Calibrated to NHANES 2015–2018 US adult heights.
-
-**Relevance.** The immediate predecessor and the reason this project does not re-derive
-anything. `docs/validation.md` checks Theorem 2.2, Theorem 3.3 and Theorem 5.1 against the
-simulator; §9 is the source of the project's stated contribution. All of it is one-dimensional
-in a scalar status functional.
-
-**What we add.** For a single scalar status, nothing: Theorem 8.1 subsumes every closed-form
-claim this repository could make, and the repository is a check on it rather than an extension.
-What the paper does not cover is a finite population whose visibility is a learned ranker's
-top-k list over a multi-attribute utility; we compute that numerically and offer no closed form.
+The closed-form results this repository checks itself against are classical: the deficiency
+form of Hall's marriage theorem (P. Hall, 1935, *On Representatives of Subsets*, Journal of the
+London Mathematical Society s1-10(1), 26–30, DOI 10.1112/jlms/s1-10.37.26), which under a nested
+compatibility constraint gives the minimal unmatched mass as a supremum over status thresholds,
+and uniqueness of the stable matching under common rankings (Gale and Shapley, below; Knuth,
+below). `docs/validation.md` states each check.
 
 ---
 
@@ -58,8 +39,7 @@ on any novelty claim here.
 do not characterize the *unmatched mass* as a function of the visibility constraint, do not
 compare a mediated institution against a non-mediated one on a common welfare basis, and do not
 report a horizon-dependent effect. Their setting is an intervention, ours is a comparative
-static. That is a difference of question, not of quality, and it is narrower than "the gap
-Bilderbeek leaves open".
+static. That is a difference of question, not of quality.
 
 ---
 
@@ -70,7 +50,7 @@ the deferred-acceptance procedure constructs one.
 
 **Method.** Proof, plus the algorithm.
 
-**Relevance.** The clearing step of Environment A and the engine of the Theorem 5.1 check. The
+**Relevance.** The clearing step of Environment A and the engine of the uniqueness check. The
 truncated variant in `THEORY.md` §6.2 is this procedure run on top-k lists instead of full lists.
 
 **What we add.** Nothing to the theory. The project uses the algorithm as a component and
@@ -329,8 +309,8 @@ interpretation of marriage-rate regressions.
 
 **Method.** Model plus nonparametric estimation on US data for 1971/72 and 1981/82.
 
-**Relevance.** The entropic relaxation Bilderbeek's §7 uses, and the standard way to add taste
-heterogeneity to a matching model — the analogue of this project's `taste_sigma`.
+**Relevance.** The standard way to add taste heterogeneity to a matching model, and the
+analogue of this project's `taste_sigma`.
 
 **What we add.** Taste heterogeneity as a *knob whose value changes the headline result*
 (`README.md`: at zero taste variance only 6.9% of agents appear on any shortlist), reported as a
@@ -347,7 +327,7 @@ unobservables, which yields closed-form identification of the surplus and equili
 **Method.** Proof plus efficient computation, with an empirical revisit of Choo–Siow.
 
 **Relevance.** The identification result that a welfare comparison across institutions would need
-if it were ever taken to data; cited by Bilderbeek as the taste-heterogeneity foundation.
+if it were ever taken to data.
 
 **What we add.** Nothing on identification. The project declines the empirical question
 explicitly and reports welfare only inside the model.
@@ -509,9 +489,9 @@ educational hypergamy toward hypogamy, independent of any change in preferences.
 
 **Method.** Administrative and survey data across countries and cohorts.
 
-**Relevance.** The empirical basis for the project's exogenous-drift channel and for Bilderbeek's
-Remark 8.2: measured hypergamy can fall with no behavioral change. Directly relevant to the
-factorial decomposition's `ΔW_exogenous` term.
+**Relevance.** The empirical basis for the project's exogenous-drift channel: measured
+hypergamy can fall with no behavioral change. Directly relevant to the factorial
+decomposition's `ΔW_exogenous` term.
 
 **What we add.** The decomposition that asks whether an algorithm amplifies that shift, and the
 prior that it does not.

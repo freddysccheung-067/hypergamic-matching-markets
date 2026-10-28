@@ -1,102 +1,93 @@
-# Validation against Bilderbeek (2026)
+# Validation against closed-form results
 
-Reference: E. Bilderbeek, *Hypergamy Is Solved*, 23 October 2026. The paper's results are
-closed-form and proved, so a disagreement between it and this project would be a bug here.
-None was found. The checks live in `tests/python/test_validation.py`, one test per check;
-run with `pytest tests/python/test_validation.py -s` to print the numbers below.
+Each check below is a theorem or an exact identity, so a disagreement with the simulator would be
+a bug in this project. None was found. The checks live in `tests/python/test_validation.py`, one
+test per check; `scripts/run_validation.py` writes their numbers to
+`data/processed/rigor/validation.csv`, which the paper's verification table reads, and a test
+fails if that file differs from a fresh computation. Every number in this note is in that file.
 
-Two different tools are used because the paper states two different kinds of result.
-Theorems 2.2 and 3.3 concern the largest matching under a compatibility constraint
-(`s_m ≥ s_w`, or `s_m ≥ s_w + δ`). That is a maximum-cardinality bipartite matching problem,
-solved here with `scipy.sparse.csgraph.maximum_bipartite_matching`. It is not a stability
-question and `deferred_acceptance` does not compute it. Theorem 5.1 is the stability result,
-and that is the Gale–Shapley engine.
+Two different tools are used because there are two kinds of result. The deficit checks concern
+the largest matching under a *compatibility* constraint (`s_m ≥ s_w + δ`). That is a
+maximum-cardinality bipartite matching problem, solved with
+`scipy.sparse.csgraph.maximum_bipartite_matching`; it is not a stability question and
+`deferred_acceptance` does not compute it. The uniqueness check is a stability result, and that
+is the deferred-acceptance engine.
 
-## 1. Theorem 2.2: the deficit D
+## 1. The deficit identity (Hall's theorem, threshold form)
 
-`D = sup_t (G_W(t) − G_M(t))₊` is the minimal mass of W unmatched when every union must satisfy
-`s_m ≥ s_w`.
+When every woman's admissible set is an upper set of men (nested neighborhoods), the deficiency
+form of Hall's marriage theorem (Hall 1935) says the minimal unmatched share of W is
+`D = sup_t (G_W(t) − G_M(t + δ))₊`, with G the survival functions. On a finite sample the
+identity is exact.
 
-**Setup.** N = 300 per side, M ~ N(0, 1), W ~ N(0.6, 1.3²). The variances differ so the survival
-functions cross and D > 0. Measured deficit is the unmatched-W count from the exact maximum
-matching divided by N; predicted is the supremum over the empirical survival functions.
+**Setup.** N = 300 per side, M ~ N(0, 1), W ~ N(0.6, 1.3²), δ = 0. The variances differ so the
+survival functions cross and D > 0. Measured: unmatched W from the exact maximum matching,
+divided by N. Predicted: the supremum over the empirical survival functions.
 
-| seed | matching | sup (G_W − G_M)₊ | difference |
+| seed | matching | sup (G_W − G_M)₊ |
+|---|---|---|
+| 0 | 0.2433 | 0.2433 |
+| 1 | 0.3367 | 0.3367 |
+| 2 | 0.2200 | 0.2200 |
+| 3 | 0.2833 | 0.2833 |
+| 4 | 0.1800 | 0.1800 |
+
+**A case with a known population value.** M ~ Unif[0, 1], W ~ Beta(2, 1), for which D = 1/4.
+N = 20,000, one seed: measured 0.2519; the exact matching equals the empirical supremum to within
+one agent, and the 0.0019 excess over 1/4 is sampling error in the distributions.
+
+## 2. The Gaussian closed form
+
+For two normal status distributions with equal variance σ² and mean gap Δm, the supremum is
+attained at the midpoint, so `D(δ) = (2Φ((δ − Δm) / 2σ) − 1)₊`. Setup: M ~ N(1, 1), W ~ N(0, 1),
+δ = 2, N = 5,000 per side, five seeds.
+
+| case | population value | matching, mean of 5 seeds | seed sd |
 |---|---|---|---|
-| 0 | 0.2433 | 0.2433 | 0 |
-| 1 | 0.3367 | 0.3367 | 0 |
-| 2 | 0.2200 | 0.2200 | 0 |
-| 3 | 0.2833 | 0.2833 | 0 |
-| 4 | 0.1800 | 0.1800 | 0 |
+| equal variances | 0.3829 (closed form) | 0.3864 | 0.0102 |
+| W ~ N(0, 0.9²) | 0.4031 (exact supremum, no closed form) | 0.4135 | 0.0090 |
 
-The two agree exactly on every seed, inside the 1/N tolerance asserted. This is what the
-theorem says: on a sample the identity is exact, not asymptotic.
+Both sit above the population value by about one seed sd. That is the upward bias of a sample
+supremum at this N, which is of order N^(-1/2); the per-seed tolerance asserted is 0.03.
 
-**Example 2.4.** M ~ Unif[0, 1], W ~ Beta(2, 1), N = 20,000, one seed. Measured 0.2519
-against the predicted 1/4 (tolerance 0.02). The exact matching again equals the empirical
-supremum to within one agent. The 0.0019 excess over 1/4 is sampling error in the
-distributions, not matching error.
+## 3. Uniqueness under common rankings
 
-## 2. Theorem 3.3: the height deficit
-
-`D(δ) = (2Φ((δ − Δm) / 2σ) − 1)₊` for equal variances. US calibration m_M = 175.3,
-m_W = 161.3, σ = 7.6, so Δm = 14.0. N = 5,000, five seeds, exact matching on
-`s_m ≥ s_w + δ`.
-
-| quantity | formula | matching, mean over 5 seeds | seed sd |
-|---|---|---|---|
-| D(0) | 0 | 0.0000 (0.0000 on every seed) | 0 |
-| D(14.0) | 0 | not run (formula is exactly 0 at the boundary) | — |
-| D(30.48), σ_M = σ_W = 7.6 | 0.7217 | 0.7254 | 0.0054 |
-| D(30.48), σ_M = 7.6, σ_W = 7.1 | 0.7380 | 0.7433 | 0.0053 |
-
-**The 0.74 figure.** The task brief and the paper's abstract quote D(30.48) ≈ 0.74 at the
-σ = 7.6 calibration. Theorem 3.3 gives 0.7217 there. The 0.74 belongs to the unequal-variance
-population (σ_W = 7.1), which the paper uses for Figure 1 but which Theorem 3.3 does not cover:
-its proof assumes σ_M = σ_W. Theorem 2.2 does cover it, and the exact supremum there is 0.7380,
-which rounds to the paper's 0.74. So the paper is internally right and the abstract's closed
-form is slightly loose. The test asserts both numbers separately rather than letting one stand
-for the other.
-
-The matching runs about 0.004–0.005 above the population value in both rows. That is the
-expected upward bias of a sample supremum at this N, not a discrepancy; the tolerance is
-0.03 per seed and 0.01 on the mean.
-
-## 3. Theorem 5.1: assortative uniqueness
-
-Complete, strict, status-ranked lists: every agent ranks the other side by status alone.
+Complete, strict, status-ranked lists: every agent ranks the other side by status alone. With
+rankings common to a side, the proposer-optimal and acceptor-optimal stable matchings coincide
+(Gale & Shapley 1962), because the lattice of stable matchings collapses to a point (Knuth 1996).
 N = 300, five seeds.
 
 - `deferred_acceptance` with M proposing and with W proposing returned the **same matching on
   every seed**, with zero blocking pairs in both directions.
-- That matching equals the pairing of the k-th highest M with the k-th highest W, computed
+- That matching is the pairing of the k-th highest M with the k-th highest W, computed
   independently from `argsort(argsort(s))`.
 
-**The precondition is load-bearing.** Adding i.i.d. N(0, 0.01²) noise to each agent's own view
-of the other side's status leaves status as the dominant term but makes the lists
-agent-specific. Both directions still return stable matchings (zero blocking pairs), yet they
-differ. Pairs that differ between the M-proposing and W-proposing result, by seed:
-22, 8, 11, 12, 8. So stability survives the perturbation and uniqueness does not. A
-perturbation as small as 1% of the status scale is enough, which is the point: the theorem's
-conclusion rests on the lists being common, not merely correlated with status.
+**The precondition matters.** Adding N(0, 0.01²) noise to each agent's own view of the other
+side's status leaves status as the dominant term but makes the lists agent-specific. Both
+directions still return stable matchings, yet they differ. Pairs that differ between the two
+directions, by seed: 22, 8, 11, 12, 8. Stability survives the perturbation and uniqueness does
+not.
 
-## What a matching D does and does not establish
+## 4. The popularity closed form
 
-Agreement on D establishes that the matching and survival-function machinery in this repository
-reproduces the paper's closed forms, and that the deferred-acceptance engine behaves as
-Theorem 5.1 requires on its home ground. It establishes nothing about the recommender. The
-deficit in Theorems 2.2 and 3.3 is measured under a *compatibility* constraint, `s_m ≥ s_w + δ`,
-which is a fixed upper-set structure on a single scalar status, and that structure is exactly
-what makes D a one-dimensional supremum. Environment A's constraint is *visibility*: the
-recommender's truncated top-k lists, which depend on an estimated, multidimensional utility and
-differ by agent. That is a different constraint structure, so a matching D is not evidence that
-the recommender's unmatched mass has a closed form. It does not appear to have one, and finding
-one is the open problem the paper names in Section 9, where it lists multidimensional status
-and search frictions as unsolved. The project's own recommender results (the NCF-versus-oracle
-Gini gap in THESIS.md H3) remain simulation results about this model.
+A ranker that gives every agent on a side the same k candidates exposes exactly 2k of N agents,
+each equally, so the exposure Gini is 1 − 2k/N and reach is 2k/N. The popularity arm, k = 20, at
+N = 500, 1000 and 2000, rounds 1 to 4, three seeds per N: the largest error in either quantity is
+2.2e-16.
 
-## Not covered
+## 5. Truncated deferred acceptance is stable on its own lists
 
-Theorems 2.1, 3.4, 4.3, 4.5, 6.1 and 7.1, Proposition 3.1 and Corollary 5.2 were not tested.
-The six-foot theorem (3.4) and the stochastic-dominance feasibility condition (2.1) follow from
-the same Hall bound as 2.2 and would be cheap to add.
+On the top-k shortlists of a run (NCF and oracle arms, N = 300), an independent blocking-pair
+counter finds no pair listed by both sides that prefers each other to their assigned partners:
+the matching is stable with respect to the lists it was given. Against full preferences, about
+17,900 blocking pairs remain per matching, which is what truncation costs.
+
+## What these checks do and do not establish
+
+They establish that the matching, survival-function and exposure machinery in this repository
+reproduces known results on their home ground. They establish nothing about the recommender. The
+deficit is measured under a compatibility constraint that is a fixed upper-set structure on a
+single scalar, and that structure is what makes the deficit a one-dimensional supremum.
+Environment A's constraint is *visibility*: the recommender's truncated top-k lists, which depend
+on an estimated multi-attribute utility and differ by agent. No closed form is known for that
+setting, and the project's recommender results remain simulation results about this model.

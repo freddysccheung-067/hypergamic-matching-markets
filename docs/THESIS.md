@@ -101,14 +101,16 @@ config is φ = 0.02 with 100 epochs, and at that horizon the NCF–oracle gap fa
 (`data/processed/ablation_h100/`): the concentration is a cold-start property that relaxes as the
 filter learns coverage. H3 gives both horizons.
 
-**Closed-form results are stated, not re-derived.** For a single scalar status the equilibrium
-results are proved: E. Bilderbeek, *Hypergamy Is Solved* (23 October 2026), gives the deficit under
-a compatibility constraint (Theorem 2.2), its height form (Theorem 3.3) and assortative uniqueness
-(Theorem 5.1). This project therefore does not re-derive them. It reproduces them as checks
-(`docs/validation.md`, `tests/python/test_validation.py`) and works in the setting the paper's
-Section 9 names as open: a recommender-truncated visibility constraint over a multi-trait utility.
-The deficit checks are maximum-cardinality matchings and Theorem 5.1 is a Gale–Shapley stability
-check; they are different tests.
+**Closed-form results are stated, not re-derived.** For a single scalar status the relevant
+results are classical: the deficiency form of Hall's marriage theorem (Hall 1935) gives the
+minimal unmatched mass under a nested compatibility constraint as a supremum over thresholds, a
+Gaussian closed form follows from it for equal variances, and uniqueness of the stable matching
+under common rankings follows from Gale and Shapley (1962) and the lattice structure of Knuth
+(1996). This project reproduces them as checks (`docs/validation.md`,
+`tests/python/test_validation.py`) and works in a setting they do not cover: a
+recommender-truncated visibility constraint over a multi-trait utility. The deficit checks are
+maximum-cardinality matchings and the uniqueness check is a deferred-acceptance stability check;
+they are different tests.
 
 ### Thin markets: the cost of Environment B
 

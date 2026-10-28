@@ -289,18 +289,18 @@ are reported as a function of them, never at one setting.
 0.270, 0.255, 0.238 across N = 500, 1000, 2000, 4000) but makes the swipe log grow as `N^{1.5}`
 ([THEORY.md §7.2](docs/THEORY.md)).
 
-**Closed-form results already exist for the one-dimensional case.** E. Bilderbeek, *Hypergamy Is
-Solved* (23 October 2026), proves the equilibrium results for a single scalar status. The simulator
-reproduces Theorem 2.2's deficit `D` and Theorem 3.3's height deficit to within `1/N` per seed
-(`D` exactly, on a sample; the height deficit about 0.004–0.005 above the population value, the
-expected upward bias of a sample supremum), and Theorem 5.1's assortative uniqueness, with zero
-blocking pairs in both proposer directions ([docs/validation.md](docs/validation.md)). These are two
-different checks. `D` and the height deficit are maximum-cardinality bipartite matchings
-(`scipy.sparse.csgraph.maximum_bipartite_matching`) under a compatibility constraint and say nothing
-about stability; Theorem 5.1 is the stability result and is tested with `deferred_acceptance`. So
-this project does not claim priority over a proved result. What it adds is the
-recommender-intermediated, multi-trait setting that the paper's Section 9 names as open, where
-visibility is a truncated top-k list over an estimated utility and no closed form is known.
+**Closed-form results already exist for the one-dimensional case, and they are classical.** Under
+a nested compatibility constraint the minimal unmatched mass is the deficiency form of Hall's
+marriage theorem (Hall 1935), a supremum over status thresholds, with a Gaussian closed form for
+equal variances; under common rankings the stable matching is unique and positive assortative
+(Gale and Shapley 1962; Knuth 1996). The simulator reproduces the deficit exactly on every sample,
+the Gaussian closed form to within the upward bias of a sample supremum, and uniqueness with zero
+blocking pairs in both proposer directions; it also matches the popularity ranker's exposure
+closed form, 1 − 2k/N, to 2e-16 ([docs/validation.md](docs/validation.md)). The deficit checks are
+maximum-cardinality bipartite matchings (`scipy.sparse.csgraph.maximum_bipartite_matching`) and say
+nothing about stability; uniqueness is tested with `deferred_acceptance`. What this project adds is
+the recommender-intermediated, multi-trait setting, where visibility is a truncated top-k list over
+an estimated utility and no closed form is known.
 
 ## Documentation
 
@@ -316,7 +316,7 @@ answers it item by item, fixing six findings and declining one with evidence.
 - [docs/THESIS.md](docs/THESIS.md) — what the repository is about, the two environments, and the six hypotheses with their kill conditions
 - [docs/THEORY.md](docs/THEORY.md) — full mathematical formulation, including §10 on the institutional model
 - [docs/STATS.md](docs/STATS.md) — the interval, power and multiple-comparison work; the source of every quoted bound
-- [docs/validation.md](docs/validation.md) — checks against the closed-form results of Bilderbeek (2026)
+- [docs/validation.md](docs/validation.md) — checks against closed-form results
 - [docs/LITERATURE.md](docs/LITERATURE.md) — 35 verified sources with what each settles and what this project adds
 - [docs/NOVELTY.md](docs/NOVELTY.md) — the narrowest defensible statement of the contribution, and its strongest objection
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — profile of the run loop and the two optimisations that came out of it

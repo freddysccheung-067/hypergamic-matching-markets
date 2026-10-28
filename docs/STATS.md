@@ -1,5 +1,12 @@
 # Statistics
 
+> **Archival.** This note describes the analyses of the first revision
+> (2026-10-25), on directories under `data/processed/rigor/` that the second
+> revision retired as headline sources. No number in the paper comes from it. The
+> paper's statistics are defined in its Design section and its Supplementary
+> notes S1 to S4, computed from `data/processed/horizon/`; the registrations are
+> `docs/PREREGISTRATION.md` R2-0 to R2-E18.
+
 What was measured, at what n, with what interval, and what a reader may and may
 not conclude.
 

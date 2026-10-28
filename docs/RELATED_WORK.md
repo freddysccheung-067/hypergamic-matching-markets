@@ -1,27 +1,21 @@
 # Related work
 
-## 1. The closed-form one-dimensional result, and what it settles
+## 1. The classical closed-form results, and what they settle
 
-For a marriage market where status is a single scalar and unions must be hypergamous, the
-aggregate questions have closed-form answers and they were settled in October 2026. Bilderbeek
-(2026) models the market as a coupling of two Borel probability measures and proves the whole
-picture: universal hypergamy is feasible exactly when one side's status distribution first-order
-stochastically dominates the other's (Theorem 2.1, via Strassen), and when it is not, the minimal
-unmatched mass is the Hypergamy Deficit `D = sup_t (G_W(t) − G_M(t))₊` (Theorem 2.2, a
-continuum Hall marriage theorem). No behavioral strategy changes either fact (Theorem 4.3),
-status gains are transfers of rank rather than creations of it (Theorem 4.5), and under
-status-ranked preferences the unique stable matching is positive assortative (Theorem 5.1, the
-Gale–Shapley result of Gale & Shapley 1962 stated on the continuum). A Gaussian calibration to US
-heights gives a closed form for a required status gap, `D(δ) = (2Φ((δ − Δm)/2σ) − 1)₊`, which
-vanishes to about 14 cm and reaches roughly 0.74 at one foot.
+For a market where status is a single scalar and a pair is admissible only when one side's
+status exceeds the other's by a margin, the size of the largest matching is classical. The
+compatibility structure is nested (every admissible set is an upper set of the other side), so
+the deficiency form of Hall's marriage theorem (Hall 1935) reduces to a supremum over status
+thresholds: the minimal unmatched share is `D = sup_t (G_W(t) − G_M(t + δ))₊`, with G the
+survival functions. For two normal distributions of equal variance the supremum is attained at
+the midpoint and has a closed form, `D(δ) = (2Φ((δ − Δm)/2σ) − 1)₊`. Under common
+status-ranked preferences the stable matching is unique and positive assortative: proposer- and
+acceptor-optimal stable matchings coincide (Gale & Shapley 1962), because the lattice of stable
+matchings collapses to a point (Knuth 1996).
 
-The consequences for anyone modeling this are severe. Unmatched mass is a functional of the two
-marginal status distributions alone. Effort, apps, and every other intervention that rearranges
-who meets whom without changing those marginals cannot move it (Theorem 4.3 makes this exact, and
-the paper says so in as many words). Two things the literature had treated as substantive — the
-feasibility of "he must be taller than me" and the size of the resulting deficit — turn out to be
-properties of histograms. Any new work in a one-dimensional status setting is, at best, a check
-on Theorem 8.1.
+The consequence for modeling is that, in that setting, unmatched mass is a functional of the two
+marginal status distributions alone. `docs/validation.md` checks each of these results against the
+simulator.
 
 ## 2. The empirical literature, and why a model is the right instrument
 
@@ -35,7 +29,7 @@ inequality across five countries, while *changes* in assortative mating barely m
 trends — a level effect without a trend effect, and a warning about which of the two a
 cross-sectional model can speak to. Esteve et al. (2016) show the educational gender-gap reversal
 shifting marriage patterns globally from hypergamy toward hypogamy with no preference change
-required, which is Bilderbeek's Remark 8.2 measured.
+required.
 
 On the micro side, Fisman et al. (2006) randomise speed-dating encounters and find trait weights
 differing by sex and selectivity rising with group size; Lin & Lundquist (2013) show trait
@@ -101,4 +95,4 @@ and measure realized matches, establishing that such a ranker improves outcomes.
 not do is characterize unmatched mass against the visibility constraint, or price an excluded
 agent against an alternative institution. It explicitly does not claim: any closed form for the
 multidimensional deficit; that its ranker is novel; that its parameters correspond to any
-population; or that Bilderbeek's one-dimensional results extend to the multi-attribute case.
+population; or that the one-dimensional threshold results extend to the multi-attribute case.

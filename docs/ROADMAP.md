@@ -1,16 +1,55 @@
-# Roadmap: four things this study does not do
+# Roadmap: what this study does not do
 
-Written at the end of the revision session of 2026-10-25, so that a future
-session can start cold. Each item states what is missing, why it matters, what
-would have to change, and what result would count. **No speculative numbers
-appear here**: where a quantity would come from a run, the entry says so and
-does not guess it.
+Written at the end of the revision of 2026-10-25 and updated at the end of the
+second revision (2026-10-28), so that a future session can start cold. Each item
+states what is missing, why it matters, what would have to change, and what
+result would count. **No speculative numbers appear here**: where a quantity would
+come from a run, the entry says so and does not guess it.
 
 Ordered by how much each would change what the paper can claim.
 
 ---
 
+## 0. Raised by the second revision's results
+
+These are questions the second revision's measurements opened and did not answer.
+Each is stated in the paper as unexplained.
+
+- **Within-list order.** At round 299 the ranker's shortlists hold the oracle's
+  agents (Jaccard about 0.99) while its algorithmic loss stays well above the
+  oracle's. Deferred acceptance reads list order, so the residual welfare loss is
+  consistent with lists in a different order, but within-list order was not
+  measured. What would count: a per-round rank correlation between the NCF order
+  and the oracle order *inside* the shared top-k, logged with the R2-E12
+  diagnostics, and its relation to algorithmic loss.
+- **A position-weighted exposure measure.** Exposure counts list membership. A
+  measure that discounts lower positions could follow a different trajectory.
+  What would count: the R2-E9 trajectory recomputed with a position discount, on
+  recorded lists (`Simulation.record_lists`), no new runs needed.
+- **The four-pass overshoot.** At four training passes per round the gap ends
+  below the margin (the ranker less concentrated than the oracle). The experiment
+  does not say why. A candidate is overfitting the resampled negatives; it is not
+  tested.
+- **The institutional sign change.** The B-minus-A comparison points one way at
+  five rounds and the other after the transient, for an oracle A whose thresholds
+  settle early. The cause was not isolated. What would count: per-round welfare of
+  both environments over all 300 rounds, which `scripts/run_institutional_horizon.py`
+  records but does not save.
+- **Open-market stationarity.** The registered stationarity criterion fails in
+  the open market because each round's arrivals move each round's mean; the levels
+  over rounds 500 to 599 are reported as what the gap fluctuates around. What
+  would count: more seeds and a longer horizon at one rate, with the trend test of
+  R2-E14-check.
+
+---
+
 ## 1. An open market: arrivals
+
+**Status after the second revision.** Replacement is implemented
+(`simulation.arrival_rate = departure_rate`, uniform departure, the newcomer in the
+same slot with fresh traits, embedding and threshold; R2-E14). What remains open is
+everything below that replacement does not cover: a market whose size changes, and
+departure that depends on outcomes (item 2).
 
 **What is missing.** The population has generational turnover
 (`simulation.turnover_fraction = 0.2`, `simulation.n_generations = 5`), which
@@ -150,9 +189,9 @@ present) or a first-order index for a knob the one-at-a-time design called inert
 
 ---
 
-## What is *not* on this list, and why
+## Done in the second revision
 
-Re-running the 300-epoch shipped cell at 1 thread. That is not a research
-question; it is a repair. `docs/REVIEW_RESPONSE.md` records that the committed
-300-epoch NCF arm does not reproduce at any thread count tested, and replacing it
-is a decision for the repository's owner rather than a roadmap item.
+Re-running the 300-epoch shipped cell at 1 thread, which the first version of this
+file listed as a repair: R2-E9 ran it on forty seeds, and seeds 42 to 46 reproduce
+the earlier one-thread run exactly. The paper's numbers now come only from
+`data/processed/horizon/`.
