@@ -1090,3 +1090,25 @@ affected: every completed run's recorded config holds numbers, checked across al
 (`tests/python/test_revision_switches.py::test_a_number_without_a_decimal_point_is_still_a_number`),
 and the 50 jobs are rerun unchanged in design, from a worktree of the commit that
 contains the fix. This is a repair of the run, not a change to R2-E16.
+
+---
+
+## R2-E13b-check: a post-hoc comparator check, written before it runs
+
+**Written:** 2026-10-28, after R2-E13b was read. **Not registered in advance.**
+
+**Why.** R2-E13b's registered comparison puts the exploring arm's first k − m
+entries against the oracle's first k − m. Cutting the oracle's list removes its
+lowest-utility entries, while cutting the NCF's removes its lowest-scored ones,
+and the two orderings differ even where the two sets agree. So the registered
+exploit-part gap can be nonzero for a ranker that does not explore at all. The
+round-299 exploit-part gap (+0.007 at share 0.05) is in the range where that
+matters.
+
+**Design.** The NCF arm with no exploration, seeds 100 to 109, 300 rounds, its own
+first 19 and first 16 entries recorded (`--prefix 19`, `--prefix 16`), from the
+same code as R2-E13b. The supplementary comparison is the exploring arm's exploit
+head against this non-exploring ranker's head of the same length, which removes
+the comparator's ordering effect because both heads come from NCF rankings. It
+is reported beside the registered comparison, never instead of it, and labeled
+post hoc.
