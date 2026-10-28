@@ -1,0 +1,137 @@
+{
+  "argv": [
+    "scripts/run_horizon.py",
+    "--experiment",
+    "R2-E17",
+    "--seed",
+    "108",
+    "--rounds",
+    "300",
+    "--arms",
+    "ncf,oracle",
+    "--output-dir",
+    "D:/hypergamic-matching-markets/data/processed/horizon/e17_size/n2000",
+    "--set",
+    "population.n=2000",
+    "--set",
+    "population.admissible_fraction=0.01"
+  ],
+  "arms": [
+    "ncf",
+    "oracle"
+  ],
+  "config": {
+    "environment_b": {
+      "defection_penalty": 0.5,
+      "partner_loss": 1.0,
+      "sigma_0": 1.0,
+      "sigma_alpha": 0.5,
+      "sigma_beta": 0.5,
+      "signal_cost": 0.25,
+      "size_fraction": 0.5,
+      "values_min": 0.3
+    },
+    "hypergamy": {
+      "alpha": 1.0,
+      "beta": 2.0,
+      "delta": 0.5,
+      "gamma": 0.3,
+      "lambda": 1.5,
+      "shock_scale": 1.5,
+      "signal_cost": 0.0
+    },
+    "ncf": {
+      "embed_dim": 64,
+      "freeze_after": null,
+      "l2_reg": 1e-05,
+      "lr": 0.001,
+      "mlp_layers": [
+        128,
+        64,
+        32
+      ],
+      "n_negatives": 4,
+      "num_threads": 1,
+      "pos_weight": 4.0,
+      "top_k": 20,
+      "warm_start_epochs": 0
+    },
+    "output": {
+      "dir": "data/processed/",
+      "save_every": 10
+    },
+    "population": {
+      "admissible_fraction": 0.01,
+      "community_prob": 0.5,
+      "intent_beta_a": 2.0,
+      "intent_beta_b": 2.0,
+      "n": 2000,
+      "seed": 108,
+      "taste_sigma": 0.5,
+      "traits": {
+        "age": {
+          "dist": "normal",
+          "mean": 30.0,
+          "std": 6.0
+        },
+        "attractiveness": {
+          "dist": "normal",
+          "mean": 0.5,
+          "std": 0.15
+        },
+        "sociability": {
+          "dist": "normal",
+          "mean": 0.5,
+          "std": 0.15
+        },
+        "status": {
+          "dist": "lognormal",
+          "mean": 0.0,
+          "std": 0.8
+        }
+      },
+      "values_beta_a": 2.0,
+      "values_beta_b": 2.0
+    },
+    "simulation": {
+      "bayesian_eta": 0.1,
+      "n_epochs": 100,
+      "n_generations": 5,
+      "status_drift": 0.0,
+      "turnover_fraction": 0.2
+    }
+  },
+  "config_hash": "04e684ede74662b21068b8d2e52d7dcb3b3a9ab17628bbea0673c2fa5a39278a",
+  "environment": {
+    "numpy": "1.26.4",
+    "omp_num_threads": "1",
+    "pandas": "2.2.2",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 198 Stepping 2, GenuineIntel",
+    "python": "3.12.10",
+    "torch": "2.3.1+cpu",
+    "torch_threads": 1
+  },
+  "experiment": "R2-E17",
+  "finished": "2026-10-28T01:15:01+0800",
+  "git_commit": "f4d2b8cb056af4589c537b93bf89cbf2c99455b8",
+  "git_dirty": false,
+  "overrides": [
+    "population.n=2000",
+    "population.admissible_fraction=0.01"
+  ],
+  "recorders": {
+    "cohorts": false,
+    "diagnostics": false,
+    "prefix": null,
+    "shadow": false
+  },
+  "rounds": 300,
+  "seed": 108,
+  "started": "2026-10-28T00:49:49+0800",
+  "wall_seconds": {
+    "ncf": 1422.962,
+    "oracle": 84.892,
+    "total": 1511.623
+  }
+}

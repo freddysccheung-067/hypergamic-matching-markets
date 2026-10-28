@@ -1,0 +1,60 @@
+{
+  "directory": "D:/hypergamic-matching-markets/data/processed/horizon/e09_canonical",
+  "n_seeds": 40,
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    100,
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112,
+    113,
+    114,
+    115,
+    116,
+    117,
+    118,
+    119
+  ],
+  "experiments": [
+    "R2-E9"
+  ],
+  "git_commits": [
+    "349b48484111aa0e23f8f4fe5e4e34fcb7489efb"
+  ],
+  "any_dirty": false,
+  "config_hashes": [
+    "f8edbf90860ad4fc57daeb98761217551850408468bf8b06778e65fd26b50827"
+  ],
+  "num_threads": [
+    1
+  ],
+  "wall_seconds_total": 57025.1
+}

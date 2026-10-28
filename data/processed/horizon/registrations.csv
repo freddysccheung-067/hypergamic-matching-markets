@@ -1,0 +1,6 @@
+key,heading,commit,date
+main,## R2-0: rules common to every R2 entry,480cd6c,2026-10-27
+warm,## E3d: the primary decay measure for the warm start,7dfcd8c,2026-10-27
+check_b,## R2-E13b-check: a post-hoc comparator check,b8e34e4,2026-10-28
+check_c,## R2-E14-check: a trend test for the open market,d91a312,2026-10-28
+repair,## R2-E16a: execution note,9b11a36,2026-10-28
