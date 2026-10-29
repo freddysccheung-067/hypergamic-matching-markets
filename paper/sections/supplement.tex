@@ -13,8 +13,8 @@ differ across agents remove the bound. At round 0, when the ranker hands every
 agent on a side nearly the same list, the learned ranker's clearing rate is
 $\mcrZero$; at round 299 it is $\mcrFinal$, against $2k/N = 0.04$.
 
-\paragraph{S2. Five seeds against twenty.} Every headline of the project's first
-release rested on seeds 42 to 46. On the exploratory set of the canonical
+\paragraph{S2. Five seeds against twenty.} Seeds 42 to 46 alone, the five seeds of the
+project's earlier results, are a poor basis for an interval. On the exploratory set of the canonical
 run, seeds 42 to 61 at round 99, the standard deviation over those five seeds is
 $\sdFiveGap$ for the gap against $\sdTwentyGap$ over all twenty, and
 $\sdFiveLoss$ for algorithmic loss against $\sdTwentyLoss$. Ordered from the
@@ -31,9 +31,8 @@ $\bcaAgree$, which is why the paper reports $t$ intervals throughout and BCa as 
 check.
 
 \paragraph{S4. The warm-start measure.} The share of decay surviving a warm start
-can be computed on levels or gaps, from round 0 or from each arm's peak. The
-version of this paper on the repository's main branch before this release printed
-exposure Gini levels under the name of gaps and quoted a level, peak-basis share.
+can be computed on levels or gaps, from round 0 or from each arm's peak. A
+level is not a gap: it includes the oracle's own Gini, which falls over the run.
 The primary measure here, the gap on the round-0 basis, was fixed after all four
 candidates had been computed on earlier five-seed data, and the registration says
 so. The four constructions

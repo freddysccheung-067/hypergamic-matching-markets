@@ -6,18 +6,20 @@
 \label{sec:conclusion}
 
 In a closed market the concentration a learned ranker adds to exposure is a cost
-of its training. It is set by the number of optimizer steps the ranker has taken,
-not by how long the market has run, and a comparison with an oracle at a fixed
-number of rounds reads the ranker's training state as much as the ranker. An
-exposure audit of a learned ranker is therefore incomplete without the horizon it
-was read at, stated in steps.
+of its training. Across training doses on fresh logs it is set by the number of optimizer
+steps the ranker has taken, not by how long the market has run; a warm start and a
+larger market do not follow that rule. A comparison with an oracle at a fixed
+number of rounds reads the ranker's training state as much as the ranker, so an
+exposure audit of a learned ranker is incomplete without the horizon it was read
+at.
 
 In a market whose population turns over, the cost had not ended by round 600 at
 any rate tested. The gap is larger when the ranker meets agents it has not learned
 more often, stays above the margin, and at the higher rates falls on newcomers and
 favors long-tenured agents.
 Which of the two describes a platform depends on that rate, which this model
-cannot supply. Neither reading covers welfare: shortlists that hold the oracle's
-agents in another order give lower welfare, and the institutional comparison, read
-after the transient, finds a complete-information subgraph better than either
+cannot supply. Neither reading covers welfare: the ranker's welfare stays below the oracle's
+while its exposure converges, which is consistent with lists that hold the same
+agents in a different order but was not tested, and the institutional comparison,
+read after the transient, finds a complete-information subgraph better than either
 version of the mediated market over a range of sizes.

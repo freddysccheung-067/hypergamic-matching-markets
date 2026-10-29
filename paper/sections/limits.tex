@@ -40,6 +40,19 @@ unmatched or poorly matched, so there is no attrition margin, one hypothesis can
 be posed (Appendix~\ref{app:hypotheses}), and a mechanism that drove participants
 away would look free in the welfare comparison.
 
+\paragraph{What was not varied or tested.} The optimizer settings (learning rate,
+batch size, weight decay, embedding initialization) and the architecture were held
+at one value, so the length of the transient is a property of this configuration
+and not of learned rankers in general; only the number of passes per round was
+varied. The margin of $0.002$ is a stated convention, not a derived one: the
+residual at round 1000 is inside it and above zero, and an entry round depends on
+the margin chosen. The bonus for a higher-status partner was varied in its margin
+$\delta$ and never removed, so the welfare comparison may depend on it. Population
+size and the gate target change together as $N$ changes. The 40 cells of the
+institutional grid are corrected for multiplicity and the cell-level tests of the
+sweeps are not. Whether the ranker's lower welfare comes from the order within
+its lists was not measured.
+
 \paragraph{The benchmark is not achievable.} The oracle ranks by true utility,
 including the pairwise chemistry no observable reveals, so every gap is a distance
 from a bound and not from an alternative a platform could deploy. Truncation is
