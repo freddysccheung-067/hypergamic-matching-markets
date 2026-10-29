@@ -87,8 +87,8 @@ strict no-op against committed one-thread output.
 | item | done | where |
 |---|---|---|
 | 7a every number traces to a CSV | yes: every quoted number is a macro written by `paper/gen_numbers.py` (225 macros, each block headed by its source files), which raises when a prose claim stops matching its file; a test renders it afresh against the committed copy, recomputes the headline numbers from the raw seed files, and checks that every macro the prose uses is defined | `tests/python/test_paper_numbers.py` |
-| 7b one command from a clean checkout | yes: `python paper/build.py` in a detached worktree of the release commit regenerates numbers and tables byte-identical to the committed ones, compiles 27 pages, and reports no overfull box and no undefined reference | README, "Building the paper" |
-| 7c hand arithmetic check | yes | `docs/ARITHMETIC_CHECK.md` |
+| 7b one command from a clean checkout | yes: `python paper/build.py` in a detached worktree of 67d16b6 regenerates the numbers, tables and figures byte-identical to the committed files, the only file it changes being `main.pdf` itself, and compiles 27 pages with no overfull box and no undefined reference | README, "Building the paper" |
+| 7c hand arithmetic check | yes, and then recomputed by script from the same CSVs: every printed value reproduces to its last digit. The one apparent disagreement was a unit slip in the check itself, a share of 0.2075 compared against the printed 20.8 percent, now noted there | `docs/ARITHMETIC_CHECK.md` |
 | 7d cross-references | yes: 49 labels, none duplicated; 77 references, none to a missing label; 36 cited keys, all in `refs.bib`; nine figures included, none unused | |
 | 7e references against DOIs | yes: 47 entries with a DOI match their Crossref record on title, year and first author; the 8 without one (PMLR, NeurIPS, JASSS, arXiv) were checked against the page in their `url` field. The checker's surname comparison dropped non-ASCII letters, which made Almås a false mismatch; it now folds accents on both sides | `paper/check_refs.py`, `paper/refs_check.csv` |
 | 7f two referee passes on the PDF alone | **pending** | |

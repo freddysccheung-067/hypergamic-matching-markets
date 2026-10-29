@@ -79,3 +79,11 @@ the 0.002 margin, which is the abstract's "does not close".
 Source `e13d_warm/analysis/summary.csv`, `gap_round0_F299`: confirmation 0.2075
 (95% t 0.1789 to 0.2362), exploratory 0.2403. Removed: 1 − 0.2075 = 0.79 and
 1 − 0.2403 = 0.76. Both are about four fifths.
+
+That quantity is a share: the CSV holds it as a fraction and the paper prints it
+as a percentage, 20.8 and 24.0. Checking the fraction against the percent reads as
+a factor-of-100 error, which is the one arithmetic slip this note made when it was
+recomputed by script. Every other line was reproduced from the CSVs to the digits
+printed, including the two equivalence statistics (23.237 and 22.264, printed as
+23.2 and 22.3) and the 90% interval, whose hand bounds (−0.000109 and +0.000195)
+match `tost_lo90` and `tost_hi90`.
