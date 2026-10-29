@@ -24,7 +24,9 @@ beats A after correction, and B falls further behind as the cost and the subgrap
 grow.
 The margin over the learned ranker is the larger one because that A's own welfare
 is lower, $\welfareANcf$ against $\welfareAOracle$, although its exposure has by
-then converged to the oracle's (\S\ref{sec:transient}).
+then converged to the oracle's (\S\ref{sec:transient}). Why its welfare is lower
+was not tested; the reading offered in \S\ref{sec:transient}, the right agents in a
+different order, is consistent with the numbers and unmeasured.
 
 The same grid read over its first five rounds, on the same seeds (a check added
 after the late-window result was read), finds no
@@ -37,7 +39,10 @@ involves no learning on A's side once the oracle's thresholds have settled. This
 experiment shows the difference and does not isolate its cause. In a gate regime
 that never binds ($\phi = 0.2$, read at five rounds, ten fresh seeds) size 0.65
 ranks first of ten at $c_B = 0.01$, as registered, with a mean of
-$\inertBest$ $[\inertBestLo, \inertBestHi]$.
+$\inertBest$ $[\inertBestLo, \inertBestHi]$, positive over the same five rounds in
+which the shipped gate gives $\fiveCell$. The sign of the early comparison thus
+depends on the gate as well as on the horizon, and the two were not varied
+together in one grid.
 
 \begin{figure}[t]
 \centering

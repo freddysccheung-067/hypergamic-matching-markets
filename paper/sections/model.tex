@@ -117,7 +117,11 @@ negatives are uniform. The ranker's own choices reach its training data through
 one channel only: they decide who proposes to whom, which moves thresholds by
 \eqref{eq:theta}, which changes admissible sets. This is the fact that answers
 the convergence objection of \S\ref{sec:intro}, and \S\ref{sec:what-ends} tests
-it.
+it. It also means that, once the gate stops binding, the positives are the
+oracle's top-$k$ lists by true utility: the ranker imitates the benchmark that the
+gap is measured against, and the gap is the rate at which that imitation
+converges. It is not the exposure of a ranker trained on engagement that its own
+lists produce.
 
 \subsection{The ranker}
 \label{sec:ranker}

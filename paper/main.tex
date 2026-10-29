@@ -45,16 +45,19 @@ collaborative filter, the ranker's exposure Gini exceeds the oracle's by
 $\peakGap$ at round \peakRound{} and by $\gapNinetyNine$ at round 99, and each of
 40 seeds then enters and stays inside a pre-registered margin of 0.002, between
 rounds \entryMinAll{} and \entryMaxAll{}. At round 0 the untrained ranker gives
-every agent on a side nearly the same twenty candidates. The length of the
-transient is set by optimizer steps rather than market rounds (elasticity
-$\doseElasticity$), and a ranker trained on data from a market it does not
-control closes the gap slightly faster. Over 1000 rounds the gap decays
-exponentially, with a half-life of \halfLife{} rounds, to a residual of
-$\longTail$, inside the margin. When a share of agents is replaced every round
+every agent on a side nearly the same twenty candidates. Across training doses on
+fresh logs the length of the transient is set by optimizer steps rather than
+market rounds (elasticity $\doseElasticity$), but a warm start and a larger
+market do not follow that rule, and a ranker trained on data from a market it
+does not control closes the gap slightly faster. Because the ranker is trained on
+the oracle's own lists, the gap is the rate at which an imitator converges. Over
+1000 rounds an exponential with a half-life of \halfLife{} rounds fits best, and
+the last fifty rounds average $\longTail$, above zero and inside the margin. When a share of agents is replaced every round
 the gap had not closed by round 600: at 0.5, 1 and 2 percent per round it is
 $\openGapLow$, $\openGapMid$ and $\openGapHigh$ over rounds 500 to 599, still
 falling at the lowest rate and rising at the other two. A companion institutional
-comparison changes sign between a five-round horizon and a late one.
+comparison at the shipped gate changes sign between a five-round horizon and a
+late one, and at an inert gate it does not.
 \end{abstract}
 
 \paragraph{Code and data.}

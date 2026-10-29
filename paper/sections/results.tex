@@ -32,8 +32,13 @@ The other arms bound the gap (Figure~\ref{fig:arms}). The oracle's exposure Gini
 settles at $\giniOracleTail$ within \oracleSettle{} rounds, as thresholds relax,
 and does not move after that: this is the concentration preferences produce. The
 NCF arm's Gini falls from the popularity closed form, $1 - 2k/N = 0.96$, to the
-oracle's level. The random arm sits at $\giniRandomTail$ and the popularity arm at
-0.96 throughout.
+oracle's level. At round 0 the oracle, random and popularity arms coincide, because the gate
+admits fewer than $k$ candidates and every arm hands out all of them. From round 1
+the popularity arm sits at 0.96, and the random arm falls to $\giniRandomTail$.
+The peak gap is therefore nearly a closed form: the ranker's $1 - 2k/N = 0.96$
+minus the oracle's settled $\giniOracleTail$, about 0.313. What the experiments
+measure is how long the ranker takes to leave the common list, not the size of the
+peak.
 
 \emph{Exposure converges; welfare does not.} At round 299 the ranker's
 algorithmic loss is $\algLossNcfFinal$, against $\algLossOracleFinal$ for the
@@ -364,6 +369,13 @@ $\cohortNewHighOracle$), and agents with fifty rounds or more receive more than
 their share ($\cohortOldLow$, $\cohortOldMid$, $\cohortOldHigh$). At 0.5 percent
 per round the newest agents are over-exposed instead ($\cohortNewLow$), which
 fails the registered prediction that they are under-exposed at every rate.
+
+The ordering follows from a ratio. An agent stays for $1/\nu$ rounds on average,
+200, 100 and 50 rounds at the three rates, against a closed-market entry round of
+about \entryMedianConf{}, so a higher rate leaves a larger share of agents newer than
+the ranker's learning time. No rate with $1/\nu$ well above that time was run, so
+the experiment shows that the gap tracks this ratio and does not locate where it
+falls inside the margin.
 
 A round has no calendar length here, so a replacement rate per round cannot be
 read as a platform's churn without knowing how many rounds of retraining a
