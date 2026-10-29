@@ -13,26 +13,27 @@ compiles the paper: \texttt{python paper/build.py}; adding \texttt{--analysis}
 first reruns every analysis from the per-seed files. Release v2.0.0 is archived on
 Zenodo, under the concept DOI 10.5281/zenodo.23620786.
 
-\paragraph{Pre-registration.} The repository's pre-registration file is append-only.
-Every experiment of the second revision was registered at commit
-\texttt{\regCommit}; the warm-start primary measure at \texttt{\regCommitWarm},
-written after the four candidate measures had been computed on earlier five-seed
-data, and saying so; the three post-hoc checks at \texttt{\regCommitCheckB} and
-\texttt{\regCommitCheckC}; and one execution failure, before any of its data
-existed, at \texttt{\regCommitRepair}. Table~\ref{tab:predictions} scores every
-registered prediction.
+\paragraph{Pre-registration.} The repository's pre-registration file is append-only,
+and each experiment is named by its entry there (R2-E9 and so on). Every
+experiment of Table~\ref{tab:experiments} except the post-hoc rows was registered
+at commit \texttt{\regCommit}; the warm-start primary measure at
+\texttt{\regCommitWarm}, written after the four candidate measures had been
+computed on earlier five-seed data, and saying so; the three post-hoc checks at
+\texttt{\regCommitCheckB} and \texttt{\regCommitCheckC}; and one execution failure,
+before any of its data existed, at \texttt{\regCommitRepair}. That failure was a
+configuration value written without a decimal point, which the configuration
+reader parsed as text, so all fifty floating-point-sensitivity runs stopped before
+computing anything and were rerun unchanged in design.
+Table~\ref{tab:predictions} scores every registered prediction.
 
 \begin{table}[p]
 \centering
 \input{tables/predictions}
-\caption{Every registered prediction of the second revision and whether it held,
-scored by \texttt{scripts/analyze\_extras.py} against the threshold its
-registration states. Source: \texttt{data/processed/horizon/predictions.csv}.}
+\caption{Every registered prediction and whether it held, scored by
+\texttt{scripts/analyze\_extras.py} against the threshold its registration
+states. Source: \texttt{data/processed/horizon/predictions.csv}.}
 \label{tab:predictions}
-\end{table} That failure was a configuration value written without
-a decimal point, which the configuration reader parsed as text, so all fifty
-floating-point-sensitivity runs stopped before computing anything and were rerun
-unchanged in design.
+\end{table}
 
 \paragraph{Thread count.} Every run is at one thread. The ranker's training is
 not bitwise reproducible across thread counts, because the order of floating-point
@@ -46,14 +47,13 @@ hash with the seed removed, the library versions and the wall time. The analysis
 scripts refuse a directory whose records disagree on commit or configuration
 hash. Table~\ref{tab:experiments} is built from these records.
 
-\paragraph{Directories from earlier revisions.} Results produced before this
-revision are kept and labeled archival; no number in this paper comes from them.
-A 300-round run of the shipped configuration produced two revisions earlier does
-not regenerate from the current code at any thread count from 1 to 24, in its NCF
-arm only. A twenty-seed 100-round run from the same period differs from a fresh
-run in the fourth decimal. A 300-round five-seed run produced in the previous
-revision at one thread reproduces exactly: seeds 42 to 46 of this revision's
-canonical run match it to every printed digit. The previous revision's
-institutional grids, its warm-start runs and its sweep were all read at horizons
-or seed counts this revision replaced, and are superseded by the experiments of
-Table~\ref{tab:experiments}.
+\paragraph{Archived directories.} Results produced before the experiments of
+Table~\ref{tab:experiments} are kept in the repository and labeled archival; no
+number in this paper comes from them. The 300-round run of the shipped
+configuration in the project's first release does not regenerate from the current
+code at any thread count from 1 to 24, in its NCF arm only, and that release's
+twenty-seed 100-round run differs from a fresh run in the fourth decimal. A later
+300-round five-seed run at one thread reproduces exactly: seeds 42 to 46 of the
+canonical run match it to every printed digit. The earlier institutional grids,
+warm-start runs and sweep were read at horizons or seed counts that the
+experiments of Table~\ref{tab:experiments} replace.

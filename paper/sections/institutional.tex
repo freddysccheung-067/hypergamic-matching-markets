@@ -26,8 +26,8 @@ The margin over the learned ranker is the larger one because that A's own welfar
 is lower, $\welfareANcf$ against $\welfareAOracle$, although its exposure has by
 then converged to the oracle's (\S\ref{sec:transient}).
 
-The same grid read over its first five rounds, on the same seeds and from this
-revision's code (a check added after the late-window result was read), finds no
+The same grid read over its first five rounds, on the same seeds (a check added
+after the late-window result was read), finds no
 cell in which B beats the oracle A: every cell's mean is negative, and A beats B
 after correction in \nABeatsFive{} of the forty. At size 0.65 and $c_B = 0.01$ the
 difference is $\fiveCell$ $[\fiveCellLo, \fiveCellHi]$ over rounds 0 to 4 and

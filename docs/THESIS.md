@@ -1,5 +1,10 @@
 # Thesis
 
+This document states the project's design and its hypotheses with their kill conditions. The
+numbers quoted in its later sections are from earlier versions of the project and are archival;
+the current results, and the horizon at which each holds, are in the paper
+([paper/main.pdf](../paper/main.pdf)), from `data/processed/horizon/`.
+
 ## What this project is, and what it is not
 
 This is a computational model of what happens to a matching market when a **recommender sits

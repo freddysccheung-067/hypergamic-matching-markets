@@ -95,12 +95,14 @@ visibility inside it and an entry filter on values.
 At `c = 0` every type proposes, so a proposal says nothing about intent: Akerlof's pooling outcome.
 At `c > 0` only types with `τ > c / (V̄ · p)` propose, so a proposal carries information: Spence's
 separating outcome. The thesis is that welfare is maximized at an interior point, with information
-gained against liquidity lost. Measured against an oracle Environment A over five seeds
-(`data/processed/institutional/grid_summary.csv`, `welfare_diff_residual`), that holds at `c = 0.01`
-only: the gain peaks at `size_fraction` 0.65 at +64.6 ± 9.9 and is −10.8 at 0.05. At `c ≥ 0.05` the
-best cell is no better than zero (+0.23 ± 5.8 at `c = 0.05`), and against an NCF-mediated A the
-ordering changes. [docs/THESIS.md](docs/THESIS.md) states H4 and H5 with their kill conditions, and
-THEORY §10 and `data/processed/institutional/README.md` give the accounting.
+gained against liquidity lost. In the paper's grid (shipped gate, ten seeds, welfare over rounds
+250 to 299, `data/processed/horizon/e15_institutional/`), that holds at `c = 0.01` only: B beats
+an oracle Environment A after correction at four sizes from 0.35 to 0.80, peaking at
+`size_fraction` 0.65 at +58.3 [+18.6, +98.0], and beats an NCF-mediated A at six sizes. No cell
+at `c ≥ 0.05` beats A. Read over rounds 0 to 4 instead, the same grid has no cell with B ahead
+of the oracle A, so the comparison depends on when it is read. The five-seed grid of earlier
+versions (`data/processed/institutional/`) is archival. [docs/THESIS.md](docs/THESIS.md) states H4
+and H5 with their kill conditions, and THEORY §10 gives the accounting.
 
 ## Results
 
@@ -132,16 +134,16 @@ Headline numbers, read off the committed output:
   1% of agents hold 12.5% of exposure at epoch 1 against 11.9% at epoch 50. The same movement read
   twice: what looks like concentration easing is the recommender learning coverage, and the
   concentration that remains is a cold-start property, not something the loop compounds.
-- **The NCF–oracle exposure gap is a cold-start effect.** At N = 1000, k = 20, five seeds, the
-  shipped regime (`admissible_fraction = 0.02`): the Gini gap is +0.287 ± 0.010 at epoch 19 and
-  +0.025 ± 0.008 at epoch 99, positive on every seed (`data/processed/ablation_live/` and
-  `ablation_h100/`). Extended to 300 epochs it peaks at +0.306 and its tail is indistinguishable
-  from zero (`data/processed/rigor/long_horizon_1t/`), so the 100-epoch figure describes a
-  transient rather than a floor. The 20-epoch figure of +0.285 measured at
-  `admissible_fraction = 0.2` (`data/processed/ablation/`) is the same quantity in the inert
-  regime. The mechanism that would explain the decay — the filter learning coverage — is **not
-  established**: the two interventions meant to test it do not (`docs/PREREGISTRATION.md` E3).
-  Quote the horizon with the number.
+- **The NCF–oracle exposure gap is a transient, and its length is set by training.** This is the
+  paper's result, at N = 1000, k = 20, the shipped regime (`admissible_fraction = 0.02`), one
+  thread, twenty confirmation seeds (100–119), from `data/processed/horizon/`. The gap peaks at
+  +0.313 at round 6 and is +0.0253 [+0.0217, +0.0290] at round 99. Every one of forty seeds then
+  enters a pre-registered margin of 0.002 and stays inside it, between rounds 194 and 269.
+  Over 1000 rounds it decays exponentially, with a half-life of 29.6 rounds. The transient's length
+  scales with optimizer steps, not rounds (elasticity −0.99 in the training dose), and a warm
+  start removes about four fifths of the decay. With a share of agents replaced every round, the
+  gap had not closed by round 600. Quote the horizon with the number. The 20- and 100-epoch
+  figures of earlier versions (`data/processed/ablation*/`, `rigor/`) are archival.
 - **`δ` moves matching without moving concentration.** Across `δ = 0 → 1.5` the final-epoch Gini
   stays inside a 0.007 band (0.8334–0.8405), shortlist overlap against `δ = 0` falls to 0.8528
   (about three entries of a twenty-item list turn over), and rank satisfaction runs 0.4769 at `δ = 0`
@@ -185,7 +187,9 @@ feedback loop that grows to a Gini spread as large as the between-seed one. `ncf
 therefore pinned to 1 by default and is part of what identifies a run. Raise it for speed and record
 it.
 
-**The committed data is archival.** Most of `data/processed/` was generated before
+**The paper's data is `data/processed/horizon/`.** Every run there was made at one thread, from
+a committed tree, with a run record per seed ([its README](data/processed/horizon/README.md)).
+**The rest of the committed data is archival.** Most of `data/processed/` was generated before
 `ncf.num_threads` existed, at the count the development machine reports by default (24); the
 directories added on 2026-10-25 (`rigor/fresh/`, `rigor/exploratory_1t/`, `rigor/long_horizon_1t/`,
 `rigor/interventions/`, `rigor/latefreeze/`, `rigor/c4_shock0.5/`, `rigor/c2_fresh_inert/`,
@@ -268,9 +272,10 @@ W-proposing baseline without saying so. See
 [docs/INTERFACES.md §5](docs/INTERFACES.md) for the derivation and for the W-proposing sensitivity
 check.
 
-**No dynamic entry or exit beyond generational turnover.** Nobody joins or leaves the market in
-response to outcomes, so there is no selection at the extensive margin, and a market that got bad
-enough to empty out could not show it.
+**No entry or exit in response to outcomes.** Agents leave only through generational turnover
+or, in the paper's open market, through replacement drawn uniformly at random. Nobody leaves
+because of how they fare, so there is no selection at the extensive margin, and a market that got
+bad enough to empty out could not show it.
 
 **Preferences do not respond to exposure.** `generate_swipes` takes no shown-set argument, so what
 the recommender surfaces never shapes what anyone wants and the Matthew effect is not compounded by
@@ -324,6 +329,10 @@ It regenerates the numbers, tables and figures from the committed result files, 
 paper/build.py --analysis` first reruns every analysis from the per-seed files. Rerunning the
 simulations themselves is `scripts/make_jobs.py` and `scripts/run_queue.py`; their cost is in
 [docs/COMPUTE_PLAN.md](docs/COMPUTE_PLAN.md).
+
+`python paper/make_arxiv.py` writes `paper/arxiv-source.tar.gz`: the sources `main.tex` uses
+and the generated `main.bbl`, since arXiv does not run BibTeX. It then extracts the archive
+into an empty directory and compiles it there with TeX alone, and fails if anything is missing.
 
 [docs/REVIEW.md](docs/REVIEW.md) is an earlier adversarial review;
 [docs/REVIEW_RESPONSE.md](docs/REVIEW_RESPONSE.md) answers it item by item.

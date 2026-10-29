@@ -34,9 +34,10 @@ the round-99 oracle level, a third construction.
 
 ## Phases 2 to 4: the experiments
 
-All registered at 480cd6c before any ran; run from detached worktrees of committed
-trees, at one thread, each seed with a provenance record. 331 jobs in the first
-pass (2026-10-27, 21:14 to 01:15).
+All registered at 480cd6c before any ran, except the post-hoc rows, which are
+labeled; run from detached worktrees of committed trees, at one thread, each seed
+with a provenance record. 331 jobs in the first pass (2026-10-27, 21:14 to 01:15),
+then the 50 R2-E16 reruns, 20 R2-E13b-check jobs and 10 R2-E15s jobs (2026-10-28).
 
 | experiment | status | result that changed a claim |
 |---|---|---|
@@ -45,16 +46,16 @@ pass (2026-10-27, 21:14 to 01:15).
 | R2-E11 sweep at 300 rounds | done | re-registered as trajectory claims; C2t fails at chemistry 0.5 and 3.0; negative tails at chemistry 0.5 and β/α 3 |
 | R2-E12 diagnostics | done | registered rank-correlation prediction failed in sign; the gap tracks shortlist overlap and the breakup of the common list |
 | R2-E13a dose | done | the transient's length is set by optimizer steps |
-| R2-E13b exploration | done; comparator check run, **analysis pending** | registered "no difference" failed |
+| R2-E13b exploration | done; comparator check (post hoc, b8e34e4) done | registered "no difference" failed; against a same-length head the round-299 excess is +0.0024 [-0.0017, +0.0065], so it was the comparator's, while the faster closing at rounds 49 and 99 survives |
 | R2-E13c off-policy | done | feedback through thresholds is real and small; registered prediction failed |
 | R2-E13d warm start, 40 seeds | done | about four fifths of the decay removed, on both sets |
-| R2-E14 arrivals | done; trend check registered (d91a312), **computation pending** | the gap does not close in an open market |
+| R2-E14 arrivals | done; trend check (post hoc, d91a312) done | the gap has not closed by round 600 at any rate; the registered stationarity check fails at every rate, and the trend over rounds 400 to 599 is -0.0029, +0.0040 and +0.0196 (every interval excludes zero), so the levels are readings at a horizon, not steady states |
 | R2-E15 institutional, rounds 250 to 299 | done | B beats both A arms at the lowest cost: reverses the first revision's "refuted at the shipped gate", which read five rounds |
-| R2-E15s five-round grid (post hoc) | registered d91a312, jobs built ec0eb83, **not run** | |
+| R2-E15s five-round grid (post hoc) | done; registered d91a312, run at ec0eb83 | over rounds 0 to 4 no cell has B ahead of the oracle A, and A wins after correction in 28 of 40; at size 0.65 and c_B = 0.01 the difference is -9.9 [-25.9, +6.1], against +58.3 over rounds 250 to 299 |
 | R2-E15i inert gate | done | size 0.65 ranks first, as registered |
 | R2-E16 floating point | done after a rerun (R2-E16a) | within-seed spread reaches the between-seed spread |
 | R2-E17 population size | done | transient not monotone in N; registered "peak rises with N" failed |
-| R2-E18 data units | **table pending** (`scripts/analyze_extras.py`) | neither data nor steps make the length transfer across N |
+| R2-E18 data units | done (`horizon/units.csv`, the paper's units table) | neither data nor steps make the length transfer across N; a warm start's steps on one log are worth less than steps on fresh logs (62 against 87 rounds, but 2,642 against 2,131 steps) |
 | R2-H1r, R2-H5r | done | H1 holds at the shipped gate; H5 interaction includes zero |
 
 R2-E14 needed no C++ change: replacement in a fixed-capacity slot keeps the state
@@ -77,24 +78,31 @@ strict no-op against committed one-thread output.
 | every named reference verified | yes, against Crossref or the publisher's page | `paper/check_refs.py`, `paper/refs_check.csv` |
 | Bilderbeek removed from paper and every document | yes; the owner confirmed it is not a real source | 1a80cf2, `docs/UNVERIFIED_REFS.md` |
 | restructure around the horizon result | written | `paper/sections/` |
-| figures | written; **final render pending** | `paper/figures.py` |
-| style pass | written to the brief's rules; **spell check pending** | |
-| front matter: author, date, code and data, scope | written; DOI pending a release | `paper/main.tex` |
+| figures | done: nine figures rendered from the committed CSVs, each checked as an image; byte-identical when rebuilt from unchanged data | `paper/figures.py` |
+| style pass | done as a pattern scan of the TeX sources for British spellings, em dashes, stock phrases, repeated words and process traces; fixed what it found (one British spelling, six sentences about the revision process). No dictionary spell checker is installed, so this is not a full spell check | |
+| front matter: author, date, code and data, scope | done; the paper cites the Zenodo concept DOI, which resolves to the newest version once release v2.0.0 is published | `paper/main.tex` |
 
-## Phase 7: verification — pending
+## Phase 7: verification
 
-The analysis extras, number and table generation, figure render, compile, test
-suite, cross-reference check, reviewer passes and arxiv source check have not run.
-They are scripted (`python paper/build.py --analysis`). `docs/ARITHMETIC_CHECK.md`
-is done by hand from the analysis CSVs.
+| item | done | where |
+|---|---|---|
+| 7a every number traces to a CSV | yes: every quoted number is a macro written by `paper/gen_numbers.py` (225 macros, each block headed by its source files), which raises when a prose claim stops matching its file; a test renders it afresh against the committed copy, recomputes the headline numbers from the raw seed files, and checks that every macro the prose uses is defined | `tests/python/test_paper_numbers.py` |
+| 7b one command from a clean checkout | yes: `python paper/build.py` in a detached worktree of the release commit regenerates numbers and tables byte-identical to the committed ones, compiles 27 pages, and reports no overfull box and no undefined reference | README, "Building the paper" |
+| 7c hand arithmetic check | yes | `docs/ARITHMETIC_CHECK.md` |
+| 7d cross-references | yes: 49 labels, none duplicated; 77 references, none to a missing label; 36 cited keys, all in `refs.bib`; nine figures included, none unused | |
+| 7e references against DOIs | yes: 47 entries with a DOI match their Crossref record on title, year and first author; the 8 without one (PMLR, NeurIPS, JASSS, arXiv) were checked against the page in their `url` field. The checker's surname comparison dropped non-ASCII letters, which made Almås a false mismatch; it now folds accents on both sides | `paper/check_refs.py`, `paper/refs_check.csv` |
+| 7f two referee passes on the PDF alone | **pending** | |
+| 7g this report | yes | |
+| 7h arXiv source | yes: `paper/arxiv-source.tar.gz` carries exactly the files `main.tex` uses plus the generated `main.bbl`; extracted into an empty directory, it compiles with TeX alone and no BibTeX, 27 pages, no undefined reference or citation; a test fails if it is stale against the sources | `paper/make_arxiv.py`, `tests/python/test_arxiv_source.py` |
 
 ## Registered predictions that failed
 
 Recorded in the paper, not repaired: R2-E11 C5t (a reversal also at β/α 3);
 R2-E12 reach at round 0, the correlation sign, the item share by round 100;
 R2-E13b; R2-E13c; R2-E13d round-0 reach on one seed; R2-E14 newcomers at 0.5%;
-R2-E15 (B beats the oracle A); R2-E17 peak with N. The scored table is
-`data/processed/horizon/predictions.csv` (**pending**).
+R2-E15 (B beats the oracle A); R2-E17 peak with N. Of the 39 scored predictions,
+29 held and 10 failed; the scored table is
+`data/processed/horizon/predictions.csv`, printed as the paper's predictions table.
 
 ## Where the brief was wrong
 

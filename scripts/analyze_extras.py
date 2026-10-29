@@ -466,7 +466,7 @@ def predictions(x9: dict[str, float]) -> pd.DataFrame:
     lo, hi = h5.loc["interaction", "lo_t95"], h5.loc["interaction", "hi_t95"]
     add("R2-H5r", "interaction interval includes zero", f"[{lo:+.1f}, {hi:+.1f}]", lo < 0 < hi)
     gaps_ = [s14.loc[r, "steady_gap"] for r in (0.005, 0.01, 0.02)]
-    add("R2-E14", "steady gap increases with the rate",
+    add("R2-E14", "gap over rounds 500-599 increases with the rate",
         " < ".join(f"{g:.4f}" for g in gaps_), gaps_[0] < gaps_[1] < gaps_[2])
     add("R2-E14", "at rate 0.02 the interval excludes zero",
         f"lower bound {s14.loc[0.02, 'steady_lo95']:+.4f}", s14.loc[0.02, "steady_lo95"] > 0)

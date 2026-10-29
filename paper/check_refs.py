@@ -21,6 +21,7 @@ import csv
 import json
 import re
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -62,12 +63,25 @@ def words(text: str) -> set[str]:
     return {w for w in re.findall(r"[a-z0-9]+", text) if len(w) > 2}
 
 
+# Letters NFKD does not split into a base letter and an accent, and the TeX commands
+# that write them, so "R{\o}ed" in refs.bib and "Røed" from Crossref both fold to "roed".
+FOLD = str.maketrans({"ø": "o", "æ": "ae", "œ": "oe", "ß": "ss", "ł": "l", "đ": "d", "ı": "i"})
+TEX_LETTERS = {"aa": "a", "o": "o", "ae": "ae", "oe": "oe", "ss": "ss", "l": "l", "i": "i"}
+
+
+def ascii_name(name: str) -> str:
+    name = re.sub(r"\\(aa|ae|oe|ss|o|l|i)\b", lambda m: TEX_LETTERS[m.group(1)], name.lower())
+    # Accents: symbol commands (\" \' \^) and letter commands with an argument (\H{o}, \v{s}).
+    name = re.sub(r"\\[^a-z]|\\[a-z](?=\{)|[{}]", "", name)
+    name = unicodedata.normalize("NFKD", name.translate(FOLD))
+    return re.sub(r"[^a-z]", "", "".join(c for c in name if not unicodedata.combining(c)))
+
+
 def surname(author_field: str) -> str:
     first = author_field.split(" and ")[0].strip()
     if not first:
         return ""
-    name = first.split(",")[0] if "," in first else first.split()[-1]
-    return re.sub(r"[^a-z]", "", re.sub(r"\\.|[{}]", "", name.lower()))
+    return ascii_name(first.split(",")[0] if "," in first else first.split()[-1])
 
 
 def check(entry: dict[str, str]) -> dict[str, str]:
@@ -88,7 +102,7 @@ def check(entry: dict[str, str]) -> dict[str, str]:
              for k in ("issued", "published-print", "published-online")}
     year = "/".join(sorted(y for y in years if y != "None"))
     authors = msg.get("author", [])
-    family = re.sub(r"[^a-z]", "", authors[0].get("family", "").lower()) if authors else ""
+    family = ascii_name(authors[0].get("family", "")) if authors else ""
     a, b = words(entry.get("title", "")), words(title)
     overlap = len(a & b) / max(1, min(len(a), len(b)))
     problems = []

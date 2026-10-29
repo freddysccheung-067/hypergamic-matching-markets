@@ -43,7 +43,8 @@ plt.rcParams.update({
 
 def save(fig, name: str) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
-    fig.savefig(OUT / f"{name}.pdf", bbox_inches="tight")
+    # No creation date, so rebuilding from unchanged data rewrites identical bytes.
+    fig.savefig(OUT / f"{name}.pdf", bbox_inches="tight", metadata={"CreationDate": None})
     plt.close(fig)
     print(f"wrote paper/figures/{name}.pdf")
 

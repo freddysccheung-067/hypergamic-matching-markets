@@ -1,6 +1,5 @@
 key,doi,status,detail
 hall1935,10.1112/jlms/s1-10.37.26,ok,On Representatives of Subsets
-bilderbeek2026,,no-doi,
 chen2023,10.1111/iere.12631,ok,REDUCING RECOMMENDATION INEQUALITY VIA TWO‐SIDED MATCHING: A FIELD EXPERIMENT OF ONLINE DA
 gale1962,10.1080/00029890.1962.11989827,ok,College Admissions and the Stability of Marriage
 chaney2018,10.1145/3240323.3240370,ok,How algorithmic confounding in recommendation systems increases homogeneity and decreases 
@@ -18,7 +17,7 @@ kelso1982,10.2307/1913392,ok,"Job Matching, Coalition Formation, and Gross Subst
 crawford1991,10.1016/0022-0531(91)90129-r,ok,Comparative statics in matching markets
 becker1973,10.1086/260084,ok,A Theory of Marriage: Part I
 choo2006,10.1086/498585,ok,Who Marries Whom and Why
-galichon2022,10.1093/restud/rdab090,MISMATCH,year 2021 vs 2022
+galichon2022,10.1093/restud/rdab090,ok,Cupid’s Invisible Hand: Social Surplus and Identification in Matching Models
 bruch2018,10.1126/sciadv.aap9815,ok,Aspirational pursuit of mates in online dating markets
 pizzato2010,10.1145/1864708.1864747,ok,RECON
 tomita2022,10.1145/3523227.3547406,ok,Matching Theory-based Recommender Systems in Online Dating
@@ -37,4 +36,21 @@ windrum2007,,no-doi,https://www.jasss.org/10/2/8.html
 fagiolo2007,10.1007/s10614-007-9104-4,ok,A Critical Guide to Empirical Validation of Agent-Based Models in Economics: Methodologies
 schein2002,10.1145/564376.564421,ok,Methods and metrics for cold-start recommendations
 li2010,10.1145/1772690.1772758,ok,A contextual-bandit approach to personalized news article recommendation
+damour2020,10.1145/3351095.3372878,ok,Fairness is not static
+liu2018,,no-doi,https://proceedings.mlr.press/v80/liu18c.html
+perdomo2020,,no-doi,https://proceedings.mlr.press/v119/perdomo20a.html
+ensign2018,,no-doi,https://proceedings.mlr.press/v81/ensign18a.html
+sinha2016,,no-doi,https://proceedings.neurips.cc/paper/2016/hash/962e56a8a0b0420d87272a682bfd1e53-Abstract.html
+schnabel2016,,no-doi,https://proceedings.mlr.press/v48/schnabel16.html
+singh2018,10.1145/3219819.3220088,ok,Fairness of Exposure in Rankings
+biega2018,10.1145/3209978.3210063,ok,Equity of Attention
+fleder2009,10.1287/mnsc.1080.0974,ok,Blockbuster Culture's Next Rise or Fall: The Impact of Recommender Systems on Sales Divers
+rendle2020,10.1145/3383313.3412488,ok,Neural Collaborative Filtering vs. Matrix Factorization Revisited
+mladenov2020,,no-doi,https://proceedings.mlr.press/v119/mladenov20a.html
+arnosti2021,10.1287/msom.2020.0927,ok,Managing Congestion in Matching Markets
+rios2021,10.1287/opre.2021.2116,ok,Improving the Chilean College Admissions System
+lakens2017,10.1177/1948550617697177,ok,Equivalence Tests
+saintpaul2015,10.1017/dem.2015.8,ok,"GENES, LEGITIMACY AND HYPERGAMY: ANOTHER LOOK AT THE ECONOMICS OF MARRIAGE"
+almas2023,10.3368/jhr.58.3.1219-10604R1,ok,The Economics of Hypergamy
+kingma2015,,no-doi,https://arxiv.org/abs/1412.6980
 akbarpour2020,10.1086/704761,ok,Thickness and Information in Dynamic Matching Markets
