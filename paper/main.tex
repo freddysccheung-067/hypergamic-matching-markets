@@ -37,27 +37,23 @@
 
 \begin{abstract}
 \noindent
-When a learned ranker decides which candidates each side of a matching market
-sees, the concentration it adds to exposure is measured against an oracle that
-ranks by true utility, and the answer depends on when it is measured. In a
-simulated market of 1000 agents whose top-20 shortlists come from a neural
-collaborative filter, the ranker's exposure Gini exceeds the oracle's by
-$\peakGap$ at round \peakRound{} and by $\gapNinetyNine$ at round 99, and each of
-40 seeds then enters and stays inside a pre-registered margin of 0.002, between
-rounds \entryMinAll{} and \entryMaxAll{}. At round 0 the untrained ranker gives
-every agent on a side nearly the same twenty candidates. Across training doses on
-fresh logs the length of the transient is set by optimizer steps rather than
-market rounds (elasticity $\doseElasticity$), but a warm start and a larger
-market do not follow that rule, and a ranker trained on data from a market it
-does not control closes the gap slightly faster. Because the ranker is trained on
-the oracle's own lists, the gap is the rate at which an imitator converges. Over
-1000 rounds an exponential with a half-life of \halfLife{} rounds fits best, and
-the last fifty rounds average $\longTail$, above zero and inside the margin. When a share of agents is replaced every round
-the gap had not closed by round 600: at 0.5, 1 and 2 percent per round it is
-$\openGapLow$, $\openGapMid$ and $\openGapHigh$ over rounds 500 to 599, still
-falling at the lowest rate and rising at the other two. A companion institutional
-comparison at the shipped gate changes sign between a five-round horizon and a
-late one, while at an inert gate the five-round comparison is positive.
+A learned ranker's added exposure concentration, measured against an oracle that
+ranks by true utility, depends on when it is measured. In a simulated market of
+1000 agents whose top-20 shortlists come from a neural collaborative filter, the
+ranker's exposure Gini exceeds the oracle's by $\peakGap$ at round \peakRound{}
+and $\gapNinetyNine$ at round 99, and each of 40 seeds then enters and stays
+inside a pre-registered margin of 0.002, between rounds \entryMinAll{} and
+\entryMaxAll{}. At round 0 the untrained ranker gives every agent nearly the same
+twenty candidates. Across training doses on fresh logs the transient's length is
+set by optimizer steps rather than rounds (elasticity $\doseElasticity$); a warm
+start and a larger market do not follow that rule. Because the ranker trains on
+the oracle's own lists, the gap is an imitator's convergence rate: over 1000
+rounds an exponential with half-life \halfLife{} rounds fits best, and the last
+fifty rounds average $\longTail$, above zero and inside the margin. When a share
+of agents is replaced every round the gap had not closed by round 600: at 0.5, 1
+and 2 percent per round it is $\openGapLow$, $\openGapMid$ and $\openGapHigh$.
+The institutional comparison changes sign between a five-round and a late
+horizon.
 \end{abstract}
 
 \paragraph{Code and data.}
