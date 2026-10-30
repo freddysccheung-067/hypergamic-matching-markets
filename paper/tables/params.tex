@@ -1,0 +1,41 @@
+\small
+\begin{tabular}{llll}
+\hline
+Symbol & Meaning & Shipped & Swept \\
+\hline
+$N$ & agents & 1000 & 500, 2000 \\
+$k$ & shortlist length & 20 & not swept \\
+$\phi$ & admissible share at round 0 & 0.02 & $20/N$ with $N$; 0.2 (inert gate) \\
+$\eta$ & threshold step & 0.1 & not swept \\
+$\nu$ & replacement share per round & 0 & 0.005, 0.01, 0.02 \\
+\hline
+$\alpha$ & status weight & 1 & not swept \\
+$\beta$ & attractiveness weight & 2 & 1, 3 \\
+$\gamma$ & distance penalty & 0.3 & not swept \\
+$\lambda$ & status-surplus bonus & 1.5 & not swept \\
+$\delta$ & status margin (sd) & 0.5 & 0, 1 \\
+$\sigma_L$ & chemistry scale & 1.5 & 0.5, 3.0 \\
+$\sigma_\tau$ & taste spread (log-sd) & 0.5 & 0.2, 1.0 \\
+\hline
+$s$ & status, lognormal (log-mean, log-sd) & 0, 0.8 & not swept \\
+$a$ & attractiveness, normal, clipped & 0.5, 0.15 & not swept \\
+$c$ & sociability, normal, clipped & 0.5, 0.15 & not swept \\
+$t$ & age, normal & 30, 6 & not swept \\
+$\tau, g$ & intent, values: Beta & (2, 2) & not swept \\
+\hline
+ & embedding dimension & 64 & not swept \\
+ & perceptron widths & 128, 64, 32 & not swept \\
+ & learning rate, weight decay & $10^{-3}$, $10^{-5}$ & not swept \\
+ & positive weight, negatives per positive & 4, 4 & not swept \\
+$\rho$ & training passes per round & 1 & 0.5, 2, 4 \\
+ & exploration share & 0 & 0.05, 0.2 \\
+ & warm-start passes & 0 & 50 \\
+\hline
+$\phi_B$ & subgraph share & 0.5 & 0.02 to 1.00 (ten levels) \\
+$c_B$ & proposal cost & 0.25 & 0.01, 0.05, 0.10, 0.25 \\
+$g_{\min}$ & values filter & 0.3 & not swept \\
+$d$ & defection penalty & 0.5 & not swept \\
+$\sigma_0, \sigma_\alpha, \sigma_\beta$ & survival & 1, 0.5, 0.5 & not swept \\
+$L$ & partner loss & 1 & not swept \\
+\hline
+\end{tabular}

@@ -1,0 +1,58 @@
+key,doi,status,detail
+hall1935,10.1112/jlms/s1-10.37.26,ok,On Representatives of Subsets
+chen2023,10.1111/iere.12631,ok,REDUCING RECOMMENDATION INEQUALITY VIA TWO‐SIDED MATCHING: A FIELD EXPERIMENT OF ONLINE DA
+gale1962,10.1080/00029890.1962.11989827,ok,College Admissions and the Stability of Marriage
+chaney2018,10.1145/3240323.3240370,ok,How algorithmic confounding in recommendation systems increases homogeneity and decreases 
+mansoury2020,10.1145/3340531.3412152,ok,Feedback Loop and Bias Amplification in Recommender Systems
+hitsch2010,10.1257/aer.100.1.130,ok,Matching and Sorting in Online Dating
+kanoria2021,10.1287/mnsc.2020.3794,ok,Facilitating the Search for Partners on Matching Platforms
+akerlof1970,10.2307/1879431,ok,"The Market for ""Lemons"": Quality Uncertainty and the Market Mechanism"
+spence1973,10.2307/1882010,ok,Job Market Signaling
+roth1999,10.1111/1468-0262.00002,ok,Truncation Strategies in Matching Markets-in Search of Advice for Participants
+ashlagi2017,10.1086/689869,ok,Unbalanced Random Matching Markets: The Stark Effect of Competition
+hoppe2009,10.1111/j.1467-937x.2008.00517.x,ok,The Theory of Assortative Matching Based on Costly Signals
+roth1982,10.1287/moor.7.4.617,ok,The Economics of Matching: Stability and Incentives
+knuth1996,10.1090/crmp/010,ok,Stable Marriage and Its Relation to Other Combinatorial Problems
+kelso1982,10.2307/1913392,ok,"Job Matching, Coalition Formation, and Gross Substitutes"
+crawford1991,10.1016/0022-0531(91)90129-r,ok,Comparative statics in matching markets
+becker1973,10.1086/260084,ok,A Theory of Marriage: Part I
+choo2006,10.1086/498585,ok,Who Marries Whom and Why
+galichon2022,10.1093/restud/rdab090,ok,Cupid’s Invisible Hand: Social Surplus and Identification in Matching Models
+bruch2018,10.1126/sciadv.aap9815,ok,Aspirational pursuit of mates in online dating markets
+pizzato2010,10.1145/1864708.1864747,ok,RECON
+tomita2022,10.1145/3523227.3547406,ok,Matching Theory-based Recommender Systems in Online Dating
+he2017,10.1145/3038912.3052569,ok,Neural Collaborative Filtering
+jiang2019,10.1145/3306618.3314288,ok,Degenerate Feedback Loops in Recommender Systems
+abdollahpouri2019,10.1145/3306618.3314309,ok,Popularity Bias in Ranking and Recommendation
+sonboli2022,10.1002/aaai.12054,ok,The multisided complexity of fairness in recommender systems
+roth1999peranson,10.1257/aer.89.4.748,ok,The Redesign of the Matching Market for American Physicians: Some Engineering Aspects of E
+halaburda2018,10.1287/mnsc.2017.2797,ok,Competing by Restricting Choice: The Case of Matching Platforms
+esteve2016,10.1111/padr.12012,ok,The End of Hypergamy: Global Trends and Implications
+schwartz2005,10.1353/dem.2005.0036,ok,Trends in educational assortative marriage from 1940 to 2003
+eika2019,10.1086/702018,ok,Educational Assortative Mating and Household Income Inequality
+fisman2006,10.1162/qjec.2006.121.2.673,ok,Gender Differences in Mate Selection: Evidence From a Speed Dating Experiment
+lin2013,10.1086/673129,ok,"Mate Selection in Cyberspace: The Intersection of Race, Gender, and Education"
+windrum2007,,no-doi,https://www.jasss.org/10/2/8.html
+fagiolo2007,10.1007/s10614-007-9104-4,ok,A Critical Guide to Empirical Validation of Agent-Based Models in Economics: Methodologies
+schein2002,10.1145/564376.564421,ok,Methods and metrics for cold-start recommendations
+li2010,10.1145/1772690.1772758,ok,A contextual-bandit approach to personalized news article recommendation
+damour2020,10.1145/3351095.3372878,ok,Fairness is not static
+liu2018,,no-doi,https://proceedings.mlr.press/v80/liu18c.html
+perdomo2020,,no-doi,https://proceedings.mlr.press/v119/perdomo20a.html
+ensign2018,,no-doi,https://proceedings.mlr.press/v81/ensign18a.html
+sinha2016,,no-doi,https://proceedings.neurips.cc/paper/2016/hash/962e56a8a0b0420d87272a682bfd1e53-Abstract.html
+schnabel2016,,no-doi,https://proceedings.mlr.press/v48/schnabel16.html
+singh2018,10.1145/3219819.3220088,ok,Fairness of Exposure in Rankings
+biega2018,10.1145/3209978.3210063,ok,Equity of Attention
+fleder2009,10.1287/mnsc.1080.0974,ok,Blockbuster Culture's Next Rise or Fall: The Impact of Recommender Systems on Sales Divers
+rendle2020,10.1145/3383313.3412488,ok,Neural Collaborative Filtering vs. Matrix Factorization Revisited
+mladenov2020,,no-doi,https://proceedings.mlr.press/v119/mladenov20a.html
+arnosti2021,10.1287/msom.2020.0927,ok,Managing Congestion in Matching Markets
+rios2021,10.1287/opre.2021.2116,ok,Improving the Chilean College Admissions System
+lakens2017,10.1177/1948550617697177,ok,Equivalence Tests
+saintpaul2015,10.1017/dem.2015.8,ok,"GENES, LEGITIMACY AND HYPERGAMY: ANOTHER LOOK AT THE ECONOMICS OF MARRIAGE"
+almas2023,10.3368/jhr.58.3.1219-10604R1,ok,The Economics of Hypergamy
+kingma2015,,no-doi,https://arxiv.org/abs/1412.6980
+akbarpour2020,10.1086/704761,ok,Thickness and Information in Dynamic Matching Markets
+patro2020,10.1145/3366423.3380196,ok,FairRec: Two-Sided Fairness for Personalized Recommendations in Two-Sided Platforms
+stoica2018,10.1145/3178876.3186140,ok,Algorithmic Glass Ceiling in Social Networks

@@ -1,13 +1,12 @@
 % Bibliography for this paper.
 %
-% Every entry here appears in docs/LITERATURE.md. No source was added from
-% memory, and none of the three sources discussed in docs/RELATED_WORK.md but
-% absent from docs/LITERATURE.md (Chiappori & Salanie 2016; Koren, Bell &
-% Volinsky 2009) is cited anywhere in the paper.
-%
-% Volume, issue, page and DOI data are transcribed from docs/LITERATURE.md,
-% which records them as verified against Crossref or OpenAlex in the session
-% that produced the bibliography note.
+% Every entry with a DOI is checked against its Crossref record by
+% paper/check_refs.py (title, first author, year); the result is
+% paper/refs_check.csv. Entries without a DOI (PMLR, NeurIPS and JASSS papers)
+% were checked against the publisher's own page, which the url field gives.
+% No source was added from memory. A source cited in an earlier draft could
+% not be verified as a real publication and was removed; see
+% docs/UNVERIFIED_REFS.md.
 
 @article{hall1935,
   author  = {Hall, Philip},
@@ -18,17 +17,6 @@
   number  = {1},
   pages   = {26--30},
   doi     = {10.1112/jlms/s1-10.37.26}
-}
-
-@misc{bilderbeek2026,
-  author       = {Bilderbeek, E.},
-  title        = {Hypergamy Is Solved: Feasibility, Deficit, and Equilibrium in
-                  Status-Ordered Matching Markets, with an Application to the
-                  Six-Foot Rule},
-  year         = {2026},
-  month        = oct,
-  howpublished = {Self-published, University of Chicago; circulated as a PDF},
-  note         = {No DOI}
 }
 
 @article{chen2023,
@@ -123,7 +111,7 @@
 
 @article{roth1999,
   author  = {Roth, Alvin E. and Rothblum, Uriel G.},
-  title   = {Truncation Strategies in Matching Markets --- in Search of Advice
+  title   = {Truncation Strategies in Matching Markets: In Search of Advice
              for Participants},
   journal = {Econometrica},
   year    = {1999},
@@ -444,6 +432,207 @@
   doi       = {10.1145/1772690.1772758}
 }
 
+% -- Added in the second revision. Each record seen before it entered: Crossref
+% for DOIs, the publisher's page for PMLR and NeurIPS papers. -------------------
+
+@inproceedings{damour2020,
+  author    = {D'Amour, Alexander and Srinivasan, Hansa and Atwood, James and
+               Baljekar, Pallavi and Sculley, D. and Halpern, Yoni},
+  title     = {Fairness Is Not Static: Deeper Understanding of Long Term
+               Fairness via Simulation Studies},
+  booktitle = {Proceedings of the 2020 Conference on Fairness,
+               Accountability, and Transparency},
+  year      = {2020},
+  pages     = {525--534},
+  doi       = {10.1145/3351095.3372878}
+}
+
+@inproceedings{liu2018,
+  author    = {Liu, Lydia T. and Dean, Sarah and Rolf, Esther and Simchowitz,
+               Max and Hardt, Moritz},
+  title     = {Delayed Impact of Fair Machine Learning},
+  booktitle = {Proceedings of the 35th International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {80},
+  pages     = {3150--3158},
+  year      = {2018},
+  url       = {https://proceedings.mlr.press/v80/liu18c.html}
+}
+
+@inproceedings{perdomo2020,
+  author    = {Perdomo, Juan and Zrnic, Tijana and Mendler-D{\"u}nner, Celestine
+               and Hardt, Moritz},
+  title     = {Performative Prediction},
+  booktitle = {Proceedings of the 37th International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {119},
+  pages     = {7599--7609},
+  year      = {2020},
+  url       = {https://proceedings.mlr.press/v119/perdomo20a.html}
+}
+
+@inproceedings{ensign2018,
+  author    = {Ensign, Danielle and Friedler, Sorelle A. and Neville, Scott and
+               Scheidegger, Carlos and Venkatasubramanian, Suresh},
+  title     = {Runaway Feedback Loops in Predictive Policing},
+  booktitle = {Proceedings of the 1st Conference on Fairness, Accountability
+               and Transparency},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {81},
+  pages     = {160--171},
+  year      = {2018},
+  url       = {https://proceedings.mlr.press/v81/ensign18a.html}
+}
+
+@inproceedings{sinha2016,
+  author    = {Sinha, Ayan and Gleich, David F. and Ramani, Karthik},
+  title     = {Deconvolving Feedback Loops in Recommender Systems},
+  booktitle = {Advances in Neural Information Processing Systems 29},
+  year      = {2016},
+  url       = {https://proceedings.neurips.cc/paper/2016/hash/962e56a8a0b0420d87272a682bfd1e53-Abstract.html}
+}
+
+@inproceedings{schnabel2016,
+  author    = {Schnabel, Tobias and Swaminathan, Adith and Singh, Ashudeep and
+               Chandak, Navin and Joachims, Thorsten},
+  title     = {Recommendations as Treatments: Debiasing Learning and Evaluation},
+  booktitle = {Proceedings of the 33rd International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {48},
+  pages     = {1670--1679},
+  year      = {2016},
+  url       = {https://proceedings.mlr.press/v48/schnabel16.html}
+}
+
+@inproceedings{singh2018,
+  author    = {Singh, Ashudeep and Joachims, Thorsten},
+  title     = {Fairness of Exposure in Rankings},
+  booktitle = {Proceedings of the 24th ACM SIGKDD International Conference on
+               Knowledge Discovery and Data Mining},
+  year      = {2018},
+  pages     = {2219--2228},
+  doi       = {10.1145/3219819.3220088}
+}
+
+@inproceedings{biega2018,
+  author    = {Biega, Asia J. and Gummadi, Krishna P. and Weikum, Gerhard},
+  title     = {Equity of Attention: Amortizing Individual Fairness in Rankings},
+  booktitle = {The 41st International ACM SIGIR Conference on Research and
+               Development in Information Retrieval},
+  year      = {2018},
+  pages     = {405--414},
+  doi       = {10.1145/3209978.3210063}
+}
+
+@article{fleder2009,
+  author  = {Fleder, Daniel and Hosanagar, Kartik},
+  title   = {Blockbuster Culture's Next Rise or Fall: The Impact of Recommender
+             Systems on Sales Diversity},
+  journal = {Management Science},
+  year    = {2009},
+  volume  = {55},
+  number  = {5},
+  pages   = {697--712},
+  doi     = {10.1287/mnsc.1080.0974}
+}
+
+@inproceedings{rendle2020,
+  author    = {Rendle, Steffen and Krichene, Walid and Zhang, Li and Anderson,
+               John},
+  title     = {Neural Collaborative Filtering vs. Matrix Factorization
+               Revisited},
+  booktitle = {Proceedings of the 14th ACM Conference on Recommender Systems},
+  year      = {2020},
+  pages     = {240--248},
+  doi       = {10.1145/3383313.3412488}
+}
+
+@inproceedings{mladenov2020,
+  author    = {Mladenov, Martin and Creager, Elliot and Ben-Porat, Omer and
+               Swersky, Kevin and Zemel, Richard and Boutilier, Craig},
+  title     = {Optimizing Long-term Social Welfare in Recommender Systems: A
+               Constrained Matching Approach},
+  booktitle = {Proceedings of the 37th International Conference on Machine
+               Learning},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {119},
+  pages     = {6987--6998},
+  year      = {2020},
+  url       = {https://proceedings.mlr.press/v119/mladenov20a.html}
+}
+
+@article{arnosti2021,
+  author  = {Arnosti, Nick and Johari, Ramesh and Kanoria, Yash},
+  title   = {Managing Congestion in Matching Markets},
+  journal = {Manufacturing \& Service Operations Management},
+  year    = {2021},
+  volume  = {23},
+  number  = {3},
+  pages   = {620--636},
+  doi     = {10.1287/msom.2020.0927}
+}
+
+@article{rios2021,
+  author  = {Rios, Ignacio and Larroucau, Tom{\'a}s and Parra, G. and
+             Cominetti, Roberto},
+  title   = {Improving the {Chilean} College Admissions System},
+  journal = {Operations Research},
+  year    = {2021},
+  volume  = {69},
+  number  = {4},
+  pages   = {1186--1205},
+  doi     = {10.1287/opre.2021.2116}
+}
+
+@article{lakens2017,
+  author  = {Lakens, Dani{\"e}l},
+  title   = {Equivalence Tests: A Practical Primer for $t$ Tests, Correlations,
+             and Meta-Analyses},
+  journal = {Social Psychological and Personality Science},
+  year    = {2017},
+  volume  = {8},
+  number  = {4},
+  pages   = {355--362},
+  doi     = {10.1177/1948550617697177}
+}
+
+@article{saintpaul2015,
+  author  = {Saint-Paul, Gilles},
+  title   = {Genes, Legitimacy and Hypergamy: Another Look at the Economics of
+             Marriage},
+  journal = {Journal of Demographic Economics},
+  year    = {2015},
+  volume  = {81},
+  number  = {4},
+  pages   = {331--377},
+  doi     = {10.1017/dem.2015.8}
+}
+
+@article{almas2023,
+  author  = {Alm{\aa}s, Ingvild and Kotsadam, Andreas and Moen, Espen and
+             R{\o}ed, Knut},
+  title   = {The Economics of Hypergamy},
+  journal = {Journal of Human Resources},
+  year    = {2023},
+  volume  = {58},
+  number  = {1},
+  pages   = {260--281},
+  doi     = {10.3368/jhr.58.3.1219-10604R1}
+}
+
+% The optimizer the ranker uses. arXiv record checked: 1412.6980, published at
+% ICLR 2015.
+@inproceedings{kingma2015,
+  author    = {Kingma, Diederik P. and Ba, Jimmy},
+  title     = {Adam: A Method for Stochastic Optimization},
+  booktitle = {3rd International Conference on Learning Representations},
+  year      = {2015},
+  url       = {https://arxiv.org/abs/1412.6980}
+}
+
 % Dynamic matching markets with arrivals and departures: the literature the
 % roadmap's open-market item belongs to, and the reason "no arrivals" is a
 % limitation rather than an implementation detail.
@@ -456,4 +645,22 @@
   number  = {3},
   pages   = {783--815},
   doi     = {10.1086/704761}
+}
+
+@inproceedings{patro2020,
+  author = {Patro, Gourab K and Biswas, Arpita and Ganguly, Niloy and Gummadi, Krishna P. and Chakraborty, Abhijnan},
+  title = {FairRec: Two-Sided Fairness for Personalized Recommendations in Two-Sided Platforms},
+  booktitle = {Proceedings of The Web Conference 2020},
+  year = {2020},
+  pages = {1194--1204},
+  doi = {10.1145/3366423.3380196}
+}
+
+@inproceedings{stoica2018,
+  author = {Stoica, Ana-Andreea and Riederer, Christopher and Chaintreau, Augustin},
+  title = {Algorithmic Glass Ceiling in Social Networks},
+  booktitle = {Proceedings of the 2018 World Wide Web Conference on World Wide Web - WWW '18},
+  year = {2018},
+  pages = {923--932},
+  doi = {10.1145/3178876.3186140}
 }

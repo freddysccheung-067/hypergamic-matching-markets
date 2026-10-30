@@ -35,6 +35,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from src.python import diagnostics as _diagnostics
 from src.python.comparison import EpochOutcome, agent_payoffs
 from src.python.config import EnvironmentBConfig, SimConfig
 from src.python.metrics import (
@@ -245,7 +246,8 @@ class Simulation:
     def __init__(self, config: SimConfig | dict[str, Any] | None = None,
                  config_path: str = "experiments/base.yaml",
                  recommender: RecommendArm = "ncf",
-                 freeze_theta: bool = False) -> None:
+                 freeze_theta: bool = False,
+                 shadow_ranker: bool = False) -> None:
         if recommender not in ARMS:
             raise ValueError(
                 f"recommender must be one of {ARMS}; got {recommender!r}"
@@ -288,6 +290,16 @@ class Simulation:
             embed_dim=self.config.ncf.embed_dim,
             mlp_layers=tuple(self.config.ncf.mlp_layers),
         )
+        # Floating-point sensitivity probe (docs/PREREGISTRATION.md R2-E16): add
+        # eps * N(0, 1) to every initial weight, from a generator of its own so
+        # torch's global stream is left where it was. At the default 0.0 nothing
+        # is drawn and the weights are the shipped ones bit for bit.
+        eps = float(self.config.ncf.init_perturbation)
+        if eps != 0.0:
+            gen = torch.Generator().manual_seed(int(self.config.ncf.perturbation_seed))
+            with torch.no_grad():
+                for param in model.parameters():
+                    param.add_(eps * torch.randn(param.shape, generator=gen, dtype=param.dtype))
         self.trainer = NCFTrainer(
             model,
             lr=self.config.ncf.lr,
@@ -308,6 +320,47 @@ class Simulation:
         self._freeze_after = self.config.ncf.freeze_after
         self._warm_start_epochs = int(self.config.ncf.warm_start_epochs)
         self._warm_start_done = False
+
+        # Second-revision switches (docs/PREREGISTRATION.md R2-E13a, R2-E13b,
+        # R2-E14). Each is read once, and each is a no-op at its default: one pass
+        # per round, no exploration slots, no arrivals.
+        self._passes_per_round = float(self.config.ncf.passes_per_round)
+        top_k_cfg = int(self.config.ncf.top_k)
+        self._explore_m = int(round(float(self.config.ncf.explore_share) * top_k_cfg))
+        if self._explore_m >= top_k_cfg:
+            raise ValueError(
+                f"ncf.explore_share leaves no exploiting slot: round(share * top_k) = "
+                f"{self._explore_m} of {top_k_cfg}"
+            )
+        self._arrival_rate = float(self.config.simulation.arrival_rate)
+        # Round at which each slot's current occupant arrived; 0 for the founders.
+        self.arrival_round = np.zeros(self.n, dtype=np.int64)
+        self.arrivals_log: list[dict[str, Any]] = []
+
+        # Off-policy probe (R2-E13c): a second ranker that a learning-free arm
+        # trains every round on the swipe log its own market generates, and never
+        # shows to the market. It is built from the same seed as the ranker an
+        # "ncf" arm on this population would build, so the two start identical and
+        # differ only in which market's data they see. torch's global stream is
+        # restored afterwards, so the arm itself is unchanged by its presence.
+        self._shadow: NCFTrainer | None = None
+        if shadow_ranker:
+            if recommender == "ncf":
+                raise ValueError("shadow_ranker is for an arm that does not learn; "
+                                 "the ncf arm already trains on its own market's data")
+            rng_state = torch.get_rng_state()
+            torch.manual_seed(self.rng_seed)
+            shadow_model = NCFModel(
+                n_users=self.n, n_items=self.n,
+                embed_dim=self.config.ncf.embed_dim,
+                mlp_layers=tuple(self.config.ncf.mlp_layers),
+            )
+            torch.set_rng_state(rng_state)
+            self._shadow = NCFTrainer(
+                shadow_model, lr=self.config.ncf.lr, l2_reg=self.config.ncf.l2_reg,
+                seed=self.rng_seed, pos_weight=self.config.ncf.pos_weight,
+                n_negatives=self.config.ncf.n_negatives,
+            )
 
         # Cumulative match counts for the Pareto fit (THEORY.md §8).
         self._cumulative_matches = np.zeros(self.n, dtype=np.int64)
@@ -355,6 +408,22 @@ class Simulation:
         # because the comparability rule is per agent and the frame is per epoch.
         self.record_outcomes = False
         self.outcomes: list[EpochOutcome] = []
+        # Outcomes before this round are not kept. A long run that only reads a
+        # late window would otherwise hold every round's state matrix and lists.
+        self.record_outcomes_from = 0
+
+        # Per-round extras that are not columns of the §6 frame, which is a frozen
+        # contract: the ranker's cumulative optimizer steps, the swipe count, and,
+        # when asked for, the diagnostics of src/python/diagnostics.py and the
+        # shadow ranker's exposure. One dict per round, keyed by "epoch".
+        self.round_log: list[dict[str, Any]] = []
+        self.record_diagnostics = False
+        self._utility_dense: tuple[np.ndarray, np.ndarray] | None = None
+        # The shortlists the matching saw each round, as (n_side, k) int32 arrays
+        # of dense slots padded with -1, when asked for. Exposure by any subset of
+        # agents or list positions can then be recomputed after the run.
+        self.record_lists = False
+        self.lists_log: list[tuple[np.ndarray, np.ndarray]] = []
 
         # Per-epoch market record, kept only when asked for: the swipe log, the
         # proposal set the matching was restricted to, DA's per-row proposal and
@@ -461,9 +530,117 @@ class Simulation:
         """
         self._benchmark_ready = False
         self._full_prefs = None
+        self._utility_dense = None
         self._ensure_benchmark()
         if self._utility_table is not None:
             self._utility_table = utility_table(self.states, self.config_dict)
+
+    # ------------------------------------------------- second-revision probes
+
+    def _train_round(self, swipe_log: np.ndarray, epoch: int) -> None:
+        """One round's training at the configured dose (R2-E13a).
+
+        The whole part of ``passes_per_round`` is that many full passes over the
+        round's log. A fractional part adds one pass over a uniform subsample of
+        the log, drawn from a generator keyed on (seed, round) so the trainer's own
+        stream is not spent choosing it. At the default 1.0 this is exactly the
+        single ``train_epoch`` call the loop always made.
+        """
+        whole = int(self._passes_per_round)
+        frac = self._passes_per_round - whole
+        for _ in range(whole):
+            self.trainer.train_epoch(swipe_log)
+        if frac > 0.0:
+            rng = np.random.default_rng([self.rng_seed, epoch, _DOSE_TAG])
+            take = max(1, int(round(frac * len(swipe_log))))
+            keep = np.sort(rng.choice(len(swipe_log), size=take, replace=False))
+            self.trainer.train_epoch(swipe_log[keep])
+
+    def _explore(self, recs: dict[int, list[int]], candidates: np.ndarray, epoch: int,
+                 side: int, top_k: int) -> dict[int, list[int]]:
+        """Replace each list's last m entries with uniform draws (R2-E13b).
+
+        The first k - m entries are the ranker's own, in its order; the last m are
+        drawn uniformly without replacement from the other side minus those k - m,
+        so a list never repeats a candidate. The draws come from a generator keyed
+        on (seed, round, side), so they do not depend on what the ranker chose.
+        """
+        rng = np.random.default_rng([self.rng_seed, epoch, side, _EXPLORE_TAG])
+        keep = top_k - self._explore_m
+        out: dict[int, list[int]] = {}
+        for uid in sorted(recs):
+            head = list(recs[uid][:keep])
+            pool = np.setdiff1d(candidates, np.asarray(head, dtype=np.int64))
+            drawn = rng.choice(pool, size=self._explore_m, replace=False)
+            out[uid] = head + [int(x) for x in drawn]
+        return out
+
+    def _diagnostics(self, prop_prefs: list[list[int]], acc_prefs: list[list[int]],
+                     top_k: int) -> dict[str, float]:
+        """The R2-E12 diagnostics for this round. Reads; changes nothing."""
+        if self._utility_dense is None:
+            self._utility_dense = utility_table(self.states, self.config_dict)
+        s_mw = self.trainer.score_matrix(self.prop_rows, self.acc_rows)
+        s_wm = self.trainer.score_matrix(self.acc_rows, self.prop_rows)
+        oracle = self._oracle_prefs(top_k)
+        return _diagnostics.round_diagnostics(
+            (s_mw, s_wm), self._utility_dense, (prop_prefs, acc_prefs), oracle, top_k)
+
+    def _shadow_round(self, epoch_config: dict[str, Any], epoch: int,
+                      top_k: int) -> dict[str, float]:
+        """Train the shadow ranker on this market's log and measure its lists."""
+        assert self._shadow is not None
+        log_s = generate_swipes(self.states, epoch_config, epoch)
+        self._shadow.train_epoch(log_s)
+        sp = self._shadow.top_k_recommendations(self.prop_rows.astype(np.int64),
+                                                self.acc_rows.astype(np.int64), top_k)
+        sa = self._shadow.top_k_recommendations(self.acc_rows.astype(np.int64),
+                                                self.prop_rows.astype(np.int64), top_k)
+        _, _, exp_s = self._truncated_prefs(sp, sa)
+        return {"shadow_gini": gini(exp_s), "shadow_reach": reach(exp_s),
+                "shadow_grad_steps": self._shadow.n_steps}
+
+    def _arrive(self, epoch: int) -> np.ndarray:
+        """Replace round(rate * N) uniformly chosen agents with newcomers (R2-E14).
+
+        The same rules as generational turnover (``_turnover``), applied every
+        round to a uniform draw instead of once per generation to the least
+        matched: a newcomer takes the leaver's slot, so id, side and dense index
+        stay valid; traits, taste, intent, values and the chemistry key are fresh,
+        from a population drawn at a seed derived from (seed, round); θ is
+        calibrated against the market the newcomer enters; the ranker's embedding
+        rows for the slot are re-drawn; cumulative matches reset. Who leaves is
+        drawn from a generator keyed on (seed, round) alone, so every arm on a seed
+        sees the same arrivals.
+        """
+        n_new = int(round(self._arrival_rate * self.n))
+        rng = np.random.default_rng([self.rng_seed, epoch, _ARRIVAL_TAG])
+        rows = np.sort(rng.choice(self.n, size=n_new, replace=False)).astype(np.int64)
+
+        fresh_seed = _arrival_seed(self.rng_seed, epoch)
+        fresh = sample_population(self.n, self.config_dict, fresh_seed)
+        if not np.array_equal(fresh[:, :2], self.states[:, :2]):
+            raise RuntimeError("arrivals: the fresh population's id/side layout differs")
+        self.states[rows] = fresh[rows]
+
+        if self.config.population.init_threshold is not None:
+            self.states[rows, 6] = float(self.config.population.init_threshold)
+        else:
+            calibrated = self.states.copy()
+            calibrate_thresholds(calibrated, self.config_dict,
+                                 float(self.config.population.admissible_fraction))
+            self.states[rows, 6] = calibrated[rows, 6]
+
+        keys = self.states[:, 10]
+        if np.unique(keys).size != keys.size:
+            raise RuntimeError(f"arrivals: duplicate key at round {epoch}")
+
+        self._cumulative_matches[rows] = 0
+        self.trainer.reinitialize(rows, seed=fresh_seed)
+        self.arrival_round[rows] = epoch
+        self._refresh_after_drift()
+        self.arrivals_log.append({"epoch": epoch, "rows": rows})
+        return rows
 
     # -------------------------------------------------------------- one epoch
 
@@ -865,6 +1042,8 @@ class Simulation:
         self.states_seen = []
         self.outcomes = []
         self.market_log = []
+        self.round_log = []
+        self.lists_log = []
         prev_prefs: tuple[list[list[int]], list[list[int]]] | None = None
 
         # p for each proposing side, from the previous epoch's log. None means "no
@@ -876,6 +1055,15 @@ class Simulation:
         v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
 
         for epoch in range(start_epoch, start_epoch + n_epochs):
+            extra: dict[str, Any] = {"epoch": epoch}
+
+            # Open market (R2-E14): a share of slots changes hands before anything
+            # reads the states, so the round sees its own population. Round 0 is
+            # the founding population and is never replaced.
+            if self._arrival_rate > 0.0 and epoch > 0:
+                self._arrive(epoch)
+                v_bar_m, v_bar_w = self._mean_admissible_utility_by_side()
+
             # Exogenous drift (THEORY.md §10.6), applied before anything reads the
             # states so the epoch sees s_w(t) = s_w(0) + gamma*t. Epoch 0 is never
             # shifted, which is what lets the four factorial cells assert one shared
@@ -917,7 +1105,7 @@ class Simulation:
                 # is what the next epoch's shortlists were scored against — but no
                 # gradient step is taken.
                 if self._freeze_after is None or epoch <= self._freeze_after:
-                    self.trainer.train_epoch(swipe_log)
+                    self._train_round(swipe_log, epoch)
                 n_swipes = len(swipe_log)
 
                 # Score each side against the *other* side only. The model has no
@@ -936,13 +1124,20 @@ class Simulation:
                     candidate_ids=self.prop_rows.astype(np.int64),
                     k=top_k,
                 )
+                if self._explore_m > 0:
+                    prop_recs = self._explore(prop_recs, self.acc_rows, epoch, 0, top_k)
+                    acc_recs = self._explore(acc_recs, self.prop_rows, epoch, 1, top_k)
                 prop_prefs, acc_prefs, exposure = self._truncated_prefs(prop_recs, acc_recs)
+                if self.record_diagnostics:
+                    extra.update(self._diagnostics(prop_prefs, acc_prefs, top_k))
             else:
                 # No swipe log and no training: these arms never learn, which is
                 # the point of them. Everything downstream of the preference
                 # lists — the DA call, welfare, the metrics, the θ step — is the
                 # same code the NCF arm runs.
                 prop_prefs, acc_prefs, exposure = self._arm_prefs(epoch, top_k, prev_prefs)
+                if self._shadow is not None:
+                    extra.update(self._shadow_round(epoch_config, epoch, top_k))
 
             # ── The proposal set constrains the matching (THEORY.md §10.2) ────
             # At c > 0 only proposed pairs are reachable, for every arm: the cost
@@ -992,6 +1187,9 @@ class Simulation:
 
             prev_prefs = (prop_prefs, acc_prefs)
             series.append(exposure)
+            if self.record_lists:
+                self.lists_log.append((_pad_lists(prop_prefs, top_k),
+                                       _pad_lists(acc_prefs, top_k)))
 
             da = deferred_acceptance(prop_prefs, acc_prefs, True)
             matches = da["matches"]
@@ -1026,7 +1224,7 @@ class Simulation:
                     f"epoch {epoch}: per-agent payoff sums to {payoff.sum()!r} but "
                     f"compute_welfare reports {w10['welfare_total']!r}"
                 )
-            if self.record_outcomes:
+            if self.record_outcomes and epoch >= self.record_outcomes_from:
                 matched_mask = np.zeros(self.n, dtype=bool)
                 matched_mask[pair_rows.ravel()] = True
                 entrant = np.ones(self.n, dtype=bool)
@@ -1204,6 +1402,10 @@ class Simulation:
             if swipe_log is not None:
                 accept_prob = self._accept_prob_from_log(swipe_log, accept_prob)
 
+            extra["grad_steps"] = self.trainer.n_steps if self.recommender == "ncf" else 0
+            extra["n_swipes"] = n_swipes
+            self.round_log.append(extra)
+
         self.exposure_series = (
             np.stack(series) if series else np.zeros((0, self.n), dtype=np.int64)
         )
@@ -1365,6 +1567,27 @@ class Simulation:
 # Third word of the tie-break seed, so it never coincides with the random arm's
 # (seed, epoch) generator.
 _TURNOVER_TAG = 0x7E4E0FE5
+# The same role for the second revision's generators: who arrives, which log rows a
+# fractional pass trains on, and which candidates fill the exploration slots. Each
+# is distinct so no two streams can coincide.
+_ARRIVAL_TAG = 0xA4417A15
+_DOSE_TAG = 0xD05EF00D
+_EXPLORE_TAG = 0xE8A101E5
+
+
+def _pad_lists(lists: list[list[int]], k: int) -> np.ndarray:
+    """Dense-slot shortlists as an (n, k) int32 array, padded with -1."""
+    out = np.full((len(lists), k), -1, dtype=np.int32)
+    for i, lst in enumerate(lists):
+        if lst:
+            out[i, :len(lst)] = lst
+    return out
+
+
+def _arrival_seed(seed: int, epoch: int) -> int:
+    """The population seed newcomers arriving at ``epoch`` are drawn at."""
+    state = np.random.SeedSequence([int(seed), int(epoch), _ARRIVAL_TAG])
+    return int(state.generate_state(1, dtype=np.uint64)[0] >> np.uint64(1))
 
 
 def _generation_seed(seed: int, generation: int) -> int:

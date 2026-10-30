@@ -1,126 +1,59 @@
 % ---------------------------------------------------------------------------
-% Section 6: Limitations (target 600 words). Sharpened from README.md and
-% docs/THESIS.md.
+% Section 7: Limitations, ordered by how much each constrains the claims.
 % ---------------------------------------------------------------------------
 
 \section{Limitations}
 \label{sec:limits}
 
-Ordered by how much each constrains what the results can mean, not by how easy
-it is to fix.
+\paragraph{Nothing is calibrated.} Every parameter in Table~\ref{tab:params} is a
+modeling choice: the utility weights, the trait distributions, the chemistry
+scale, the taste spread, the shortlist length and the gate target. The results
+describe this mechanism under a stated utility, not any population, and the size
+of the gap and the length of its transient move with chemistry noise and the
+weight ratio (\S\ref{sec:where}).
 
-\textbf{Every parameter is a modeling choice.} Nothing is calibrated to data:
-the trait distributions are drawn for tractability, the taste and chemistry
-parameters have no empirical anchor, and neither the signalling cost, the
-defection penalty, nor the entry filter is estimated. The results bound what this
-mechanism \emph{can} do under a stated utility and say nothing about whether any
-population sits at these parameters. Because traits are $z$-scored before
-entering a utility, only rank order matters, but a distribution with no variance would
-still destroy its term, so the defaults are deliberately not
-self-report-shaped and the attractiveness result is an upper bound on its
-influence rather than an estimate. The mitigation is that the two most
-consequential knobs are reported as a function of their value. It is partial: a
-sweep over four knobs is not a calibration.
+\paragraph{The ranker's data are not its own.} Each round's log holds every
+agent's true top admissible candidates, so the ranker learns about agents it never
+shows. On a platform whose only data are the responses to its own
+recommendations, the lock-in that the feedback-loop literature describes could
+occur, and nothing here rules it out. This is the largest difference between the
+model and a deployed system.
 
-\textbf{Five seeds carry most headlines, twenty carry six.} The power analysis
-says five is adequate for sign and inadequate for width on two quantities, and
-both matter. An
-interval on a model's seed-averaged quantity is not an interval on the model's
-answer. The five seeds were also not chosen for this purpose; they predate the
-twenty-seed run, which shows them to be an unusually low-variance block for two
-of the seven tracked quantities (\texttt{docs/STATS.md} \S2.2). That finding is
-reported and is not repaired: the interval arithmetic every table uses was
-changed to the construction with nominal small-sample coverage, but the seeds
-themselves were left alone, so any claim whose variance happens to be
-underestimated by this particular block still reads as tighter than it is. The
-honest reading is that the two affected quantities, algorithmic loss and clearing rate,
-carry no headline here, and that a future study should choose
-seeds for the purpose rather than inherit them.
+\paragraph{Exposure counts membership, not position.} The gap measures whether an
+agent is on a list, while deferred acceptance reads the order of the list. That is
+why exposure converges while welfare does not (\S\ref{sec:transient}). An
+exposure measure weighted by position could follow a different trajectory, and it
+was not measured.
 
-The H4 optimum carries a sharper caution than a multiplicity correction can
-address. It was selected from $\nInstitutionalCells$ cells on mean \emph{and} low variance, and
-Bonferroni corrects the first without undoing the second: on fresh seeds the cell
-replicates its rank and loses most of its claimed precision, its seed sd rising
-from $\optWelfareSd$ to $\hFourFreshSd$. And the whole grid was measured in a gate regime that does not
-respond to the market, which is not the configuration this paper otherwise runs.
-At the shipped gate no cell of the forty beats Environment A at all, so the
-interior optimum is a result about a regime rather than about the model
-(\S\ref{sec:h4regime}).
+\paragraph{The open market has not reached a steady state.} At 600 rounds its gap
+is still falling at the lowest replacement rate and rising at the other two
+(\S\ref{sec:arrivals}), so its levels are readings at a horizon, not limits.
+Replacement is uniform and immediate; no agent leaves in response to an outcome.
 
-\textbf{The committed 300-epoch run does not reproduce.} Its NCF arm cannot be
-regenerated from this code at 1, 2, 4, 8, 16 or 24 threads, nor from the
-pre-optimization source at 24; its other three arms regenerate exactly. The
-divergence is at the seventh decimal at epoch 5 and grows through the feedback
-loop, which is the signature of a different reduction order rather than a
-different model (\texttt{docs/REVIEW\_RESPONSE.md}, A3). The convergence numbers
-this paper quotes therefore come from a regeneration at one thread rather than
-from the committed run; the two agree within tolerances fixed before the
-regeneration was read (\texttt{docs/PREREGISTRATION.md} E7). One other archival
-directory is in a milder version of the same position: \texttt{rigor/base/}, which
-carries the twenty-seed headline, differs from a fresh run at the same thread
-count in the fourth decimal.
+\paragraph{One population size carries most results.} The oracle needs every
+agent's full preference ranking, and the experiments run at $N = 1000$ with
+$N = 500$ and $2000$ as checks, where the transient's length was not monotone in
+$N$.
 
-\textbf{The thread count is part of the run's identity, and that was found late.}
-Torch's intra-op reductions are not bitwise associative, so the same seed at one
-thread and at eight gives different numbers; across a hundred epochs of this
-feedback loop the spread across thread counts reaches $\threadSpreadLo$--$\threadSpreadHi$
-in exposure Gini, against a between-seed standard deviation of
-$\betweenSeedSdTwenty$ over twenty seeds. Every configuration now pins
-\texttt{ncf.num\_threads} to~1 and the contract is tested, but the reproducibility
-guarantee this project claims is a guarantee at a named thread count, not an
-unconditional one (\texttt{docs/INTERFACES.md} \S3;
-\texttt{data/processed/rigor/thread\_sensitivity.csv}).
+\paragraph{There is no exit on outcomes.} No agent leaves because it was
+unmatched or poorly matched, so there is no attrition margin, one hypothesis cannot
+be posed (Appendix~\ref{app:hypotheses}), and a mechanism that drove participants
+away would look free in the welfare comparison.
 
-\textbf{One population size carries the headline.} $N = 1000$ is the only size
-at which the full comparison was run, because the full-information benchmark
-needs an $O(N^2)$ preference matrix and is capped at $N = 5000$. Clearing rate is
-not comparable across population sizes at fixed $k$: it falls roughly as $1/N$, and
-scaling $k$ to compensate makes the swipe log grow superlinearly.
-The clearing figures are properties of $N = 1000$ at $k = 20$ and do not
-transport.
+\paragraph{What was not varied or tested.} The optimizer settings (learning rate,
+batch size, weight decay, embedding initialization) and the architecture were held
+at one value, so the length of the transient is a property of this configuration
+and not of learned rankers in general; only the number of passes per round was
+varied. The margin of $0.002$ is a stated convention, not a derived one: the
+residual at round 1000 is inside it and above zero, and an entry round depends on
+the margin chosen. The bonus for a higher-status partner was varied in its margin
+$\delta$ and never removed, so the welfare comparison may depend on it. Population
+size and the gate target change together as $N$ changes. The 40 cells of the
+institutional grid are corrected for multiplicity and the cell-level tests of the
+sweeps are not. Whether the ranker's lower welfare comes from the order within
+its lists was not measured.
 
-\textbf{There is no closed loop through preferences.} The ranker changes who is
-visible, not what anyone wants: the preference generator takes no shown-set
-argument. A reader looking for the classic feedback story will not find it here.
-A different loop exists, through the acceptance threshold, and it is live at the
-shipped configuration; but it relaxes within a few epochs, so even the loop that
-is present is a transient. This is the largest gap between this model and the
-recommender literature it engages, and it is a structural absence rather than a
-measurement problem.
-
-\textbf{There is no attrition.} Nobody joins or leaves in response to outcomes,
-so there is no selection at the extensive margin and a market that deteriorated
-enough to empty out could not show it. This is why one hypothesis is untested
-(\S\ref{sec:h6}), and it bounds the welfare reading: a mechanism that repelled
-participants would look free.
-
-\textbf{The defection penalty prices defection without deterring it.} It is
-charged after a match dissolves; no agent proposes differently, sets a different
-threshold, or stays longer because of it. Making it deter would mean feeding it
-into the proposal decision, which is a different model whose institutional result has
-not been measured.
-
-\textbf{The benchmark is not an achievable institution.} The oracle ranks by true
-utility, so every gap measured against it is a distance from an unattainable
-bound rather than a choice an agent could make. Conversely, the institutional
-comparison scores B against an oracle A, and against an NCF-mediated A the
-ordering reverses. Both facts bound what the A/B result means: it is about the
-quality of A's visibility, not institutional form in general.
-
-\textbf{Truncation is imposed, not strategic.} Agents receive their top-$k$ list
-and do not game it, so the strategic theory of truncation does not apply
-directly, and the model cannot say what happens if agents report their lists
-instead.
-
-\textbf{Validation establishes verification, not validity.} Agreement with
-closed-form results shows the machinery is correct; it establishes nothing about
-the recommender, because the deficit those theorems characterize is measured
-under a compatibility constraint on a single scalar, which is exactly what makes it
-tractable, while this model's constraint is visibility through an estimated
-multi-attribute utility. A matching deficit is not evidence that the
-recommender's unmatched mass has a closed form. It does not appear to have one.
-
-\textbf{Nothing here is a claim about people.} The intent type has no
-instrument, the utility has no estimated weights, and the environments are model
-constructs. Neither is ethically superior: B carries an entry filter that
-excludes agents, and the model prices that exclusion rather than endorsing it.
+\paragraph{The benchmark is not achievable.} The oracle ranks by true utility,
+including the pairwise chemistry no observable reveals, so every gap is a distance
+from a bound and not from an alternative a platform could deploy. Truncation is
+imposed rather than chosen: agents do not report or game their lists.

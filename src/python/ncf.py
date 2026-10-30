@@ -212,6 +212,9 @@ class NCFTrainer:
             pos_weight=torch.tensor(pos_weight, device=self.device)
         )
         self._rng = np.random.default_rng(seed)
+        # Optimizer steps taken so far. A count, read by the run loop so a horizon
+        # can be stated in gradient steps as well as in rounds; it changes nothing.
+        self.n_steps = 0
 
     # ------------------------------------------------------------------ training
 
@@ -233,6 +236,7 @@ class NCFTrainer:
             loss = self.loss_fn(self.model(users[sl], items[sl]), labels[sl])
             loss.backward()
             self.optimizer.step()
+            self.n_steps += 1
             total += loss.item() * (users[sl].shape[0])
         return total / len(data)
 
@@ -362,3 +366,25 @@ class NCFTrainer:
         finally:
             self.model.train(was_training)
         return recs
+
+    @torch.no_grad()
+    def score_matrix(self, user_ids: np.ndarray, candidate_ids: np.ndarray) -> np.ndarray:
+        """Logits for every (user, candidate) pair, shape (U, C), as float64.
+
+        The same blocks ``top_k_recommendations`` ranks, returned whole instead of
+        reduced to a top-k. Used only by the diagnostics, which need the full
+        ranking to compare against true utility. Reads the weights and draws no
+        random number, so calling it leaves a run bit-identical.
+        """
+        users = torch.from_numpy(np.asarray(user_ids, dtype=np.int64).ravel()).to(self.device)
+        cands = torch.from_numpy(np.asarray(candidate_ids, dtype=np.int64).ravel()).to(self.device)
+        rows = min(self.SCORE_CHUNK_ROWS, max(1, self.SCORE_CHUNK_PAIRS // max(1, len(cands))))
+        was_training = self.model.training
+        self.model.eval()
+        try:
+            proj = self.model.score_projections()
+            blocks = [self.model.score_block(users[s:s + rows], cands, proj)
+                      for s in range(0, len(users), rows)]
+        finally:
+            self.model.train(was_training)
+        return torch.cat(blocks).cpu().numpy().astype(np.float64)

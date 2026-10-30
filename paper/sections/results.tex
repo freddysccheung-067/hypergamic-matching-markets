@@ -1,469 +1,395 @@
 % ---------------------------------------------------------------------------
-% Section 5: Results (target 2,000 words).
-%
-% Organised by hypothesis. Every numeral traces to (a) a file under
-% data/processed/ and (b) a section of docs/STATS.md. Where no interval is
-% registered, the finding is stated directionally and the gap is noted.
+% Section 5: Results. Every number is a macro from tables/numbers.tex, which
+% paper/gen_numbers.py reads from data/processed/horizon/*/analysis/.
 % ---------------------------------------------------------------------------
 
 \section{Results}
 \label{sec:results}
 
-The results are reported by hypothesis, and the split is deliberate. Two carry the
-paper's argument and are given in full here: H3's ordering and the cold-start
-result that qualifies it. Five are summarized in one paragraph each, with the full
-analysis in Appendix~\ref{app:hypotheses}, because their verdicts are weaker and a
-reader should be able to weigh the central claim without them. The convergence
-result gets its own subsection because it asks about a limit rather than testing a
-hypothesis. Table~\ref{tab:ledger} collects the four hypotheses with a committed
-interval; H1, H2 and H6 have none, for reasons stated in place.
+\subsection{The transient}
+\label{sec:transient}
 
-Two conventions hold. Every interval is a 95\% interval over the seed
-distribution, and table~\ref{tab:ledger} prints both the Student-$t$ and the BCa
-bounds for every row rather than choosing one silently, because which is
-preferred is a small-sample question and the two disagree at five seeds. The
-$t$ interval is the one with nominal coverage at n = 5; the BCa bootstrap attains
-roughly 84\% there and returns a half-width narrower than the sample's own
-standard deviation (\texttt{docs/STATS.md} \S1). At twenty seeds the two agree to
-within 0.001 on the H3 gap, which is the comparison that matters when the headline
-is a twenty-seed number. Where a row's interval has been widened for multiplicity, which is the H4
-row only, the caption and the row both say so: the H4 bounds are Bonferroni-$t$
-across the $\nInstitutionalCells$ institutional cells, and the uncorrected and Bonferroni-BCa bounds
-are beside them in the text (\S\ref{sec:h4}; \texttt{docs/STATS.md} \S5.3). Gaps
-are always the paired per-seed difference, never a comparison of two arms'
-overlapping intervals.
+Figure~\ref{fig:transient}(a) shows the gap over 300 rounds. On the confirmation
+set it starts at $\gapZero$, rises to $\peakGap$ at round \peakRound{} and falls to
+$\gapNinetyNine$ $[\gapNinetyNineLo, \gapNinetyNineHi]$ at round 99, positive on
+all twenty seeds; the exploratory set peaks at $\peakGapExpl$ and is
+$\gapNinetyNineExpl$ $[\gapNinetyNineExplLo, \gapNinetyNineExplHi]$ at round 99.
+Every one of the forty seeds then enters the margin and stays inside it, and none
+is censored. The entry round has a median of \entryMedianConf{} (range
+\entryMinConf{}--\entryMaxConf{}) on the confirmation set and \entryMedianExpl{}
+(\entryMinExpl{}--\entryMaxExpl{}) on the exploratory set.
 
-\begin{table}[t]
-\centering
-\input{tables/ledger}
-\caption{The hypothesis ledger: hypothesis, regime, point estimate, both 95\%
-interval constructions, verdict. The $t$ and BCa columns are printed side by side
-so that the choice between them is visible rather than implied; the $t$ interval
-has nominal coverage at five seeds and is the one to read where they disagree.
-The H4 row alone carries a multiplicity correction (Bonferroni across 40 cells)
-and its verdict says so; the other rows are uncorrected and their families are
-stated in the text. That row's regime is marked because it matters: the
-institutional grid was measured at the inert gate ($\phi = 0.2$), and re-run at
-the shipped gate ($\phi = 0.02$) no cell of the $\nInstitutionalCells$ beats the global market, and the cell below reads $\hFourShippedOpt$ there (\S\ref{sec:h4regime}). Every row traces to
-\texttt{data/processed/rigor/} and to \S\ref{sec:h3}, \S\ref{sec:h4} or
-\S\ref{sec:h5}. H1, H2 and H6 are absent because no interval is registered for
-them; see \S\ref{sec:limits}.}
-\label{tab:ledger}
-\end{table}
+Over rounds 250 to 299 the mean gap is $\tailConf$ $[\tailConfLo, \tailConfHi]$,
+positive on \tailConfPos{} of twenty seeds. The two one-sided tests reject at
+$t = \tostConfLower$ and $\tostConfUpper$ on 19 degrees of freedom, and the 90\%
+interval $[\tostConfLo, \tostConfHi]$ lies inside the margin; the exploratory set
+gives $\tailExpl$ $[\tailExplLo, \tailExplHi]$ and the same verdict. The registered
+predictions for this experiment all held (Table~\ref{tab:predictions}), including
+that seeds 42 to 46 reproduce an earlier 300-round run of the same configuration
+to every printed digit.
 
-\subsection{H1, H2, H4, H5, H6: what was tested, and what happened}
-\label{sec:appendixpointer}
+The other arms bound the gap (Figure~\ref{fig:arms}). The oracle's exposure Gini
+settles at $\giniOracleTail$ within \oracleSettle{} rounds, as thresholds relax,
+and does not move after that: this is the concentration preferences produce. The
+NCF arm's Gini falls from the popularity closed form, $1 - 2k/N = 0.96$, to the
+oracle's level. At round 0 the oracle, random and popularity arms coincide, because the gate
+admits fewer than $k$ candidates and every arm hands out all of them. From round 1
+the popularity arm sits at 0.96, and the random arm falls to $\giniRandomTail$.
+The peak gap is therefore nearly a closed form: the ranker's $1 - 2k/N = 0.96$
+minus the oracle's settled $\giniOracleTail$, about 0.313. What the experiments
+measure is how long the ranker takes to leave the common list, not the size of the
+peak.
 
-Five of the six hypotheses are reported in full in Appendix~\ref{app:hypotheses},
-because their verdicts are weaker than the cold-start result and a reader should
-be able to weigh the argument without them. In one paragraph each:
-
-\textbf{H1 (a proposing cost selects on intent).} Direction holds, with mean received intent rising monotonically in $c$, but the magnitude does not match the closed
-form, because the closed form evaluates its threshold at a prior success
-probability the market does not supply. Not refuted; no interval registered
-(\S\ref{sec:h1}).
-
-\textbf{H2 (threshold inflation as defence against pooling).} Untestable as
-shipped: the $\theta$ update reads only a proposal count, never received intent,
-so no path exists by which the predicted slope could appear. Reported as an
-absence of mechanism, not as a refutation (\S\ref{sec:h2}).
-
-\textbf{H4 (an interior institutional optimum).} Refuted at the configuration
-this paper runs. At $c_B = 0.01$ in the inert gate regime there is a
-non-monotone welfare difference with its optimum at subgraph size $0.65$, which
-survives Bonferroni and Holm; re-run at the shipped gate, no cell of the $\nInstitutionalCells$
-beats the global market at any size or cost. The hypothesis therefore holds in a
-regime the rest of the paper does not use and fails in the one it does
-(\S\ref{sec:h4}; \S\ref{sec:h4regime} below).
-
-\textbf{H5 (an interaction term).} The drift-by-mediation interaction is
-$\hFiveInteraction$, interval $[\hFiveInteractionLo, \hFiveInteractionHi]$, not
-distinguishable from zero, which is what H5 allowed. The algorithmic term
-dominates (\S\ref{sec:h5}).
-
-\textbf{H6 (differential attrition).} Not tested at all: the model has no
-attrition margin, so no committed artifact exists and no number is quoted
-(\S\ref{sec:h6}).
-
-\subsection{H3: estimation error concentrates exposure}
-\label{sec:h3}
-
-\emph{Under test.} On a shared population and seed, the exposure Gini under the
-learned ranker exceeds that under an oracle ranking by true utility, because the
-ranker cannot represent every agent and those it cannot represent receive no
-exposure. Kill condition: the ranker matches or beats the oracle.
-
-\emph{Measured.} Not refuted. At the shipped regime and horizon, over twenty
-seeds, the paired gap is $\gapBaseTwenty$ with a $t$ interval of
-$[\gapBaseTwentyLo, \gapBaseTwentyHi]$, positive on all twenty
-(\texttt{docs/STATS.md} \S1, row 2c; \texttt{intervals.csv}). The five-seed run
-gives $\gapShipped$ $[\gapShippedLo, \gapShippedHi]$, positive on all five, which is
-the same quantity on a subset of the same seeds: seeds 42--46 are the first five of
-42--61, so the two figures agreeing is expected and is not a test of anything. What it does
-establish is the interval's width, measured full width against full width: $\gapBaseTwentyBcaWidth$
-on the BCa construction at twenty seeds against $\gapLiveBcaWidth$ at five, a factor of about
-$\widthRatioFiveTwenty$, and that the point estimate moves by less than its own five-seed interval
-when the other fifteen seeds are added. The overlapping-sample agreement is not a
-test of anything; \S\ref{sec:sensitivity} is, and the ordering holds in all twelve
-of its cells on both interval constructions.
-
-\emph{Refuted?} No in direction; the substantive version, that estimation error is
-a \emph{standing} source of concentration, is refuted by \S\ref{sec:coldstart}.
-The inequality holds; the mechanism attributed to it does not.
-
-\emph{The replication on fresh seeds.} Everything above rests on seeds 42--61, and
-\texttt{docs/STATS.md} \S2.2 shows those five are an unusually low-variance block
-for two quantities. The gap itself is not one of them, but the objection is
-general and the answer is a fresh set. Twenty seeds (100--119) were registered as
-a confirmation set before they were run (\texttt{docs/PREREGISTRATION.md} E1) and
-executed in the same session, at the same thread count, as a regeneration of
-42--61 for comparison. Every quantity listed below is a twenty-seed point
-estimate at 1 thread.
-
-The fresh gap is $\gapFresh$ $[\gapFreshLo, \gapFreshHi]$ against $\gapExploratory$
-$[\gapExploratoryLo, \gapExploratoryHi]$ on the exploratory set: inside the
-pre-registered interval,
-and if anything slightly larger. The exposure Gini itself is $\giniNcfFresh$ against
-$\giniNcfExploratory$, the oracle level $\giniOracleFresh$ against $\giniOracleExploratory$,
-and the arm ordering
-(\textsf{popularity} $>$ \textsf{ncf} $>$ \textsf{oracle} $>$ \textsf{random})
-holds on all twenty seeds. No quantity moved outside its interval and no ordering
-reversed, which is what E1 predicted.
-
-Four measurements of this one quantity now exist, and a reader should know which
-is which. The headline, $\gapBaseTwenty$, is the committed twenty-seed run in
-\texttt{rigor/base/}; it is quoted because a hundred-epoch claim should rest on
-the twenty-seed interval where one exists, and with the caveat that this directory
-no longer regenerates bit for bit (its seed-42 Gini differs from a fresh run at the
-same thread count in the fourth decimal). The five-seed $\gapShipped$ comes from
-\texttt{ablation\_h100/}, which does reproduce exactly, at 24 threads. The fresh
-$\gapFresh$ and the regenerated exploratory $\gapExploratory$ come from this
-session at 1 thread. All four agree within each other's intervals
-(\texttt{docs/PREREGISTRATION.md} E8, E8a).
-
-Two differences are worth naming because they bear on how much the seeds were
-worth. The fresh set has a smaller spread on the Gini quantities (sd $\giniNcfSdFresh$
-against $\giniNcfSdExploratory$ for the NCF level) and a larger one on algorithmic loss
-($\algLossSdFresh$ against $\algLossSdExploratory$), which is the same quantity-specific behavior
-\S2.2 describes rather than a contradiction of it. And the exploratory set
-re-derived here is not bit-identical to the committed \texttt{rigor/base/}: the
-seed-42 epoch-99 Gini differs in the fourth decimal. That directory predates the
-current code, so the comparison throughout this subsection is against the
-regenerated set, not against the committed one.
-
-\emph{What it is not.} The oracle ranks by true utility under the same direction
-and shortlist length: an upper bound on what this architecture could achieve, not
-a deployable alternative. A gap against an oracle measures how far a learned
-ranker falls short, not what a better-designed platform would do.
-
-\subsection{The cold-start result, and its convergence test}
-\label{sec:coldstart}
-
-\emph{The question.} H3's gap is positive at every horizon measured. Is it a
-floor or a transient? A hundred-epoch run cannot answer, because the gap is still
-falling at epoch 99. The run was extended to 300 epochs at the shipped
-configuration, five seeds (Figure~\ref{fig:gap};
-\texttt{data/processed/rigor/long\_horizon\_1t/}; \texttt{docs/STATS.md} \S3).
-
-\emph{Trajectory.} The mean gap rises to a peak shortly after the start, then
-decays monotonically in the reported points:
-
-\begin{center}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lrrrrrrrr}
-\hline
-epoch & 0 & 6 & 19 & 49 & 99 & 124 & 199 & 250--299 \\
-gap & $\gapEpochZero$ & $\gapEpochSix$ & $\gapEpochNineteen$ & $\gapEpochFortyNine$ & $\gapEpochNinetyNine$
-    & $\gapEpochOneTwentyFour$ & $\gapEpochOneNinetyNine$ & $\tailMean$ \\
-\hline
-\end{tabular}
-\end{center}
-
-The peak is at epoch 6. The hundred-epoch figure is not a floor: at epoch 99 the
-gap is roughly $\tailRatioNinetyNine$ times the residual it settles at, though both numbers are
-imprecise enough that the ratio is an order of magnitude, not a measured constant
-(\texttt{docs/STATS.md} \S3.2).
-
-Two cautions on reading the table. The points after epoch 124 are all within one
-final-epoch seed standard deviation of the NCF arm's Gini of each other
-($\finalEpochGiniSd$), so the decay is
-established to about epoch 124 and the later entries are ordered noise rather
-than a measured continuation: the claim that the series is \emph{monotone} holds
-only of the points printed, not of the underlying trajectory. And the entries at
-124, 199 and 250--299 are small differences of quantities whose own intervals are
-wide relative to their distance from zero, which is why no ratio is quoted as a
-measurement.
-
-\emph{Convergence test.} The tail mean over epochs 250--299 is $\tailMean$ with a
-95\% $t$ interval of $[\tailMeanLo, \tailMeanHi]$, which \emph{includes zero}:
-$\tailSeedsPositive$ of five seeds are positive ($t = \tailT$, $p = \tailP$; Wilcoxon
-$p = \tailWilcoxonP$). The tail is therefore indistinguishable from zero at five
-seeds, and no positive residual is claimed. What the data do support is the
-equivalence test in \S\ref{sec:equivalence}, which does not depend on the interval
-excluding zero.
-
-\emph{What ``converges'' is doing here, and what it is not.} The word appears
-elsewhere in this paper and carries more than the design delivers. A
-limit is not observed; a tail is. The measured statement is that the five-seed
-mean gap is below the $0.002$ margin from about epoch \firstBelowMarginMean{} and that the tail is
-indistinguishable from zero at five seeds. A flat tail is also what a very slow
-decay looks like, and no test here separates the two: the stationarity result
-below cannot, because a ten-epoch window at five seeds cannot detect a change of a
-size that would still matter. The paper therefore reports a bounded residual, not
-a convergence rate, and does not quote $\tailMean$ as a floor.
-
-\emph{Stationarity.} A paired test of epochs 290--299 against 280--289 gives
-$\statPairedDiff$ ($p = \statP$; Wilcoxon $\statWilcoxonP$;
-$\statSeedsLateHigher$ of five seeds higher). The
-largest single step in the last ten epochs is $\statMaxStep$, or $\statMaxStepShare$ per cent of the
-final-epoch seed standard deviation (\texttt{long\_horizon\_stationarity.csv}).
-The trajectory has stopped resolving above population noise, so 300 epochs
-suffices here and 100 does not. But "stops resolving" is a statement about
-the measurement, not about the process.
-
-\emph{The curve fit, reported and not trusted.} AIC and BIC prefer
-decay-to-constant over exponential decay decisively ($\Delta\mathrm{BIC} = \decayDeltaBic$
-from the peak), but the constant it estimates is \emph{negative} with an interval
-excluding zero while the observed tail is positive: a single exponential cannot
-represent a series that first rises, so the constant absorbs the misfit rather
-than estimating an asymptote (\texttt{docs/STATS.md} \S3.1;
-\texttt{long\_horizon\_decay\_fits.csv}). The comparison answers which curve fits
-better, not what the asymptote is.
-
-\emph{What this establishes.} That the exposure gap at the shipped configuration
-is a cold-start property that disappears, and that a hundred-epoch figure
-describes a transient. Not that the mechanism is the one H3 offers, since the
-cell that was meant to test it turns out at this horizon to be the same process
-running more slowly (\S\ref{sec:sensitivity}), nor that convergence holds
-elsewhere, since the three-hundred-epoch run exists only at the shipped cell.
+\emph{Exposure converges; welfare does not.} At round 299 the ranker's
+algorithmic loss is $\algLossNcfFinal$, against $\algLossOracleFinal$ for the
+oracle, a paired difference of $\algLossDiff$ $[\algLossDiffLo, \algLossDiffHi]$
+over twenty seeds. The ranker's shortlists agree with the oracle's as sets (mean Jaccard
+overlap $\jaccardFinal$) while its scores over the whole other side have a rank
+correlation of only $\spearmanFinal$ with true utility. Exposure counts whether an
+agent is on a list and not where, and deferred acceptance reads the order, so the
+remaining welfare difference is consistent with lists that hold the right agents
+in a different order. Within-list order was not measured directly.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/gap_over_horizon}
-\caption{The paper's central result, which was previously a table of eight
-numbers. Panel (a): the five-seed mean exposure gap between the learned ranker and
-an oracle over 300 epochs, with a one-standard-deviation seed band, the peak at
-epoch 6 marked, the 0.002 equivalence margin as a dashed rule, and the shipped
-hundred-epoch point highlighted. The shape is the finding: a rise, a monotone
-decay over the range the data resolve, and a tail inside the margin. Panel (b):
-the same arm with the ranker's weights frozen after epochs 20 and 40, seed 42.
-Both frozen series are exactly flat, and that is a property of the design rather
-than a result: freezing the weights freezes the shortlists, so exposure cannot
-move once training stops. The panel is included because it makes the limitation
-of the intervention visible. Sources:
-\texttt{rigor/long\_horizon\_gap\_series.csv}, \texttt{rigor/latefreeze/}.}
-\label{fig:gap}
+\includegraphics[width=\linewidth]{figures/transient}
+\caption{(a) The gap, NCF minus oracle exposure Gini on the same seed and round:
+the confirmation-set mean (20 seeds, 95\% $t$ band), the exploratory-set mean (20
+seeds), each confirmation seed (thin gray), and each confirmation seed's entry
+round (ticks). The shaded strip is the $\pm 0.002$ margin. (b) Diagnostics of the
+ranker on the confirmation set: reach; mean Jaccard overlap of an agent's
+shortlist with the oracle's; mean Spearman correlation between an agent's scores
+and its true utilities over the whole other side; mean share of an agent's
+shortlist inside its side's modal list. Source:
+\texttt{data/processed/horizon/e09\_canonical/}.}
+\label{fig:transient}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/arm_comparison}
-\caption{The four arms at the end of a 20-epoch ablation, five seeds. Earns its
-place as the only committed artifact showing the H3 inequality against both
-controls at once: a random baseline, which measures distance from uniformity
-rather than harm, and an oracle, which is unattainable. The popularity arm sits
-at the analytic closed form for a popularity ranker, checking that the exposure
-machinery behaves as designed; the reach labels are the mechanism's own
-diagnostic and are what \S\ref{sec:sensitivity} interrogates. Source:
-\texttt{data/processed/ablation/}.}
+\includegraphics[width=0.62\linewidth]{figures/arms}
+\caption{Exposure Gini of the four arms over 300 rounds, mean over the twenty
+confirmation seeds. Source: \texttt{data/processed/horizon/e09\_canonical/}.}
 \label{fig:arms}
 \end{figure}
 
-\subsection{The convergence claim as an equivalence test}
-\label{sec:equivalence}
+\subsection{A floor, or a slow decay?}
+\label{sec:floor}
 
-"Below $0.001$ and indistinguishable from flat" is not a statement with a defined
-meaning, so it is replaced by one. The margin was declared at $0.002$ Gini before
-the test was run (\texttt{docs/PREREGISTRATION.md} E5), and the replicate is the
-seed, not the epoch: the fifty tail values are one trajectory, so their spread is
-not the sampling scale.
+A tail inside the margin at round 300 is also what a slow decay would look like
+at that horizon, so ten confirmation seeds were run to round 999. Their first 300
+rounds reproduce the R2-E9 runs exactly. Three forms were fitted to the seed-mean
+gap from its peak to round 500 and judged by how well they predict rounds 501 to
+999, which they did not see (Figure~\ref{fig:decay}). The pure exponential
+predicts best, with a root-mean-square error of $\rmseExp$ against $\rmseExpConst$
+for an exponential to a constant and $\rmsePower$ for a power law. Its half-life is
+\halfLife{} rounds, 95\% interval \halfLifeLo{}--\halfLifeHi{} from 2000 resamples
+of the seeds. The power law is not a candidate: it predicts a gap of
+$\powerAtEnd$ at round 999, several times the margin. The exponential to a
+constant fits the first 500 rounds
+better by AIC and BIC, but its constant is $\fitK$ $[\fitKLo, \fitKHi]$, a floor
+below zero that the held-out rounds contradict.
 
-Two one-sided tests against $\pm 0.002$ both reject. With a seed sd of
-$\finalEpochSd$, a standard error of $\tailSe$ and four degrees of freedom,
-$t(\mu > -0.002) = \tostTLower$ and $t(\mu < +0.002) = \tostTUpper$; the 90\% interval over
-seeds is $[\tostLo, \tostHi]$, wholly inside the margin. The tail is
-\emph{equivalent} to zero at a pre-declared margin, which is a stronger and more
-checkable statement than an interval that happens to include zero, and it is the
-one claim here that the tail supports: the 95\% interval itself includes zero
-(\S\ref{sec:coldstart}).
+Over rounds 950 to 999 the gap is $\longTail$ $[\longTailLo, \longTailHi]$,
+positive on \longTailPos{} of ten seeds, and the 90\% interval
+$[\longTostLo, \longTostHi]$ lies inside the margin. Its change between rounds 900
+to 949 and 950 to 999 is $\lateDiff$ $[\lateDiffLo, \lateDiffHi]$, so the series
+has stopped moving. By the registered definition this is not a positive floor,
+which needed the tail interval to lie above $+0.002$. It is a residual of
+\longTailMarginShare{} percent of the margin, inside the range the margin declares
+of no consequence, and above zero at ten seeds. The oracle's Gini is constant to every
+printed digit from round 300 on, so the residual is a small rise in the ranker's
+concentration late in training. Nothing below depends on whether it is real.
 
-The same test gives a better summary of a transient than any single-epoch value:
-the epoch at which the gap first stays below the margin for the remainder of the
-run, per seed, is \firstBelowMarginBySeed. That range, \firstBelowMarginMin{} to \firstBelowMarginMax{} epochs rather than the 120 to 200 the pre-registration estimated, is the quantity to
-quote when a reader asks how long the transient lasts.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/decay}
+\caption{The gap over 1000 rounds, ten confirmation seeds (mean, 95\% $t$ band),
+with three forms fitted from the peak to round 500 and evaluated on rounds 501 to
+999 (shaded). Dotted lines: the $\pm 0.002$ margin. (b) is the tail of (a) at a
+finer scale. Source: \texttt{data/processed/horizon/e10\_long/}.}
+\label{fig:decay}
+\end{figure}
 
-\subsection{The institutional grid was measured in the inert regime}
-\label{sec:h4regime}
+\subsection{Where it holds}
+\label{sec:where}
 
-One finding in this session has no pre-registration and belongs in the main text
-anyway, because it changes what H4 means. The institutional comparison in
-Appendix~\ref{app:hypotheses} was generated in October at
-\texttt{admissible\_fraction} $= 0.2$. That is the \emph{inert} gate: the
-configuration \S\ref{sec:design} describes as one where $\theta$ never truncates a
-shortlist and the market never responds to its own outcomes. The shipped value is
-now $0.02$.
+\paragraph{One knob at a time.} Eight cells each move one modeling knob from its
+shipped value: taste spread $\sigma_\tau$ to 0.2 and 1.0, chemistry noise
+$\sigma_L$ to 0.5 and 3.0, the weight ratio $\beta/\alpha$ to 1 and 3, and the
+status margin $\delta$ to 0 and 1, with ten seeds each over 300 rounds. The
+shipped cell is seeds 100 to 109 of the canonical run
+(Figure~\ref{fig:sweep}, Table~\ref{tab:sweep}). The five claims were
+re-registered as trajectory claims before the cells ran.
 
-Both statements are verifiable from the repository. Re-running seeds 42--46 at
-$0.2$ reproduces all 200 rows of \texttt{data/processed/institutional/grid.csv}
-exactly, to the last digit, on \texttt{welfare\_common\_a},
-\texttt{welfare\_diff\_residual} and \texttt{gini\_a}. Re-running the same seeds at
-the shipped $0.02$ does not: the optimum cell reads $\hFourShippedOpt$ against the committed
-$\optWelfare$. The regime, not the code and not the seeds, is the whole difference.
+The peak gap is positive with an interval excluding zero in all nine cells
+(C1t), and its size ranges from $\peakMinCell$ at chemistry noise 0.5 to
+$\peakMaxCell$ at 3.0. Near the peak the ranker is still close to the popularity
+closed form, so the peak gap is mostly the distance from 0.96 down to the oracle's
+Gini, and that distance grows as chemistry noise makes preferences less common:
+the oracle's Gini at round 299 is $\oracleGiniShockLow$ at noise 0.5 and
+$\oracleGiniShockHigh$ at 3.0. The tail passes the equivalence test in seven of
+nine cells (C2t). It fails at chemistry noise 3.0, where the peak is largest and
+the tail is $\tailShockHigh$, with \censoredShockHigh{} of ten seeds still outside
+the margin at round 299 and a 90\% interval reaching $\tostShockHighHi$; and at
+chemistry noise 0.5 for the opposite reason: the
+tail is $\tailShockLow$, negative with an interval excluding zero (C5t), and the
+ranker ends less concentrated than the oracle. The weight ratio $\beta/\alpha = 3$
+also ends with a negative tail, $\tailBetaHigh$, inside the margin; the
+registration had predicted a reversal at chemistry noise 0.5 only. Reach at round
+299 is at least 0.75 in eight cells (C3t) and $\reachShockLow$ at chemistry noise
+0.5, where the oracle's reach is $\reachOracleShockLow$: with little idiosyncratic
+taste many agents are on no one's true top twenty. Clearing is non-degenerate
+in every cell (C4t). The transient occurs in every cell; its size and length are
+set by how common preferences are.
 
-So the interior optimum H4 reports is a property of a market that does not learn
-from its own clearing. That much was established by reproducing the committed
-grid; the next question is whether the optimum survives at the gate the paper
-actually runs, and it does not.
+\paragraph{Population size.} At $N = 500$ and $N = 2000$ the shortlist stays at
+$k = 20$ and the gate target is set to $\phi = 20/N$, so every agent again starts
+with ten admissible candidates and the gate binds; ten seeds each
+(Table~\ref{tab:units}). The round-0 Gini is the closed form at each size. The
+peak gap is $\peakNFive$, $\peakNTen$ and $\peakNTwenty$ at $N = 500$, 1000 and
+2000, falling slightly where the registration predicted a rise. The first round
+from which the gap stays below 0.05, $T_{0.05}$, has a mean of \TfiveNFive{},
+\TfiveNTen{} and \TfiveNTwenty{} rounds, and at $N = 2000$ \censoredNTwenty{} of
+ten seeds are still outside the margin at round 299. The transient is longest in
+the largest market, and it is not monotone in $N$.
 
-\emph{The grid re-run at the shipped gate.} The full ten-by-four grid was run at
-\texttt{admissible\_fraction} $= 0.02$ on the same five seeds
-(\texttt{data/processed/rigor/h4\_shipped\_gate/}). \textbf{No cell of the forty beats
-Environment A.} At $c = 0.01$ the difference is close to monotone decreasing in
-subgraph size, from $\hFourShippedSmall$ at size $0.02$ to $\hFourShippedFull$ at
-$1.00$, and the cell that was the optimum under the inert gate is
-number~\hFourShippedOptRank{} of ten by mean, at $\hFourShippedOpt$. At $c = 0.05$, $0.10$ and $0.25$
-the best cell is negative as well ($\hFourShippedBestMid$, $\hFourShippedBestHigh$,
-$\hFourShippedBestTop$).
+\paragraph{The horizon in data units.} A length in rounds is a unit of the model.
+Every agent's log holds about \rowsPerRound{} rows per round at every $N$, at most
+twenty of them positives, so a length in observations per agent is proportional to
+a length in rounds and gives the same ratios across $N$. In optimizer steps
+$T_{0.05}$ is \stepsTfiveNFive{}, \stepsTfiveNTen{} and \stepsTfiveNTwenty{} at the
+three sizes, because a pass over a larger market takes more steps. Neither unit
+makes the length independent of market size, so a transient length measured here
+does not transfer to another market in rounds, in data or in steps.
+Table~\ref{tab:units} gives $T_{0.05}$ in all three units for every experiment
+that has one.
 
-This result was not pre-registered, and that matters for how much weight it
-carries: it is recorded in \texttt{docs/PREREGISTRATION.md} E6 with that label, on
-the reasoning that a first measurement of a quantity with no prior is weak
-evidence but not biased evidence, and that presenting it as a prediction would be
-worse than the breach. It is also the only measurement of this quantity.
-
-The reading is therefore plain, and it costs the paper one of its two results.
-H4's interior optimum is a property of the regime where the threshold gate never
-binds and the market never responds to its own outcomes. At the configuration the
-rest of the paper runs, Environment B loses everywhere and loses more as it grows,
-and the thin-market penalty dominates the information gain at every size tested.
-The paper does not search for a cost or a size at which B wins; that search is
-what the pre-registration discipline exists to prevent, and the honest report is a
-refutation in the shipped regime alongside a positive result in a regime the paper
-does not otherwise use.
-
-\subsection{Robustness across the parameter sweep}
-\label{sec:sensitivity}
-
-The hypotheses above were each measured at one setting of four modeling knobs.
-This subsection asks where they hold: twelve cells, one knob moving at a time,
-four claims fixed with their thresholds before the cells were read
-(Table~\ref{tab:sens}).
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/sweep}
+\caption{The one-knob sweep, ten seeds per cell. (a) Peak gap, mean with 95\% $t$
+interval. (b) Each seed's entry round; open markers at the right edge are seeds
+still outside the margin at round 299. Source:
+\texttt{data/processed/horizon/e11\_sweep/} and, for the shipped cell, seeds
+100--109 of \texttt{e09\_canonical/}.}
+\label{fig:sweep}
+\end{figure}
 
 \begin{table}[t]
 \centering
-\input{tables/sensitivity}
-\caption{The sensitivity grid: one knob at one level per row, the rest at shipped
-values, five seeds, 100 epochs. Gap is the paired exposure difference, with its
-95\% BCa bounds and its 95\% Student-$t$ bounds printed side by side, because the
-C1 verdict must not rest on the construction the paper elsewhere says undercovers
-at five seeds. The shipped level of each knob is italicised and appears in three
-axes with identical numbers, which checks that the axes are independent. C1--C4
-are the claims of \texttt{docs/STATS.md} \S4.1, bold where a claim fails; C1
-holds on both constructions in all twelve cells.}
-\label{tab:sens}
+\input{tables/sweep}
+\caption{The sweep's five trajectory claims, registered before the cells ran.
+C1t: peak gap positive, $t$ interval excluding zero. C2t: two one-sided tests on
+the rounds 250--299 tail pass at $\pm 0.002$. C3t: reach at round 299 at least
+0.75. C4t: clearing rate at round 299 with an interval excluding zero. C5t: tail
+mean negative with an interval excluding zero (a reversal). Ten seeds per cell.
+Source: \texttt{data/processed/horizon/e11\_sweep/analysis/cells.csv}.}
+\label{tab:sweep}
 \end{table}
 
-\emph{Holds everywhere.} The H3 ordering holds in all twelve cells, positive with
-an interval excluding zero, reversing nowhere (C1). It holds on both
-constructions: every cell's Student-$t$ interval excludes zero as well as every
-cell's BCa interval, and the two are printed side by side
-(Table~\ref{tab:sens}). The gap is small by the
-pre-fixed ceiling in all twelve (C2), though the largest cell's upper bound
-reaches $\gapHighShockHi$ and is the weakest case. Clearing is non-degenerate in all
-twelve (C4). Neither the ordering nor the existence of a clearing market is an
-artifact of the shipped corner.
+\begin{table}[t]
+\centering
+\input{tables/units}
+\caption{$T_{0.05}$, the first round from which the gap stays below 0.05, in
+three units: rounds, rows of training log per agent, and optimizer steps. Mean
+over seeds; censored seeds are excluded and counted. Sources:
+\texttt{data/processed/horizon/} (\texttt{e09\_canonical}, \texttt{e11\_sweep},
+\texttt{e13a\_dose}, \texttt{e13c\_offpolicy}, \texttt{e13d\_warm},
+\texttt{e17\_size}).}
+\label{tab:units}
+\end{table}
 
-\emph{What does not, at this horizon.} One cell fails the reach claim at 100
-epochs: at the lowest chemistry noise the ranker reaches $\reachLowShock$ of agents
-against $\reachShipped$ shipped, both fractions of the population (C3). The same
-comparison in counts is \reachLowShockCount{} agents against \reachShippedCount{},
-out of $N = 1000$; reach is reported as a fraction everywhere else in this paper and
-is a fraction here. The gap there is small and positive ($\gapLowShock$), and the reading the sweep supports
-is that the cell is at a different point in the same process rather than at the
-end of a different one.
+\subsection{What ends it}
+\label{sec:what-ends}
 
-\emph{And what a longer horizon does to that reading.} The cell was then run to
-300 epochs (\texttt{data/processed/rigor/c4\_shock0.5/}; five seeds, 1 thread).
-Reach climbs from $\cfourReachZero$ at epoch 0 to $\cfourReachFortyNine$ at epoch 49,
-$\cfourReachNinetyNine$ at epoch 99, and $\cfourReachFinal$ at epoch 299. The gap
-peaks at $\cfourPeak$ at epoch \cfourPeakEpoch{} and decays to $\cfourFinal$ at epoch 299, proportionally as complete a decay as the shipped cell's, from a peak
-a fifth as large.
+\paragraph{The common list breaks up.} At round 0 a per-candidate term explains at
+least $\itemShareZeroMin$ of the within-agent variation in the untrained ranker's
+scores on every one of the forty seeds, at least $\modalShareZeroMin$ of every
+agent's shortlist is its side's modal list, and the exposure Gini is within
+$\giniZeroMaxDev$ of the popularity closed form (Figure~\ref{fig:transient}(b)).
+Every agent on a side sees nearly the same twenty candidates. As training proceeds
+the share of identical lists falls below 0.1 by round \identicalBelowRound{}, the
+per-candidate term's share of score variation falls below one half by round
+\itemBelowRound{}, and the mean overlap of an agent's shortlist with the oracle's
+rises from $\jaccardZero$ to $\jaccardFinal$.
 
-So $\reachLowShock$ was reach at \emph{epoch 99}, not a ceiling. The sweep therefore
-does not identify a cell where the mechanism is absent, only one where it runs more slowly. That withdraws the conclusion-reversing claim this paper made and
-leaves the sweep unable to test the mechanism, since a cell where reach climbs
-slowly is not a cell where reach is held fixed. At 100 epochs the filter learns
-coverage in every cell, at rates spanning a factor of two, and none was run long
-enough to show where the convergence it drives stops.
+The registered prediction tied the gap to ranking quality measured as the rank
+correlation between an agent's scores and its utilities over the whole other
+side. It failed in sign: across rounds 6 to 299 the gap and that correlation are
+positively correlated on every seed (median $\corrMedian$, minimum $\corrMin$),
+because the correlation falls as the gap closes. The ranker starts by ordering
+every agent's candidates by one shared score, which agrees moderately with each
+agent's own utility because the candidates many agents value share high status
+and attractiveness. It then learns which twenty candidates each agent ranks
+highest, and its training labels separate those twenty from uniform negatives
+without ordering the rest. The gap is a quantity about the top twenty, and among
+these diagnostics it is the overlap with the oracle's shortlist and the breakup of
+the modal list that move with it.
 
-\subsection{Two interventions, and what only one of them settles}
-\label{sec:interventions}
+\paragraph{Optimizer steps, not rounds.} Training at 0.5, 1, 2 and 4 passes per
+round, ten seeds each, the gap stays below 0.05 from round \TfiveDoseHalf{},
+\TfiveDoseOne{}, \TfiveDoseTwo{} and \TfiveDoseFour{} on average: doubling the
+passes halves the length (Figure~\ref{fig:dose}(a)). In cumulative optimizer
+steps the four curves fall on one (Figure~\ref{fig:dose}(b)), and the step count
+at that threshold is between \stepsTfiveMin{} and \stepsTfiveMax{} at every dose.
+The elasticity of the length in rounds with respect to the dose is
+$\doseElasticity$ $[\doseElasticityLo, \doseElasticityHi]$, as registered. Each
+round's log draws on nearly the same distribution as the last, so what the
+transient takes is optimizer steps. At four passes the gap overshoots: it ends at
+$\doseFourTail$, below the margin, with \doseFourCensored{} of ten seeds outside
+it at round 299. More training eventually leaves this ranker less concentrated
+than the oracle, and this experiment does not say why.
 
-The mechanism the cold-start reading offers, that the filter learns whom it can
-represent, was supported by a correlation: the gap falls while reach rises, and
-nothing was manipulated. Two arms manipulate it, registered before either ran
-(\texttt{docs/PREREGISTRATION.md} E3, E3a), and only one of them can.
+\paragraph{Feedback through thresholds.} A second ranker, trained each round on
+the log of a market it does not control (one run by the oracle rule or by the
+random rule), starts from the same weights and, at round 0, the same data as the
+market's own ranker; the thresholds are what differ after that. At round 49 its gap
+is smaller than the market ranker's by $\offOracleFortyNine$ $[\offOracleFortyNineLo,
+\offOracleFortyNineHi]$ on the oracle market's data and by $\offRandomFortyNine$
+$[\offRandomFortyNineLo, \offRandomFortyNineHi]$ on the random market's
+(Figure~\ref{fig:feedback}(a)). The registered prediction, a difference under
+0.01, failed. The effect is about \offShare{} percent of the gap at that round,
+about \offDelay{} rounds of decay at that point of the curve, and it is gone by
+round 299. The mechanism is the one channel of \S\ref{sec:log}: concentrated shortlists
+leave many acceptors without proposals, their thresholds stay high, and their
+logged positives stay truncated for longer. Feedback delays the end of the
+transient; it does not sustain it.
 
-\emph{The frozen ranker does not test anything, and that is a design fact rather
-than a null result.} Training is stopped at epoch 6, the gap's peak, and the
-market is left running. The NCF's exposure Gini is then constant to the last
-digit from the freeze epoch to epoch 99, identically on all five seeds. Freezing
-the weights freezes the score matrix, which freezes every shortlist, which fixes
-exposure. Every freeze point gives a flat arm, and re-running the freeze at epochs
-20 and 40 returns the same exact constancy
-(\texttt{data/processed/rigor/interventions/} and \texttt{latefreeze/}). The arm
-is included in the record because it is the obvious experiment and a reader should
-see why it is the wrong one: it varies something that is mechanically tied to the
-outcome it measures.
+\paragraph{Exploration.} Replacing the last $m$ entries of every shortlist with
+candidates drawn uniformly ($m = 1$ or $4$ of 20) lowers the whole-list gap by
+construction. The quantity of interest is the gap of the exploiting part, the
+first $20 - m$ entries against the oracle's first $20 - m$. Its difference from
+the non-exploring ranker's gap is $\expOneFortyNine$ at round 49 and
+$\expOneNinetyNine$ at round 99 at $m = 1$, and $\expFourFortyNine$ and
+$\expFourNinetyNine$ at $m = 4$; every interval excludes zero except the one at
+round 49 for $m = 4$, and the registered prediction of a difference inside $\pm
+0.01$ fails (Figure~\ref{fig:feedback}(b)). The likely route is the same: random
+slots spread proposals and so relax more thresholds. At round 299 the exploiting
+part ends above the control, $\expOneTwoNinetyNine$ at $m = 1$. Cutting a list
+by utility rank and by score rank differs even when the two lists hold the same
+agents, so a check added after these results were read compares the exploring
+ranker's head with a non-exploring ranker's head of the same length. On that
+comparison the round-299 excess is $\checkExploitTwoNinetyNine$
+$[\checkExploitTwoNinetyNineLo, \checkExploitTwoNinetyNineHi]$, an interval that
+includes zero, so the late excess was the comparator's; the faster closing is not:
+the differences at rounds 49 and 99 are $\checkOneFortyNine$ and
+$\checkOneNinetyNine$ at $m = 1$ and $\checkFourFortyNine$ and
+$\checkFourNinetyNine$ at $m = 4$, every interval excluding zero.
 
-\emph{The warm start does test something, and the answer is half against the
-prediction.} The ranker is pretrained on the epoch-0 swipe log for fifty passes
-before the loop starts, which raises reach at epoch 0 from
-$\warmReachZeroControl$ to $\warmReachZeroTreated$ of agents, against
-$\reachShipped$ shipped over a full run. As predicted, the epoch-0 gap falls
-sharply, from $\warmEpochZeroControl$ to $\warmEpochZeroTreated$. Contrary to
-prediction, the terminal gap falls too, from $\warmFinalControl$ to
-$\warmFinalTreated$, a paired per-seed difference of $\warmTerminalDiff$
-(sd $\warmTerminalSd$, $t(4) = \warmTerminalT$), where the registration expected
-it roughly unchanged. And $\warmDecaySurviving$\% of the decay survives an
-informed start.
+\paragraph{An informed start.} Pretraining the ranker for fifty passes on the
+round-0 log before the market opens raises round-0 reach from $\reachZeroControl$
+to $\reachZeroWarm$ and cuts the round-0 gap from $\gapZeroControl$ to
+$\gapZeroWarm$ (forty seeds). On the registered measure, the warm arm's fall from
+round 0 to round 299 as a share of the control's, $\warmShareConf$ percent
+$[\warmShareConfLo, \warmShareConfHi]$ of the decay survives on the confirmation
+set and $\warmShareExpl$ percent on the exploratory set: the informed start removes
+about four fifths of it (Table~\ref{tab:warm}). The registered upper bound of
+one half held; the registered round-0 reach above 0.8 held on every seed but one
+($\reachWarmMin$). The share is larger on levels, because the oracle's Gini also
+falls in both arms, and near 0.7 measured from each arm's own peak, because the
+warm arm climbs for a few rounds from its informed start before it decays. By
+round 299 the two arms differ by $\warmTerminalTwoNinetyNine$ on the confirmation
+set. Fifty passes over one log add optimizer steps without adding data, and they
+are not worth as much as steps on fresh logs: the warm arm's gap stays below 0.05
+from round \TfiveWarm{} against \TfiveControl{} for the control, sooner in rounds,
+but after \stepsTfiveWarm{} optimizer steps against \stepsTfiveControl{}
+(Table~\ref{tab:units}). The dose result's steps are steps on a new log each
+round.
 
-\emph{What that means.} If the filter's learning coverage were the whole story, a
-ranker that begins with coverage in hand should show most of the decay absent. It
-shows $\warmDecaySurviving$ per cent of it surviving, so a third of the decay
-is removed and two thirds is not. Learning coverage is part of what closes the
-gap, but the experiment does not license the stronger reading that it is most of
-it, and this paper therefore reports the mechanism as partly tested and not
-established. The honest summary is that the decay is robust to how informed the
-ranker starts, which is either a weaker mechanistic claim than the paper set out
-to make or a hint that something other than representational learning is at work.
-No experiment here distinguishes those two readings.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/dose}
+\caption{The gap at four training doses, ten seeds each (mean), against rounds (a)
+and against cumulative optimizer steps (b). Shaded strip: the $\pm 0.002$ margin.
+Source: \texttt{data/processed/horizon/e13a\_dose/} and, for one pass, seeds
+100--109 of \texttt{e09\_canonical/}.}
+\label{fig:dose}
+\end{figure}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/feedback}
+\caption{(a) The gap of a ranker trained on its own market's data (on-policy)
+and of a ranker trained on the data of a market run by the oracle or the random
+rule (off-policy), ten seeds, mean. (b) With exploration slots: the gap of the
+exploiting part of each list and of the whole list, against the non-exploring
+ranker, ten seeds, mean. Source: \texttt{data/processed/horizon/e13c\_offpolicy/},
+\texttt{e13b\_explore/}, \texttt{e09\_canonical/}.}
+\label{fig:feedback}
+\end{figure}
 
-\emph{How large.} The gap ranges from $\gapRangeLo$ to $\gapRangeHi$, a factor of about
-$\gapRangeRatio$, with no change in sign; the shipped cell sits mid-range. Quote the range
-with its condition, or the shipped cell with its regime, never the shipped number as
-``the'' gap.
+\begin{table}[t]
+\centering
+\input{tables/warm}
+\caption{Share of the control arm's decay that survives a warm start, four
+constructions, each computed per seed and averaged, 95\% $t$ interval over twenty
+seeds per set. Round-0 basis: (warm$_0$ $-$ warm$_{299}$) / (control$_0$ $-$
+control$_{299}$); peak basis: each arm from its own maximum. Gap: NCF minus oracle
+Gini; level: NCF Gini. The registered primary is the gap on the round-0 basis.
+Source: \texttt{data/processed/horizon/e13d\_warm/analysis/summary.csv}.}
+\label{tab:warm}
+\end{table}
 
-\emph{A documented condition that does not reproduce.} The configuration states,
-and a guard test pins, that the hypergamy margin $\delta$ has power only when
-$\beta/\alpha \geq 2$. Re-measuring shortlist overlap at the shipped
-heterogeneity and noise reverses the ordering: $\beta/\alpha = 1$ gives $\delta$
-\emph{more} power than $3$, and all three levels clear the threshold the
-guardrail treats as meaningful (\texttt{docs/STATS.md} \S4.2;
-\texttt{sensitivity/delta\_power.csv}). The guard test is not wrong; it was
-measured on a noise-free homogeneous population, and the rule of thumb describes
-that population rather than the one the experiments run on.
+\subsection{An open market}
+\label{sec:arrivals}
 
-What the sweep does show is that $\delta$ moves no headline: the gap is $\gapDeltaZero$
-at $0$, $\gapDeltaHalf$ at $0.5$ and $\gapDeltaOne$ at $1.0$, a spread of
-$\gapDeltaSpread$ against BCa intervals about $\gapDeltaWidth$ wide, while the weight
-ratio moves it $\betaAlphaVsDelta$ times as far and chemistry noise $\shockVsDelta$
-times as far. The defensible statement is that no claim here
-rests on $\delta$ at any weight ratio tested, not that the results require $\beta/\alpha
-\geq 2$.
+In every run so far the population is fixed, so the ranker eventually learns every
+agent. When a share $\nu$ of the slots is replaced every round by fresh agents
+with new traits, new embeddings and calibrated thresholds (\S\ref{sec:open}),
+some agents are always new. Over rounds 500 to 599 the gap is $\openGapLow$
+$[\openGapLowLo, \openGapLowHi]$ at $\nu = 0.5$ percent per round, $\openGapMid$
+$[\openGapMidLo, \openGapMidHi]$ at 1 percent and $\openGapHigh$
+$[\openGapHighLo, \openGapHighHi]$ at 2 percent, positive on every seed and
+increasing in the rate, as registered (Figure~\ref{fig:arrivals}(a), ten seeds per
+rate). At every rate it is above the margin.
 
-\emph{Refuted?} The sweep refutes the unconditional form of the cold-start
-explanation and the stated $\beta/\alpha$ condition. It does not refute H3's
-ordering, the one result that survives every cell.
+The registered stationarity check fails at every rate. Its paired comparison of
+rounds 590--599 with 580--589 finds no change ($p = \statPLow$, $\statPMid$ and
+$\statPHigh$), but its second criterion, a largest round-to-round step in the
+seed-mean series below a tenth of the seed standard deviation, fails: the step is
+\stepRatioLow{}, \stepRatioMid{} and \stepRatioHigh{} of it. That criterion was
+written for the closed market, whose series stops moving; here every round's
+arrivals move every round's mean. A trend test added after this was read finds the
+gap still moving over rounds 400 to 599: it changes by $\trendLow$ $[\trendLowLo,
+\trendLowHi]$ at 0.5 percent per round, $\trendMid$ $[\trendMidLo, \trendMidHi]$
+at 1 percent and $\trendHigh$ $[\trendHighLo, \trendHighHi]$ at 2 percent, every
+interval excluding zero. At the lowest rate the gap is still falling, so its level
+over rounds 500 to 599 overstates the gap at the end of the run; at the two higher
+rates it is rising. None of the three levels is a steady state at 600 rounds.
+What survives is the weaker statement the trend allows: at every rate the
+gap stays above the margin to the end of the run, and it is larger at a higher
+rate.
+
+By tenure (Figure~\ref{fig:arrivals}(b)), agents in their first ten rounds receive
+a share of the ranker's exposure below their share of the population at 1 and 2
+percent per round ($\cohortNewMid$ and $\cohortNewHigh$ of proportional), while the
+oracle gives them close to their share ($\cohortNewMidOracle$ and
+$\cohortNewHighOracle$), and agents with fifty rounds or more receive more than
+their share ($\cohortOldLow$, $\cohortOldMid$, $\cohortOldHigh$). At 0.5 percent
+per round the newest agents are over-exposed instead ($\cohortNewLow$), which
+fails the registered prediction that they are under-exposed at every rate.
+
+The ordering follows from a ratio. An agent stays for $1/\nu$ rounds on average,
+200, 100 and 50 rounds at the three rates, against a closed-market entry round of
+about \entryMedianConf{}, so a higher rate leaves a larger share of agents newer than
+the ranker's learning time. No rate with $1/\nu$ well above that time was run, so
+the experiment shows that the gap tracks this ratio and does not locate where it
+falls inside the margin.
+
+A round has no calendar length here, so a replacement rate per round cannot be
+read as a platform's churn without knowing how many rounds of retraining a
+platform's period contains. What the open market shows is that the gap tracks the
+rate at which the ranker meets agents it has not learned, and that it stays above
+the margin at every rate tested.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/arrivals}
+\caption{(a) The gap with a share of agents replaced each round, ten seeds per
+rate (mean, 95\% $t$ band), and the closed market (seeds 100--119, to round 299).
+Shaded: rounds 500 to 599, over which the levels are read. (b) Each tenure band's
+share of exposure divided by its share of agents, rounds 500 to 599: NCF (filled)
+and oracle (open). Source: \texttt{data/processed/horizon/e14\_arrivals/}.}
+\label{fig:arrivals}
+\end{figure}

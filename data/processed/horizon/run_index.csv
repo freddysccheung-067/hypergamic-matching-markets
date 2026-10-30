@@ -1,0 +1,17 @@
+experiment,question,post_hoc,n_records,seeds,n_seeds,rounds,commits,n_config_hashes,any_dirty,cpu_hours
+R2-E9,"the transient: four arms, 300 rounds",False,40,42-119,40,300,349b484,1,False,15.840300277777779
+R2-E10,floor or slow decay: 1000 rounds,False,10,100-109,10,1000,f4d2b8c,1,False,6.660660833333333
+R2-E11,"one-knob sweep, eight cells",False,80,100-109,10,300,349b484,8,False,15.543416944444445
+R2-E13a,"training dose: 0.5, 2, 4 passes per round",False,30,100-109,10,300,f4d2b8c,3,False,9.323061944444444
+R2-E13b,exploration slots,False,40,100-109,10,300,f4d2b8c,3,False,3.873801666666667
+R2-E13b-check,comparator check for exploration,True,20,100-109,10,300,9b11a36,1,False,4.494062777777778
+R2-E13c,off-policy ranker,False,10,100-109,10,300,f4d2b8c,1,False,3.582329722222222
+R2-E13d,warm start,False,40,42-119,40,300,349b484,1,False,8.727408055555557
+R2-E14,open market: replacement,False,30,100-109,10,600,f4d2b8c,3,False,11.404548333333333
+R2-E15,"institutional grid, rounds 250-299",False,10,100-109,10,300,f4d2b8c,1,False,3.9249952777777777
+R2-E15i,"institutional slice, inert gate",False,10,100-109,10,5,f4d2b8c,1,False,0.025159444444444443
+R2-E15s,"institutional grid, rounds 0-4",True,10,100-109,10,5,ec0eb83,1,False,0.056647777777777776
+R2-E16,"floating-point sensitivity, ten runs per seed",False,50,100-104,5,300,9b11a36,10,False,81.34028250000001
+R2-E17,population size 500 and 2000,False,20,100-109,10,300,f4d2b8c,2,False,4.804040555555556
+R2-H1r,"H1 at the shipped gate, round-0 log",False,1,100-109,10,1,f4d2b8c,1,False,0.0018891666666666668
+R2-H5r,H5 at the shipped gate,False,10,100-109,10,40,f4d2b8c,1,False,0.3987030555555555

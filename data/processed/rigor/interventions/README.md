@@ -35,16 +35,26 @@ is 0.041 — the ranker can barely rank — so the arm is doubly uninformative.
 `../latefreeze/` re-runs the frost at epochs 20 and 40 and gets the same exact
 constancy, which is what identifies the cause as structural.
 
-**The warm arm produced a real result, and it is half against the prediction.**
-Reach at epoch 0 rises from 0.041 (control) to 0.861. The epoch-0 gap falls from
-+0.3055 to +0.1079, as predicted. But the terminal gap also falls, from +0.0224 to
-+0.0132 (paired difference −0.00924, t(4) = −4.78, sd 0.00432), where E3(ii)
-predicted it would be roughly unchanged. And **67% of the decay survives**
-(warm decay −0.1889 against control −0.2831). Starting informed does not explain
-most of the decay.
+**The warm arm produced a real result, and it supports the coverage reading.**
+Reach at round 0 rises from 0.041 (control) to 0.861. The round-0 gap falls from
++0.2633 to +0.0657. The terminal gap also falls, from +0.0224 to +0.0132 (paired
+difference −0.00924, t(4) = −4.78, sd 0.00432), where E3(ii) predicted it would be
+roughly unchanged. On the measure registered in E3d (gap, round-0 basis, per seed)
+**21.7% of the decay survives** (95% t interval 15.0 to 28.4): the informed start
+removes about four fifths of it.
+
+**Correction, 2026-10-27.** This paragraph previously gave the round-0 gaps as
++0.3055 and +0.1079 and said 67% of the decay survives. The first pair was the
+round-0 NCF level minus the round-99 oracle level, mixing two rounds. The 67% was a
+peak-basis ratio, which measures each arm from its own maximum and so discards the
+pretraining's effect on the warm arm's first rounds. The four constructions are in
+`decay_fractions.csv` (per seed) and `decay_fractions_summary.csv` (over seeds),
+both written by `scripts/analyze_warm_start.py`.
 
 Gaps above are NCF Gini minus the oracle Gini from `../exploratory_1t/` at the
-same seed and thread count, never against a committed 24-thread directory.
+same seed and thread count, never against a committed 24-thread directory. The
+control condition here and the NCF arm there are the same run and agree to every
+printed digit.
 
 ## Thread count
 
@@ -56,3 +66,8 @@ other and to `../fresh/`.
 `interventions_seed<seed>.csv`, one row per (condition, epoch), columns
 `condition, seed, epoch, gini, reach, mcr, rsi, top1_share, welfare_alg,
 noise_ratio`.
+
+`decay_fractions.csv`, one row per seed: the level and gap at round 0, at each
+arm's own peak and at round 99, and the four decay fractions. `decay_fractions_summary.csv`:
+mean, sd, 95% t interval and range over seeds of each, plus the four ratios of the
+five-seed mean series as `*_pooled` rows. Both from `scripts/analyze_warm_start.py`.

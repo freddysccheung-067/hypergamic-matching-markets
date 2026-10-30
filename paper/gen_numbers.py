@@ -1,643 +1,462 @@
-"""Generate ``paper/tables/numbers.tex``: one LaTeX macro per named quantity.
+"""Write ``paper/tables/numbers.tex``: one LaTeX macro per number the prose quotes.
 
-The tables in this paper already regenerate from ``data/processed/``; the prose
-did not, which is how the paper came to hold three different values for one
-horizon. This script closes that gap: every number the prose quotes becomes a
-``\\newcommand`` reading a committed CSV, so a stale figure cannot survive a
-rebuild.
+    python paper/gen_numbers.py
 
-    python paper/numbers.py
+Every macro reads a CSV under ``data/processed/`` written by
+``scripts/analyze_horizon.py``, ``scripts/analyze_extras.py`` or
+``scripts/run_validation.py``. Nothing is typed. ``tests/python/test_paper_numbers.py``
+fails if the committed ``numbers.tex`` differs from a fresh render, and recomputes
+the headline numbers from the raw seed files independently.
 
-Writes ``paper/tables/numbers.tex``. ``main.tex`` inputs it in the preamble, so
-every section can use the macros below without an extra ``\\input``.
-
-Conventions, so that a macro name says what it contains:
-
-  \\gapShipped          a point estimate, signed, 4 places
-  \\gapShippedLo        a lower bound, signed, 4 places
-  \\giniNcf             a level (not a difference), unsigned
-  \\optWelfare          a welfare number, signed, 2 places (its own scale)
-  \\h4Q                 a p- or q-value, 3 significant figures, scientific
-  \\nSweepCells         a count, no decimal
-  \\reachShipped        a fraction in [0, 1], 4 places
-
-Which run each reading comes from is in the comment beside it, because two
-directories can hold the same quantity and the paper must say which.
+TeX control words are letters only, so numbers in a name are spelled out
+(``\\gapNinetyNine``). A macro holds a signed value when the quantity is a
+difference and an unsigned one when it is a level, a share or a count.
 """
 
 from __future__ import annotations
 
-import csv
-from pathlib import Path
+import math
+import pathlib
 
-ROOT = Path(__file__).resolve().parent.parent
-PROCESSED = ROOT / "data" / "processed"
-RIGOR = PROCESSED / "rigor"
-OUT = Path(__file__).resolve().parent / "tables" / "numbers.tex"
+import numpy as np
+import pandas as pd
+from scipy import stats
 
-
-def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="", encoding="utf-8") as handle:
-        return list(csv.DictReader(handle))
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+H = ROOT / "data" / "processed" / "horizon"
+OUT = pathlib.Path(__file__).resolve().parent / "tables" / "numbers.tex"
 
 
-def regime_row(quantity: str, regime: str) -> dict[str, str]:
-    for row in read_csv(RIGOR / "intervals.csv"):
-        if row["quantity"] == quantity and row["regime"] == regime:
-            return row
-    raise KeyError(f"{quantity} @ {regime}")
+def A(exp: str, name: str) -> pd.DataFrame:
+    return pd.read_csv(H / exp / "analysis" / name)
 
 
-def mc_values() -> dict[str, float]:
-    return {
-        row["quantity"]: float(row["value"])
-        for row in read_csv(RIGOR / "multiple_comparisons.csv")
-    }
+def long(exp: str, name: str) -> dict[str, float]:
+    frame = A(exp, name)
+    return dict(zip(frame["quantity"], frame["value"]))
 
 
-# The 300-epoch trajectory the paper quotes. It is `long_horizon_1t`, the series
-# regenerated at 1 thread in this session, because the committed `long_horizon/`
-# cannot be regenerated from this code at any thread count (docs/REVIEW_RESPONSE.md
-# A3). The two agree at the tolerance fixed in docs/PREREGISTRATION.md E7 (tail
-# difference 0.000144); where they differ, the paper quotes this one.
-LONG_HORIZON = RIGOR / "long_horizon_1t"
+def f(value: float, places: int = 4, signed: bool = False) -> str:
+    value = float(value)
+    if value == 0.0:
+        value = 0.0  # no "-0.0000"
+    out = f"{value:+.{places}f}" if signed else f"{value:.{places}f}"
+    return out.replace("+-", "-")
 
 
-def asymptote() -> dict[str, float]:
-    rows = read_csv(LONG_HORIZON / "long_horizon_asymptote.csv")
-    if not rows:
-        raise ValueError("long_horizon_asymptote.csv is empty")
-    # `window` is the window length in epochs and `epochs` is the range label
-    # ("250-299"); only the former is a number, so the range is skipped here and
-    # read separately where the prose needs it.
-    skip = ("quantity", "regime", "window", "epochs", "method")
-    return {k: float(v) for k, v in rows[0].items() if k not in skip}
+def n(value: float) -> str:
+    """A count or a round: an integer when it is one, else one decimal."""
+    value = float(value)
+    return str(int(round(value))) if abs(value - round(value)) < 1e-9 else f"{value:.1f}"
 
 
-def stationarity() -> dict[str, float]:
-    rows = read_csv(LONG_HORIZON / "long_horizon_stationarity.csv")
-    if not rows:
-        raise ValueError("long_horizon_stationarity.csv is empty")
-    return {k: float(v) for k, v in rows[0].items()
-            if k not in ("arm", "window_early", "window_late")}
+def thousands(value: float) -> str:
+    return f"{int(round(float(value))):,}".replace(",", "{,}")
 
 
-def sensitivity_rows() -> list[dict[str, str]]:
-    return read_csv(RIGOR / "sensitivity.csv")
-
-
-def shipped_cell() -> dict[str, str]:
-    for row in sensitivity_rows():
-        if row["is_shipped"] == "True":
-            return row
-    raise KeyError("no shipped row in sensitivity.csv")
-
-
-def gap_range() -> tuple[float, float]:
-    rows = sensitivity_rows()
-    points = [float(r["gap_point"]) for r in rows]
-    return min(points), max(points)
-
-
-def sci(value: float) -> str:
-    """LaTeX scientific notation, mantissa to two places."""
+def sci(value: float, places: int = 1) -> str:
+    """LaTeX scientific notation for a small positive number."""
+    value = float(value)
     if value == 0.0:
         return "0"
-    exp = 0
-    m = value
-    while abs(m) >= 10:
-        m /= 10
-        exp += 1
-    while abs(m) < 1:
-        m *= 10
-        exp -= 1
-    return rf"{m:.2f}\times10^{{{exp}}}"
+    exp = int(math.floor(math.log10(abs(value))))
+    mant = value / 10 ** exp
+    return rf"{mant:.{places}f}\times 10^{{{exp}}}"
 
 
-def gap_series() -> dict[int, float]:
-    """The five-seed mean gap by epoch, from the regenerated 300-epoch series."""
-    rows = read_csv(LONG_HORIZON / "long_horizon_gap_series.csv")
-    return {int(r["epoch"]): float(r["gap_mean"]) for r in rows}
+def censored_median(values: pd.Series, censored: pd.Series) -> float:
+    """Median with censored values counted as larger than every observed one."""
+    v = np.where(censored.to_numpy(), np.inf, values.to_numpy(dtype=float))
+    med = float(np.median(np.sort(v)))
+    if not math.isfinite(med):
+        raise ValueError("more than half the seeds are censored; the median is not defined")
+    return med
 
 
-def twenty_seed(directory: str) -> dict[str, dict[str, float]]:
-    """Mean, sd and 95% t bounds over the twenty seeds in a rigor subdirectory.
+class Macros:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+        self.names: set[str] = set()
 
-    Reads the per-seed ``metrics_seed<N>.csv`` files written by
-    ``scripts/run_rigor_base.py`` and takes the final epoch of each arm. A gap is
-    formed per seed and then averaged, never as a difference of arm means: the
-    arms inside one file share a population, so pairing is what makes the gap an
-    observation rather than a comparison of two independent samples.
+    def comment(self, text: str) -> None:
+        self.lines.append(f"% {text}")
 
-    Returns ``{quantity: {"mean", "sd", "lo", "hi"}}``. The t interval is the one
-    to read at n = 20 (``docs/STATS.md`` §1), so only that construction is
-    returned; the sd is included because the fresh-seed paragraph compares spreads
-    between the two sets and that comparison should not be a hand-typed number.
-    """
-    files = sorted((RIGOR / directory).glob("metrics_seed*.csv"))
-    if not files:
-        raise FileNotFoundError(
-            f"no metrics_seed*.csv in data/processed/rigor/{directory}; run "
-            f"scripts/run_rigor_base.py for that directory first"
-        )
-
-    per_seed: dict[str, list[float]] = {
-        "gini_ncf": [], "gini_oracle": [], "gini_gap": [], "alg_loss": [],
-    }
-    for path in files:
-        rows = read_csv(path)
-        last = max(int(r["epoch"]) for r in rows)
-        final = {r["arm"]: r for r in rows if int(r["epoch"]) == last}
-        ncf = float(final["ncf"]["gini"])
-        oracle = float(final["oracle"]["gini"])
-        per_seed["gini_ncf"].append(ncf)
-        per_seed["gini_oracle"].append(oracle)
-        per_seed["gini_gap"].append(ncf - oracle)
-        if "algorithmic_loss" in final["ncf"]:
-            per_seed["alg_loss"].append(float(final["ncf"]["algorithmic_loss"]))
-
-    # Two-sided 95% t at n = 20 (19 df).
-    tcrit = 2.093
-    out: dict[str, dict[str, float]] = {}
-    for key, values in per_seed.items():
-        if not values:
-            continue
-        n = len(values)
-        m = sum(values) / n
-        var = sum((v - m) ** 2 for v in values) / (n - 1)
-        se = (var / n) ** 0.5
-        out[key] = {"mean": m, "sd": var ** 0.5,
-                    "lo": m - tcrit * se, "hi": m + tcrit * se}
-    return out
+    def add(self, name: str, value: str) -> None:
+        if not name.isalpha():
+            raise ValueError(f"TeX macro names are letters only: {name}")
+        if name in self.names:
+            raise ValueError(f"macro defined twice: {name}")
+        self.names.add(name)
+        self.lines.append(rf"\newcommand{{\{name}}}{{{value}}}")
 
 
-EQUIVALENCE_MARGIN = 0.002   # declared in docs/PREREGISTRATION.md E5 before the test
-T_ONE_SIDED_4DF = 2.132      # t_{0.05}, 4 df: the one-sided critical value TOST uses
+MARGIN = 0.002
 
 
-def _grid_cell(directory: str, cost: float, size: float) -> dict[str, float]:
-    for row in read_csv(RIGOR / directory / "grid_summary.csv"):
-        if abs(float(row["signal_cost"]) - cost) < 1e-9 and \
-                abs(float(row["size_fraction"]) - size) < 1e-9:
-            return {k: float(v) for k, v in row.items()}
-    raise KeyError(f"{directory}: no cell c={cost} sf={size}")
+def sig(value: float, digits: int = 2) -> str:
+    return f"{float(value):.{digits}g}"
 
 
-def _grid_slice(directory: str, cost: float) -> list[dict[str, float]]:
-    rows = [{k: float(v) for k, v in r.items()}
-            for r in read_csv(RIGOR / directory / "grid_summary.csv")
-            if abs(float(r["signal_cost"]) - cost) < 1e-9]
-    return sorted(rows, key=lambda r: r["welfare_diff_residual_mean"], reverse=True)
+def transient(m: Macros) -> None:
+    s = A("e09_canonical", "summary.csv").set_index("set")
+    c, e = s.loc["confirmation"], s.loc["exploratory"]
+    ser = A("e09_canonical", "series.csv")
+    cs = ser[ser.set == "confirmation"].set_index("round")
+    x = long("e09_canonical", "extras.csv")
+    if int(c["gap_99_n_positive"]) != 20:
+        raise ValueError("the prose says the round-99 gap is positive on all twenty seeds")
+    pred = pd.read_csv(H / "predictions.csv")
+    if not pred[pred.experiment == "R2-E9"]["held"].all():
+        raise ValueError("the prose says every R2-E9 prediction held")
+    off = A("e13c_offpolicy", "paired.csv")
+    late = off[off["round"] == 299]
+    if not ((late["lo_t95"] < 0) & (late["hi_t95"] > 0)).all():
+        raise ValueError("the prose says the off-policy difference is gone by round 299")
+    m.comment("R2-E9 and R2-E12: e09_canonical/analysis/{summary,series,extras}.csv")
+    m.add("gapZero", f(cs.loc[0, "gap_mean"], 3, True))
+    m.add("peakGap", f(c["peak_gap"], 3, True))
+    m.add("peakRound", n(c["peak_round"]))
+    m.add("gapNinetyNine", f(c["gap_99_mean"], 4, True))
+    m.add("gapNinetyNineLo", f(c["gap_99_lo95"], 4, True))
+    m.add("gapNinetyNineHi", f(c["gap_99_hi95"], 4, True))
+    m.add("gapNinetyNineBcaLo", f(c["gap_99_bca_lo"], 4, True))
+    m.add("gapNinetyNineBcaHi", f(c["gap_99_bca_hi"], 4, True))
+    m.add("bcaAgree", f(x["bca_agree"], 4))
+    m.add("peakGapExpl", f(e["peak_gap"], 3, True))
+    m.add("gapNinetyNineExpl", f(e["gap_99_mean"], 4, True))
+    m.add("gapNinetyNineExplLo", f(e["gap_99_lo95"], 4, True))
+    m.add("gapNinetyNineExplHi", f(e["gap_99_hi95"], 4, True))
+    for tag, row in (("Conf", c), ("Expl", e)):
+        if int(row["n_censored"]) != 0:
+            raise ValueError("the prose says no seed is censored")
+        m.add(f"entryMedian{tag}", n(row["entry_median"]))
+        m.add(f"entryMin{tag}", n(row["entry_min"]))
+        m.add(f"entryMax{tag}", n(row["entry_max"]))
+    m.add("entryMinAll", n(x["entry_min_all"]))
+    m.add("entryMaxAll", n(x["entry_max_all"]))
+    m.add("tailConf", f(c["tail_mean"], 5, True))
+    m.add("tailConfLo", f(c["tail_lo95"], 5, True))
+    m.add("tailConfHi", f(c["tail_hi95"], 5, True))
+    m.add("tailConfPos", n(c["tail_n_positive"]))
+    m.add("tostConfLower", f(c["tost_t_lower"], 1))
+    m.add("tostConfUpper", f(c["tost_t_upper"], 1))
+    m.add("tostConfLo", f(c["tost_lo90"], 5, True))
+    m.add("tostConfHi", f(c["tost_hi90"], 5, True))
+    m.add("tailExpl", f(e["tail_mean"], 5, True))
+    m.add("tailExplLo", f(e["tail_lo95"], 5, True))
+    m.add("tailExplHi", f(e["tail_hi95"], 5, True))
+    m.add("giniOracleTail", f(c["gini_oracle_tail"], 3))
+    m.add("oracleSettle", n(x["oracle_settle_round"]))
+    m.add("giniRandomTail", f(x["gini_random_tail"], 3))
+    m.add("algLossNcfFinal", f(x["alg_loss_ncf_299"], 3))
+    m.add("algLossOracleFinal", f(x["alg_loss_oracle_299"], 3))
+    m.add("algLossDiff", f(x["alg_loss_diff_299"], 3, True))
+    m.add("algLossDiffLo", f(x["alg_loss_diff_299_lo"], 3, True))
+    m.add("algLossDiffHi", f(x["alg_loss_diff_299_hi"], 3, True))
+    m.add("jaccardZero", f(cs.loc[0, "jaccard_oracle"], 3))
+    m.add("jaccardFinal", f(cs.loc[299, "jaccard_oracle"], 3))
+    m.add("spearmanFinal", f(cs.loc[299, "spearman_mean"], 2))
+    m.add("stepsPerPass", n(round(c["steps_per_pass"])))
+    m.add("itemShareZeroMin", f(x["item_share_0_min_all"], 4))
+    m.add("modalShareZeroMin", f(x["modal_share_0_min_all"], 3))
+    m.add("giniZeroMaxDev", sci(x["gini_ncf_0_maxdev_all"]))
+    m.add("identicalBelowRound", n(c["identical_below_01_by"]))
+    m.add("itemBelowRound", n(c["item_below_05_by"]))
+    m.add("corrMedian", f(x["corr_median_all"], 2, True))
+    m.add("corrMin", f(x["corr_min"], 2, True))
+    m.comment("Supplementary notes S1 and S2: e09_canonical/analysis/extras.csv")
+    m.add("mcrZero", f(x["mcr_ncf_0"], 3))
+    m.add("mcrFinal", f(x["mcr_ncf_299"], 3))
+    for name in ("gap", "loss"):
+        tag = name.capitalize()
+        m.add(f"sdFive{tag}", f(x[f"sd_five_{name}"], 4))
+        m.add(f"sdTwenty{tag}", f(x[f"sd_twenty_{name}"], 4))
+        m.add(f"rankFive{tag}", n(x[f"rank_five_{name}"]))
+    m.add("sdLossRatio", f(x["sd_twenty_loss"] / x["sd_five_loss"], 1))
 
 
-def _per_seed_gap_series(directory: Path) -> dict[int, dict[int, float]]:
-    out: dict[int, dict[int, float]] = {}
-    for path in sorted(directory.glob("ncf_seed*.csv")):
-        seed = int(path.stem.split("seed")[-1])
-        ncf = {int(r["epoch"]): float(r["gini"]) for r in read_csv(path)}
-        orc = {int(r["epoch"]): float(r["gini"])
-               for r in read_csv(path.with_name(f"oracle_seed{seed}.csv"))}
-        out[seed] = {e: ncf[e] - orc[e] for e in ncf}
-    return out
+def floor(m: Macros) -> None:
+    fits = A("e10_long", "fits.csv").set_index("model")
+    s = A("e10_long", "summary.csv").iloc[0]
+    if s["winner"] != "exp" or bool(s["positive_floor"]):
+        raise ValueError("the prose says the pure exponential wins and there is no floor")
+    m.comment("R2-E10: e10_long/analysis/{fits,summary}.csv")
+    if float(s["repro_max_abs_diff_rounds_0_299"]) != 0.0:
+        raise ValueError("the prose says rounds 0-299 reproduce R2-E9 exactly")
+    a_pow, b_pow = (float(v) for v in fits.loc["power", "params"].split())
+    peak = int(fits.loc["power", "peak_round"])
+    m.add("powerAtEnd", f(a_pow * (999 - peak + 1.0) ** -b_pow, 3))
+    m.add("rmseExp", sig(fits.loc["exp", "oos_rmse"]))
+    m.add("rmseExpConst", sig(fits.loc["exp_const", "oos_rmse"]))
+    m.add("rmsePower", sig(fits.loc["power", "oos_rmse"]))
+    m.add("halfLife", f(fits.loc["exp", "half_life"], 1))
+    m.add("halfLifeLo", f(fits.loc["exp", "half_life_lo"], 1))
+    m.add("halfLifeHi", f(fits.loc["exp", "half_life_hi"], 1))
+    m.add("fitK", f(fits.loc["exp_const", "K"], 4, True))
+    m.add("fitKLo", f(fits.loc["exp_const", "K_lo"], 4, True))
+    m.add("fitKHi", f(fits.loc["exp_const", "K_hi"], 4, True))
+    m.add("longTail", f(s["tail_mean"], 5, True))
+    m.add("longTailLo", f(s["tail_lo95"], 5, True))
+    m.add("longTailHi", f(s["tail_hi95"], 5, True))
+    m.add("longTailPos", n(s["tail_n_positive"]))
+    m.add("longTostLo", f(s["tost_lo90"], 5, True))
+    m.add("longTostHi", f(s["tost_hi90"], 5, True))
+    m.add("lateDiff", f(s["late_diff_mean"], 6, True))
+    m.add("lateDiffLo", f(s["late_diff_lo95"], 6, True))
+    m.add("lateDiffHi", f(s["late_diff_hi95"], 6, True))
+    m.add("longTailMarginShare", f(100 * s["tail_mean"] / MARGIN, 0))
 
 
-def _first_stays_below(series: dict[int, float], margin: float) -> int:
-    epochs = sorted(series)
-    for i, e in enumerate(epochs):
-        if all(abs(series[x]) < margin for x in epochs[i:]):
-            return e
-    return -1
+def where(m: Macros) -> None:
+    cells = A("e11_sweep", "cells.csv").set_index("cell")
+    per = A("e11_sweep", "per_seed.csv")
+    lo_cell, hi_cell = cells["peak_mean"].idxmin(), cells["peak_mean"].idxmax()
+    if (lo_cell, hi_cell) != ("shock_scale_0.5", "shock_scale_3.0"):
+        raise ValueError(f"the prose names the extreme cells; they are {lo_cell}, {hi_cell}")
+    if not cells.loc["shock_scale_0.5", "C5t"] or cells.loc["shock_scale_3.0", "C2t"]:
+        raise ValueError("the prose describes C5t at chemistry 0.5 and C2t failing at 3.0")
+    orc = per.groupby("cell")[["gini_oracle_299", "reach_oracle_299"]].mean()
+    counts = {"C1t": 9, "C2t": 7, "C3t": 8, "C4t": 9}
+    for claim, want in counts.items():
+        if int(cells[claim].sum()) != want:
+            raise ValueError(f"the prose says {claim} holds in {want} of nine cells")
+    m.comment("R2-E11: e11_sweep/analysis/{cells,per_seed}.csv")
+    m.add("tostShockHighHi", f(cells.loc["shock_scale_3.0", "tost_hi90"], 4, True))
+    m.add("peakMinCell", f(cells.loc[lo_cell, "peak_mean"], 3, True))
+    m.add("peakMaxCell", f(cells.loc[hi_cell, "peak_mean"], 3, True))
+    m.add("oracleGiniShockLow", f(orc.loc["shock_scale_0.5", "gini_oracle_299"], 3))
+    m.add("oracleGiniShockHigh", f(orc.loc["shock_scale_3.0", "gini_oracle_299"], 3))
+    m.add("tailShockHigh", f(cells.loc["shock_scale_3.0", "tail_mean"], 4, True))
+    m.add("censoredShockHigh", n(cells.loc["shock_scale_3.0", "n_censored"]))
+    m.add("tailShockLow", f(cells.loc["shock_scale_0.5", "tail_mean"], 4, True))
+    m.add("tailBetaHigh", f(cells.loc["beta_alpha_3.0", "tail_mean"], 4, True))
+    m.add("reachShockLow", f(cells.loc["shock_scale_0.5", "reach_299"], 3))
+    m.add("reachOracleShockLow", f(orc.loc["shock_scale_0.5", "reach_oracle_299"], 3))
+
+    def spread(names: list[str]) -> tuple[float, float]:
+        peaks = [cells.loc[c, "peak_mean"] for c in names]
+        med = []
+        for c in names:
+            g = per[per.cell == c]
+            med.append(censored_median(g["entry_round"].fillna(0), g["censored"]))
+        return max(peaks) - min(peaks), max(med) - min(med)
+
+    dp, de = spread(["delta_0.0", "shipped", "delta_1.0"])
+    sp, se = spread(["shock_scale_0.5", "shipped", "shock_scale_3.0"])
+    m.add("deltaPeakSpread", f(dp, 3))
+    m.add("deltaEntrySpread", n(round(de)))
+    m.add("shockPeakSpread", f(sp, 3))
+    m.add("shockEntrySpread", n(round(se)))
+
+    s17 = A("e17_size", "summary.csv").set_index("N")
+    m.comment("R2-E17 and R2-E18: e17_size/analysis/summary.csv")
+    for nn, tag in ((500, "NFive"), (1000, "NTen"), (2000, "NTwenty")):
+        m.add(f"peak{tag}", f(s17.loc[nn, "peak"], 3, True))
+        m.add(f"Tfive{tag}", n(round(s17.loc[nn, "T05"])))
+        m.add(f"stepsTfive{tag}", thousands(s17.loc[nn, "steps_at_T05"]))
+    m.add("censoredNTwenty", n(s17.loc[2000, "n_censored"]))
+    m.add("rowsPerRound", n(round(s17["swipes_per_round"].mean())))
 
 
-def warm_start() -> dict[str, float]:
-    """The warm-start arm of the mechanism intervention, against its own control.
+def what_ends(m: Macros) -> None:
+    bd = A("e13a_dose", "by_dose.csv").set_index("dose")
+    s = A("e13a_dose", "summary.csv").set_index("landmark")
+    per = A("e13a_dose", "per_seed.csv")
+    m.comment("R2-E13a: e13a_dose/analysis/{by_dose,summary,per_seed}.csv")
+    for d, tag in ((0.5, "Half"), (1.0, "One"), (2.0, "Two"), (4.0, "Four")):
+        m.add(f"TfiveDose{tag}", n(round(bd.loc[d, "T05"])))
+    m.add("stepsTfiveMin", thousands(bd["steps_at_T05"].min()))
+    m.add("stepsTfiveMax", thousands(bd["steps_at_T05"].max()))
+    m.add("doseElasticity", f(s.loc["T05", "elasticity"], 2, True))
+    m.add("doseElasticityLo", f(s.loc["T05", "lo"], 2, True))
+    m.add("doseElasticityHi", f(s.loc["T05", "hi"], 2, True))
+    four = A("e13a_dose", "series.csv")
+    four = four[four.dose == 4.0].set_index("round")["mean"]
+    if not four.loc[299] < -MARGIN:
+        raise ValueError("the prose says the four-pass gap ends below the margin")
+    m.add("doseFourTail", f(four.loc[299], 4, True))
+    m.add("doseFourCensored", n(per[per.dose == 4.0]["entry"].isna().sum()))
 
-    Reads `data/processed/rigor/interventions/interventions_seed<seed>.csv`, one
-    row per (condition, epoch). Both arms share a population, a seed and a thread
-    count, so the terminal comparison is a paired per-seed difference and not a
-    difference of means over unrelated runs.
+    p = A("e13c_offpolicy", "paired.csv").set_index(["comparison", "round"])
+    # The on-policy gap of the same ten seeds the shadow rankers ran on, so the share
+    # and the slope have the comparison's own denominator.
+    ser = A("e13c_offpolicy", "series.csv")
+    cs = ser[ser.data_from == "oracle"].set_index("round")["on_policy"]
+    m.comment("R2-E13c: e13c_offpolicy/analysis/{paired,series}.csv")
+    for src, tag in (("oracle", "Oracle"), ("random", "Random")):
+        row = p.loc[(f"offpolicy_{src}_minus_onpolicy", 49)]
+        if not row["hi_t95"] < 0:
+            raise ValueError("the prose says the off-policy gap is smaller at round 49")
+        m.add(f"off{tag}FortyNine", f(-row["mean"], 3))
+        m.add(f"off{tag}FortyNineLo", f(-row["hi_t95"], 3))
+        m.add(f"off{tag}FortyNineHi", f(-row["lo_t95"], 3))
+    mean_eff = -0.5 * (p.loc[("offpolicy_oracle_minus_onpolicy", 49), "mean"]
+                       + p.loc[("offpolicy_random_minus_onpolicy", 49), "mean"])
+    slope = (cs.loc[44] - cs.loc[54]) / 10.0
+    m.add("offShare", n(round(100 * mean_eff / cs.loc[49])))
+    m.add("offDelay", n(round(mean_eff / slope)))
 
-    The decay share is defined as (that arm's own peak - its final) for the warm
-    arm over the same quantity for the control. Using each arm's own peak matters:
-    the warm arm starts informed, so its peak is lower and earlier, and measuring
-    both against a common peak would credit the warm start for a decay it never
-    had.
-    """
-    directory = RIGOR / "interventions"
-    frames: dict[str, dict[int, dict[int, float]]] = {"control": {}, "warm": {}}
-    for path in sorted(directory.glob("interventions_seed*.csv")):
-        seed = int(path.stem.split("seed")[-1])
-        for row in read_csv(path):
-            cond = row["condition"]
-            if cond in frames:
-                frames[cond].setdefault(seed, {})[int(row["epoch"])] = float(row["gini"])
-    if not frames["control"] or not frames["warm"]:
-        raise ValueError("interventions: missing control or warm arm")
+    e = A("e13b_explore", "paired.csv").set_index(["comparison", "round"])
+    m.comment("R2-E13b: e13b_explore/analysis/{paired,check}.csv")
+    for share, tag in (("0.05", "One"), ("0.2", "Four")):
+        for r, rtag in ((49, "FortyNine"), (99, "NinetyNine")):
+            m.add(f"exp{tag}{rtag}",
+                  f(e.loc[(f"exploit_minus_control_share{share}", r), "mean"], 3, True))
+    m.add("expOneTwoNinetyNine", f(e.loc[("exploit_minus_control_share0.05", 299), "mean"],
+                                   3, True))
+    chk = A("e13b_explore", "check.csv").set_index(["share", "round"])
+    row = chk.loc[(0.05, 299)]
+    if not row["lo_t95"] < 0 < row["hi_t95"]:
+        raise ValueError("the prose says the round-299 check interval includes zero")
+    m.add("checkExploitTwoNinetyNine", f(row["mean"], 4, True))
+    m.add("checkExploitTwoNinetyNineLo", f(row["lo_t95"], 4, True))
+    m.add("checkExploitTwoNinetyNineHi", f(row["hi_t95"], 4, True))
+    for share, tag in ((0.05, "One"), (0.2, "Four")):
+        for r, rtag in ((49, "FortyNine"), (99, "NinetyNine")):
+            row = chk.loc[(share, r)]
+            if not row["hi_t95"] < 0:
+                raise ValueError("the prose says every round-49 and round-99 check excludes zero")
+            m.add(f"check{tag}{rtag}", f(row["mean"], 3, True))
+    u = pd.read_csv(H / "units.csv").set_index(["experiment", "condition"])
+    warm, ctrl = u.loc[("R2-E13d", "warm start, confirmation")], u.loc[("R2-E9", "shipped, confirmation")]
+    if not (warm["T05_rounds"] < ctrl["T05_rounds"] and warm["T05_steps"] > ctrl["T05_steps"]):
+        raise ValueError("the prose says the warm arm is sooner in rounds and later in steps")
+    m.add("TfiveWarm", n(round(warm["T05_rounds"])))
+    m.add("TfiveControl", n(round(ctrl["T05_rounds"])))
+    m.add("stepsTfiveWarm", thousands(warm["T05_steps"]))
+    m.add("stepsTfiveControl", thousands(ctrl["T05_steps"]))
 
-    def mean_at(cond: str, epoch: int) -> float:
-        vals = [s[epoch] for s in frames[cond].values() if epoch in s]
-        return sum(vals) / len(vals)
-
-    def decay(cond: str) -> float:
-        series = {
-            e: sum(s[e] for s in frames[cond].values() if e in s)
-            / len([s for s in frames[cond].values() if e in s])
-            for e in next(iter(frames[cond].values()))
-        }
-        peak_epoch = max(series, key=lambda e: series[e])
-        return series[peak_epoch] - series[max(series)]
-
-    terminal = [frames["warm"][s][99] - frames["control"][s][99]
-                for s in frames["control"] if 99 in frames["control"][s]
-                and 99 in frames["warm"].get(s, {})]
-    n = len(terminal)
-    mean_d = sum(terminal) / n
-    sd_d = (sum((x - mean_d) ** 2 for x in terminal) / (n - 1)) ** 0.5
-    return {
-        "epoch0_control": mean_at("control", 0),
-        "epoch0_warm": mean_at("warm", 0),
-        "reach0_control": _mean_reach("control", 0),
-        "reach0_warm": _mean_reach("warm", 0),
-        "final_control": mean_at("control", 99),
-        "final_warm": mean_at("warm", 99),
-        "terminal_diff": mean_d,
-        "terminal_sd": sd_d,
-        "terminal_t": mean_d / (sd_d / n ** 0.5),
-        "decay_share": decay("warm") / decay("control"),
-    }
-
-
-def _mean_reach(condition: str, epoch: int) -> float:
-    directory = RIGOR / "interventions"
-    vals = []
-    for path in sorted(directory.glob("interventions_seed*.csv")):
-        for row in read_csv(path):
-            if row["condition"] == condition and int(row["epoch"]) == epoch:
-                vals.append(float(row["reach"]))
-    return sum(vals) / len(vals)
+    w = A("e13d_warm", "summary.csv").set_index(["set", "quantity"])
+    wp = A("e13d_warm", "per_seed.csv")
+    m.comment("R2-E13d: e13d_warm/analysis/{summary,per_seed}.csv")
+    m.add("reachZeroControl", f(wp["reach_0_control"].mean(), 3))
+    m.add("reachZeroWarm", f(wp["reach_0_warm"].mean(), 3))
+    m.add("gapZeroControl", f(wp["gap_0_control"].mean(), 3, True))
+    m.add("gapZeroWarm", f(wp["gap_0_warm"].mean(), 3, True))
+    for st, tag in (("confirmation", "Conf"), ("exploratory", "Expl")):
+        row = w.loc[(st, "gap_round0_F299")]
+        if not 0.15 <= row["mean"] <= 0.25:
+            raise ValueError("the prose says the warm start removes about four fifths")
+        m.add(f"warmShare{tag}", f(100 * row["mean"], 1))
+        if tag == "Conf":
+            m.add("warmShareConfLo", f(100 * row["lo_t95"], 1))
+            m.add("warmShareConfHi", f(100 * row["hi_t95"], 1))
+    if int((wp["reach_0_warm"] <= 0.8).sum()) != 1:
+        raise ValueError("the prose says round-0 reach under the warm start is above 0.8 "
+                         "on every seed but one")
+    m.add("reachWarmMin", f(wp["reach_0_warm"].min(), 3))
+    m.add("warmTerminalTwoNinetyNine",
+          f(w.loc[("confirmation", "terminal_diff_299"), "mean"], 4, True))
 
 
-def revision_macros(f) -> list[str]:
-    """Every result the revision of 2026-10-25 quotes, read from its own CSV.
+def arrivals(m: Macros) -> None:
+    s = A("e14_arrivals", "summary.csv").set_index("rate")
+    tr = A("e14_arrivals", "trend.csv").set_index("rate")
+    m.comment("R2-E14: e14_arrivals/analysis/{summary,trend}.csv")
+    for rate, tag in ((0.005, "Low"), (0.01, "Mid"), (0.02, "High")):
+        row = s.loc[rate]
+        if int(row["steady_n_positive"]) != int(row["n_seeds"]) or row["steady_lo95"] <= MARGIN:
+            raise ValueError("the prose says every seed is positive and every rate is above "
+                             "the margin")
+        t = tr.loc[rate]
+        if not (t["hi_t95"] < 0 if tag == "Low" else t["lo_t95"] > 0):
+            raise ValueError("the prose says the gap falls at the lowest rate and rises at "
+                             "the other two")
+        m.add(f"openGap{tag}", f(row["steady_gap"], 3, True))
+        m.add(f"openGap{tag}Lo", f(row["steady_lo95"], 3, True))
+        m.add(f"openGap{tag}Hi", f(row["steady_hi95"], 3, True))
+        m.add(f"statP{tag}", f(row["stationary_paired_p"], 2))
+        m.add(f"stepRatio{tag}", f(row["stationary_max_step"] / row["stationary_seed_sd"], 2))
+        m.add(f"trend{tag}", f(tr.loc[rate, "change_200"], 4, True))
+        m.add(f"trend{tag}Lo", f(tr.loc[rate, "lo_t95"], 4, True))
+        m.add(f"trend{tag}Hi", f(tr.loc[rate, "hi_t95"], 4, True))
+        m.add(f"cohortNew{tag}", f(row["ratio_t000_009_ncf"], 3))
+        m.add(f"cohortOld{tag}", f(row["ratio_t050_up_ncf"], 3))
+        if tag != "Low":
+            m.add(f"cohortNew{tag}Oracle", f(row["ratio_t000_009_oracle"], 3))
 
-    Kept in one function so the provenance of the session's numbers is in one
-    place. Configuration values (gate phi, cost and size grids, sweep levels, the
-    0.002 margin, the 0.05 ceiling) are settings rather than results and stay
-    literal in the prose.
-    """
-    out = ["% ── Revision of 2026-10-25: results it added, each from its own CSV ───"]
 
-    # The 300-epoch tail, regenerated series: equivalence test and time-to-threshold.
-    asym = asymptote()
-    se = asym["sd"] / asym["n_seeds"] ** 0.5
-    m = asym["point"]
-    firsts = [_first_stays_below(s, EQUIVALENCE_MARGIN)
-              for _, s in sorted(_per_seed_gap_series(LONG_HORIZON).items())]
-    mean_series = gap_series()
-    out += [
-        "% rigor/long_horizon_1t: tail statistics and the TOST (PREREGISTRATION E5)",
-        rf"\newcommand{{\tailSe}}{{{f(se, 6)}}}",
-        rf"\newcommand{{\tailSeedsPositive}}{{{int(asym['n_seeds_positive'])}}}",
-        rf"\newcommand{{\tostTLower}}{{{f((m + EQUIVALENCE_MARGIN) / se, 1)}}}",
-        rf"\newcommand{{\tostTUpper}}{{{f((EQUIVALENCE_MARGIN - m) / se, 1)}}}",
-        rf"\newcommand{{\tostLo}}{{{f(m - T_ONE_SIDED_4DF * se, 6, True)}}}",
-        rf"\newcommand{{\tostHi}}{{{f(m + T_ONE_SIDED_4DF * se, 6, True)}}}",
-        rf"\newcommand{{\firstBelowMarginBySeed}}{{{', '.join(map(str, firsts[:-1]))} and {firsts[-1]}}}",
-        rf"\newcommand{{\firstBelowMarginMin}}{{{min(firsts)}}}",
-        rf"\newcommand{{\firstBelowMarginMax}}{{{max(firsts)}}}",
-        rf"\newcommand{{\firstBelowMarginMean}}{{{_first_stays_below(mean_series, EQUIVALENCE_MARGIN)}}}",
-        rf"\newcommand{{\tailRatioNinetyNine}}{{{f(mean_series[99] / m, 0)}}}",
-        "% ratio of two imprecise quantities; quoted as an order of magnitude only",
-        "% (paper/sections/results.tex, the cold-start trajectory paragraph)",
-    ]
-    fits = read_csv(LONG_HORIZON / "long_horizon_decay_fits.csv")
-    peak_fit = [r for r in fits if r["fit_window"] == "from_peak_6"
-                and r["model"] == "decay_to_zero"][0]
-    out.append(rf"\newcommand{{\decayDeltaBic}}{{{f(peak_fit['delta_bic'], 1)}}}")
+def institutional(m: Macros) -> None:
+    c = A("e15_institutional", "cells.csv")
+    m.comment("R2-E15: e15_institutional/analysis/{cells,inert_c001}.csv")
+    for arm, tag in (("oracle", "Oracle"), ("ncf", "Ncf")):
+        g = c[c.a_arm == arm]
+        wins = g[g.b_beats_a]
+        if not (wins.signal_cost == 0.01).all():
+            raise ValueError("the prose says every winning cell is at c_B = 0.01")
+        m.add(f"nBeats{tag}", n(len(wins)))
+        m.add(f"beats{tag}Min", f(wins.size_fraction.min(), 2))
+        m.add(f"beats{tag}Max", f(wins.size_fraction.max(), 2))
+        best = g.loc[g["mean"].idxmax()]
+        m.add(f"best{tag}Size", f(best.size_fraction, 2))
+        m.add(f"best{tag}", f(best["mean"], 1, True))
+        m.add(f"best{tag}Lo", f(best["lo_t95"], 1, True))
+        m.add(f"best{tag}Hi", f(best["hi_t95"], 1, True))
+        m.add(f"welfareA{tag}", f(g["welfare_a"].iloc[0], 1))
+    high = c[c.signal_cost >= 0.05]
+    if high["b_beats_a"].any():
+        raise ValueError("the prose says no cell beats A after correction at c_B >= 0.05")
+    inert = A("e15_institutional", "inert_c001.csv").set_index("size_fraction")
+    row = inert.loc[0.65]
+    if int(row["rank"]) != 1:
+        raise ValueError("the prose says size 0.65 ranks first in the inert gate")
+    half = float(stats.t.ppf(0.975, row["size"] - 1)) * row["std"] / math.sqrt(row["size"])
+    m.add("inertBest", f(row["mean"], 1, True))
+    m.add("inertBestLo", f(row["mean"] - half, 1, True))
+    m.add("inertBestHi", f(row["mean"] + half, 1, True))
+    cf = A("e15s_five", "cells.csv")
+    if cf["b_beats_a"].any() or (cf["mean"] >= 0).any():
+        raise ValueError("the prose says no five-round cell has B ahead of A")
+    cell = cf[(cf.signal_cost == 0.01) & (cf.size_fraction == 0.65)].iloc[0]
+    m.comment("R2-E15s: e15s_five/analysis/cells.csv")
+    m.add("nABeatsFive", n(int(cf["a_beats_b"].sum())))
+    m.add("fiveCell", f(cell["mean"], 1, True))
+    m.add("fiveCellLo", f(cell["lo_t95"], 1, True))
+    m.add("fiveCellHi", f(cell["hi_t95"], 1, True))
 
-    # The width comparison of A1, as a computed ratio.
-    live = regime_row("gini_gap_ncf_minus_oracle", "live100")
-    base = regime_row("gini_gap_ncf_minus_oracle", "base20")
-    ratio = (float(live["hi"]) - float(live["lo"])) / (float(base["hi"]) - float(base["lo"]))
-    out.append(rf"\newcommand{{\widthRatioFiveTwenty}}{{{f(ratio, 1)}}}")
 
-    # The thread-count spread and the between-seed sd it is compared against.
-    spans: dict[str, list[float]] = {}
-    for r in read_csv(RIGOR / "thread_sensitivity.csv"):
-        spans.setdefault(r["seed"], []).append(float(r["gini"]))
-    widths = [max(v) - min(v) for v in spans.values()]
-    base_ginis = []
-    for path in sorted((RIGOR / "base").glob("metrics_seed*.csv")):
-        rows = read_csv(path)
-        last = max(int(r["epoch"]) for r in rows)
-        base_ginis += [float(r["gini"]) for r in rows
-                       if int(r["epoch"]) == last and r["arm"] == "ncf"]
-    bm = sum(base_ginis) / len(base_ginis)
-    bsd = (sum((g - bm) ** 2 for g in base_ginis) / (len(base_ginis) - 1)) ** 0.5
-    out += [
-        "% rigor/thread_sensitivity.csv (seeds 42-44, 1/4/8 threads) and rigor/base/",
-        rf"\newcommand{{\threadSpreadLo}}{{{f(min(widths), 4)}}}",
-        rf"\newcommand{{\threadSpreadHi}}{{{f(max(widths), 4)}}}",
-        rf"\newcommand{{\betweenSeedSdTwenty}}{{{f(bsd, 4)}}}",
-    ]
+def sensitivity(m: Macros) -> None:
+    s = A("e16_fp", "summary.csv").iloc[0]
+    sp = A("e16_fp", "spread.csv").set_index("round")
+    m.comment("R2-E16: e16_fp/analysis/{summary,spread}.csv")
+    m.add("fpFirstRound", n(s["first_round_any_run_differs"]))
+    m.add("fpRatioNinetyNine", f(sp.loc[99, "ratio"], 2))
+    m.add("fpRatioTwoNinetyNine", f(sp.loc[299, "ratio"], 2))
 
-    # A3: seed 42, epoch 99, NCF Gini in the two directories that disagree.
-    def ep99(path: Path) -> float:
-        return float([r for r in read_csv(path) if r["epoch"] == "99"][0]["gini"])
-    out += [
-        "% A3: ablation_h100 vs rigor/long_horizon, seed 42, NCF Gini at epoch 99",
-        rf"\newcommand{{\giniSeedFortyTwoShort}}{{{f(ep99(PROCESSED / 'ablation_h100' / 'ncf_seed42.csv'), 4)}}}",
-        rf"\newcommand{{\giniSeedFortyTwoLong}}{{{f(ep99(RIGOR / 'long_horizon' / 'ncf_seed42.csv'), 4)}}}",
-    ]
 
-    # The sweep: the cells the prose names, from rigor/sensitivity.csv.
-    sens = {(r["axis"], r["level"]): r for r in sensitivity_rows()}
-    low = sens[("shock_scale", "0.5")]
-    high = sens[("shock_scale", "3.0")]
-    deltas = [sens[("delta", lv)] for lv in ("0.0", "0.5", "1.0")]
-    delta_widths = [float(r["gap_hi"]) - float(r["gap_lo"]) for r in deltas]
-    delta_points = [float(r["gap_point"]) for r in deltas]
-    out += [
-        "% rigor/sensitivity.csv",
-        rf"\newcommand{{\reachLowShock}}{{{f(low['reach_point'], 4)}}}",
-        rf"\newcommand{{\reachLowShockCount}}{{{round(float(low['reach_point']) * 1000)}}}",
-        rf"\newcommand{{\reachShippedCount}}{{{round(float(sens[('shock_scale', '1.5')]['reach_point']) * 1000)}}}",
-        rf"\newcommand{{\gapLowShock}}{{{f(low['gap_point'], 4, True)}}}",
-        rf"\newcommand{{\gapHighShockHi}}{{{f(high['gap_hi'], 4, True)}}}",
-        rf"\newcommand{{\gapDeltaZero}}{{{f(delta_points[0], 4, True)}}}",
-        rf"\newcommand{{\gapDeltaHalf}}{{{f(delta_points[1], 4, True)}}}",
-        rf"\newcommand{{\gapDeltaOne}}{{{f(delta_points[2], 4, True)}}}",
-        rf"\newcommand{{\gapDeltaSpread}}{{{f(max(delta_points) - min(delta_points), 4)}}}",
-        rf"\newcommand{{\gapDeltaWidth}}{{{f(sum(delta_widths) / len(delta_widths), 3)}}}",
-    ]
-    def axis_spread(axis: str) -> float:
-        pts = [float(r["gap_point"]) for (a, _), r in sens.items() if a == axis]
-        return max(pts) - min(pts)
-    delta_spread = axis_spread("delta")
-    all_points = [float(r["gap_point"]) for r in sens.values()]
-    out += [
-        rf"\newcommand{{\gapRangeRatio}}{{{f(max(all_points) / min(all_points), 0)}}}",
-        rf"\newcommand{{\betaAlphaVsDelta}}{{{f(axis_spread('beta_alpha') / delta_spread, 1)}}}",
-        rf"\newcommand{{\shockVsDelta}}{{{f(axis_spread('shock_scale') / delta_spread, 0)}}}",
-    ]
+def appendix(m: Macros) -> None:
+    h1 = A("h1r", "curve.csv").set_index("signal_cost")
+    h5 = A("h5r", "terms.csv").set_index("term")
+    m.comment("R2-H1r and R2-H5r: h1r/analysis/curve.csv, h5r/analysis/terms.csv")
+    m.add("hOneLow", f(h1.loc[0.0, "mean_tau"], 3))
+    m.add("hOneHigh", f(h1.loc[2.0, "mean_tau"], 3))
+    for term, tag in (("interaction", "Int"), ("algorithmic", "Alg"), ("exogenous", "Exo")):
+        m.add(f"hFive{tag}", f(h5.loc[term, "mean"], 1, True))
+        m.add(f"hFive{tag}Lo", f(h5.loc[term, "lo_t95"], 1, True))
+        m.add(f"hFive{tag}Hi", f(h5.loc[term, "hi_t95"], 1, True))
+    reg = pd.read_csv(H / "registrations.csv").set_index("key")
+    m.comment("Registration commits: horizon/registrations.csv (from git history)")
+    m.add("regCommit", reg.loc["main", "commit"])
+    m.add("regCommitWarm", reg.loc["warm", "commit"])
+    m.add("regCommitCheckB", reg.loc["check_b", "commit"])
+    m.add("regCommitCheckC", reg.loc["check_c", "commit"])
+    m.add("regCommitRepair", reg.loc["repair", "commit"])
 
-    # C4: the low-chemistry cell at 300 epochs.
-    c4_dir = RIGOR / "c4_shock0.5"
-    c4_gap = _per_seed_gap_series(c4_dir)
-    c4_mean = {e: sum(s[e] for s in c4_gap.values()) / len(c4_gap)
-               for e in next(iter(c4_gap.values()))}
-    c4_peak = max(c4_mean, key=c4_mean.get)
-    reach: dict[int, list[float]] = {}
-    for path in sorted(c4_dir.glob("ncf_seed*.csv")):
-        for r in read_csv(path):
-            reach.setdefault(int(r["epoch"]), []).append(float(r["reach"]))
-    def mean_reach(e: int) -> float:
-        return sum(reach[e]) / len(reach[e])
-    out += [
-        "% rigor/c4_shock0.5 (300 epochs, shock_scale 0.5, 5 seeds, 1 thread)",
-        rf"\newcommand{{\cfourReachZero}}{{{f(mean_reach(0), 3)}}}",
-        rf"\newcommand{{\cfourReachFortyNine}}{{{f(mean_reach(49), 3)}}}",
-        rf"\newcommand{{\cfourReachNinetyNine}}{{{f(mean_reach(99), 3)}}}",
-        rf"\newcommand{{\cfourReachFinal}}{{{f(mean_reach(299), 3)}}}",
-        rf"\newcommand{{\cfourReachFinalShort}}{{{f(mean_reach(299), 2)}}}",
-        rf"\newcommand{{\cfourReachNinetyNineShort}}{{{f(mean_reach(99), 2)}}}",
-        rf"\newcommand{{\cfourPeak}}{{{f(c4_mean[c4_peak], 4, True)}}}",
-        rf"\newcommand{{\cfourPeakEpoch}}{{{c4_peak}}}",
-        rf"\newcommand{{\cfourFinal}}{{{f(c4_mean[299], 4, True)}}}",
-    ]
 
-    # H4 at the shipped gate, and on fresh seeds at the inert gate.
-    shipped = _grid_slice("h4_shipped_gate", 0.01)
-    shipped_by_size = {r["size_fraction"]: r for r in shipped}
-    rank = [r["size_fraction"] for r in shipped].index(0.65) + 1
-    best = {c: _grid_slice("h4_shipped_gate", c)[0]["welfare_diff_residual_mean"]
-            for c in (0.05, 0.10, 0.25)}
-    out += [
-        "% rigor/h4_shipped_gate (admissible_fraction 0.02, seeds 42-46)",
-        rf"\newcommand{{\hFourShippedSmall}}{{{f(shipped_by_size[0.02]['welfare_diff_residual_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFourShippedFull}}{{{f(shipped_by_size[1.0]['welfare_diff_residual_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFourShippedOpt}}{{{f(shipped_by_size[0.65]['welfare_diff_residual_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFourShippedOptRank}}{{{rank}}}",
-        rf"\newcommand{{\hFourShippedBestMid}}{{{f(best[0.05], 2, True)}}}",
-        rf"\newcommand{{\hFourShippedBestHigh}}{{{f(best[0.10], 2, True)}}}",
-        rf"\newcommand{{\hFourShippedBestTop}}{{{f(best[0.25], 2, True)}}}",
-    ]
-    fresh_cell = _grid_cell("c2_fresh_inert", 0.01, 0.65)
-    fresh_values = [float(r["welfare_diff_residual"]) for r in read_csv(RIGOR / "c2_fresh_inert" / "grid.csv")
-                    if abs(float(r["signal_cost"]) - 0.01) < 1e-9
-                    and abs(float(r["size_fraction"]) - 0.65) < 1e-9]
-    n = len(fresh_values)
-    fm = sum(fresh_values) / n
-    fsd = (sum((v - fm) ** 2 for v in fresh_values) / (n - 1)) ** 0.5
-    fse = fsd / n ** 0.5
-    t19 = 2.093
-    fresh_rank = [r["size_fraction"] for r in _grid_slice("c2_fresh_inert", 0.01)].index(0.65) + 1
-    original_sd = mc_values()["optimum_sd"]
-    out += [
-        "% rigor/c2_fresh_inert (seeds 100-119, admissible_fraction 0.2)",
-        rf"\newcommand{{\hFourFresh}}{{{f(fm, 2, True)}}}",
-        rf"\newcommand{{\hFourFreshSd}}{{{f(fsd, 2)}}}",
-        rf"\newcommand{{\hFourFreshLo}}{{{f(fm - t19 * fse, 2, True)}}}",
-        rf"\newcommand{{\hFourFreshHi}}{{{f(fm + t19 * fse, 2, True)}}}",
-        rf"\newcommand{{\hFourFreshT}}{{{f(fm / fse, 2)}}}",
-        rf"\newcommand{{\hFourFreshRank}}{{{fresh_rank}}}",
-        rf"\newcommand{{\hFourFreshSdRatio}}{{{f(fsd / original_sd, 1)}}}",
-    ]
-    # The per-seed grid.csv and the summary must agree on the cell; a mismatch
-    # would mean the mean above was computed from the wrong rows.
-    if abs(fresh_cell["welfare_diff_residual_mean"] - fm) > 1e-9:
-        raise ValueError("c2_fresh_inert: grid.csv and grid_summary.csv disagree at sf=0.65")
-    opt = regime_row("welfare_diff_residual", "optimum_c0.01_sf0.65")
-    out += [
-        "% intervals.csv, the H4 optimum's uncorrected t interval",
-        rf"\newcommand{{\optWelfareTLo}}{{{f(opt['lo_t'], 2, True)}}}",
-        rf"\newcommand{{\optWelfareTHi}}{{{f(opt['hi_t'], 2, True)}}}",
-        rf"\newcommand{{\optWelfareMag}}{{{f(mc_values()['optimum_mean'], 2)}}}",
-        "",
-    ]
-
-    # The warm-start intervention (PREREGISTRATION E3ii). The frozen arm is
-    # omitted deliberately: freezing the weights freezes the shortlists, so it
-    # cannot test anything, and the paper says that rather than quoting a number
-    # from it.
-    warm = warm_start()
-    out += [
-        "% rigor/interventions: the warm-start arm against its own control",
-        rf"\newcommand{{\warmEpochZeroControl}}{{{f(warm['epoch0_control'], 4, True)}}}",
-        rf"\newcommand{{\warmEpochZeroTreated}}{{{f(warm['epoch0_warm'], 4, True)}}}",
-        rf"\newcommand{{\warmReachZeroControl}}{{{f(warm['reach0_control'], 3)}}}",
-        rf"\newcommand{{\warmReachZeroTreated}}{{{f(warm['reach0_warm'], 3)}}}",
-        rf"\newcommand{{\warmFinalControl}}{{{f(warm['final_control'], 4, True)}}}",
-        rf"\newcommand{{\warmFinalTreated}}{{{f(warm['final_warm'], 4, True)}}}",
-        rf"\newcommand{{\warmTerminalDiff}}{{{f(warm['terminal_diff'], 5, True)}}}",
-        rf"\newcommand{{\warmTerminalT}}{{{f(warm['terminal_t'], 2)}}}",
-        rf"\newcommand{{\warmTerminalSd}}{{{f(warm['terminal_sd'], 5)}}}",
-        rf"\newcommand{{\warmDecaySurviving}}{{{f(warm['decay_share'] * 100, 0)}}}",
-        "",
-    ]
-    return out
+def render() -> str:
+    m = Macros()
+    m.comment("Generated by paper/gen_numbers.py from data/processed/. Do not edit.")
+    for section in (transient, floor, where, what_ends, arrivals, institutional,
+                    sensitivity, appendix):
+        section(m)
+    return "\n".join(m.lines) + "\n"
 
 
 def main() -> None:
-    live = regime_row("gini_gap_ncf_minus_oracle", "live100")
-    base = regime_row("gini_gap_ncf_minus_oracle", "base20")
-
-    mc = mc_values()
-    asym = asymptote()
-    stat = stationarity()
-    shipped = shipped_cell()
-    lo_point, hi_point = gap_range()
-
-    def f(key: str, places: int = 4, signed: bool = False) -> str:
-        value = float(key)
-        return f"{value:+.{places}f}" if signed else f"{value:.{places}f}"
-
-    lines = [
-        "% Generated by paper/numbers.py from data/processed/. Do not edit by hand.",
-        "% Every macro here reads a committed CSV; the comment names the source.",
-        "",
-        "% ── The H3 gap at each horizon ──────────────────────────────────────────",
-        "% live100: data/processed/rigor/intervals.csv (ablation_h100, 24 threads, 5 seeds)",
-        rf"\newcommand{{\gapShipped}}{{{f(live['point'], 4, True)}}}",
-        rf"\newcommand{{\gapShippedLo}}{{{f(live['lo_t'], 4, True)}}}",
-        rf"\newcommand{{\gapShippedHi}}{{{f(live['hi_t'], 4, True)}}}",
-        "% base20: the same quantity at 20 seeds (rigor/base, archival; see its README)",
-        rf"\newcommand{{\gapBaseTwenty}}{{{f(base['point'], 4, True)}}}",
-        rf"\newcommand{{\gapBaseTwentyLo}}{{{f(base['lo_t'], 4, True)}}}",
-        rf"\newcommand{{\gapBaseTwentyHi}}{{{f(base['hi_t'], 4, True)}}}",
-        "% base20 BCa bounds, for the full-width comparison of A1. The individual",
-        "% endpoints are not quoted in the prose; the widths they produce are.",
-        rf"\newcommand{{\gapBaseTwentyBcaWidth}}"
-        f"{{{f(float(base['hi']) - float(base['lo']), 4)}}}",
-        rf"\newcommand{{\gapLiveBcaWidth}}"
-        f"{{{f(float(live['hi']) - float(live['lo']), 4)}}}",
-        "% The 300-epoch tail is in the convergence block below and the revision",
-        "% block at the end, both from rigor/long_horizon_1t.",
-        "",
-        "% ── The convergence tail (rigor/long_horizon_asymptote.csv) ─────────────",
-        "% The tail mean, its t interval, and the t/Wilcoxon p-values",
-        rf"\newcommand{{\tailMean}}{{{f(asym['point'], 6, True)}}}",
-        rf"\newcommand{{\tailMeanLo}}{{{f(asym['lo'], 6, True)}}}",
-        rf"\newcommand{{\tailMeanHi}}{{{f(asym['hi'], 6, True)}}}",
-        rf"\newcommand{{\tailT}}{{{f(asym['t'], 2)}}}",
-        rf"\newcommand{{\tailP}}{{{f(asym['p'], 3)}}}",
-        rf"\newcommand{{\tailWilcoxonP}}{{{f(asym['wilcoxon_p'], 3)}}}",
-        rf"\newcommand{{\finalEpochSd}}{{{f(asym['sd'], 6)}}}",
-        "",
-        "% ── Stationarity (rigor/long_horizon_stationarity.csv) ───────────────────",
-        rf"\newcommand{{\statPairedDiff}}{{{f(stat['paired_diff'], 5, True)}}}",
-        rf"\newcommand{{\statP}}{{{f(stat['paired_t_p'], 3)}}}",
-        rf"\newcommand{{\statWilcoxonP}}{{{f(stat['wilcoxon_p'], 3)}}}",
-        rf"\newcommand{{\statMaxStep}}{{{f(stat['max_abs_step_last10'], 5)}}}",
-        # The share is emitted as a bare number: paper/verify.py's brace checker
-        # treats an escaped "\%" as a comment start and would flag the macro, and
-        # a bare number lets the prose write "per cent" or "\%" as it prefers.
-        rf"\newcommand{{\statMaxStepShare}}{{{f(100 * stat['max_step_over_seed_sd'], 1)}}}",
-        rf"\newcommand{{\statSeedsLateHigher}}{{{int(stat['n_seeds_late_gt_early'])}}}",
-        "% The between-seed sd of the NCF arm's Gini at epoch 299: the noise scale the",
-        "% 'ordered noise after epoch 124' caution compares the gap points against.",
-        rf"\newcommand{{\finalEpochGiniSd}}{{{f(stat['seed_sd_final'], 4)}}}",
-        "",
-        "% ── The sensitivity sweep (rigor/sensitivity.csv) ────────────────────────",
-        rf"\newcommand{{\gapRangeLo}}{{{f(lo_point, 4, True)}}}",
-        rf"\newcommand{{\gapRangeHi}}{{{f(hi_point, 4, True)}}}",
-        rf"\newcommand{{\reachShipped}}{{{f(shipped['reach_point'], 4)}}}",
-        rf"\newcommand{{\gapShippedSweep}}{{{f(shipped['gap_point'], 4, True)}}}",
-        "",
-        "% ── The institutional optimum (rigor/multiple_comparisons.csv) ───────────",
-        rf"\newcommand{{\optWelfare}}{{{f(mc['optimum_mean'], 2, True)}}}",
-        rf"\newcommand{{\optWelfareLo}}{{{f(mc['named_cell_lo_t_bonferroni'], 2, True)}}}",
-        rf"\newcommand{{\optWelfareHi}}{{{f(mc['named_cell_hi_t_bonferroni'], 2, True)}}}",
-        rf"\newcommand{{\optWelfareSd}}{{{f(mc['optimum_sd'], 2)}}}",
-    ]
-    # The standard error is derived, not read: SE = sd/sqrt(n) with n = 5 seeds.
-    se = mc["optimum_sd"] / (5 ** 0.5)
-    lines += [
-        "% ── The 300-epoch trajectory, one macro per printed epoch ───────────────",
-        "% Source: rigor/long_horizon_gap_series.csv (five-seed mean, 300 epochs).",
-        "% The peak is at epoch 6, which is the value the abstract quotes.",
-    ]
-    series = gap_series()
-    # TeX control words are letters only: \gapEpoch6 parses as \gapEpoch followed
-    # by the character 6, so the epoch is spelled out in the macro name.
-    epoch_names = {0: "Zero", 6: "Six", 19: "Nineteen", 49: "FortyNine",
-                   99: "NinetyNine", 124: "OneTwentyFour", 199: "OneNinetyNine"}
-    for epoch, name in epoch_names.items():
-        lines.append(
-            rf"\newcommand{{\gapEpoch{name}}}"
-            rf"{{{f(series[epoch], 4 if epoch < 99 else 5, True)}}}"
-        )
-    lines += [
-        rf"\newcommand{{\gapPeak}}{{{f(series[6], 4, True)}}}",
-        "",
-    ]
-    lines += [
-        rf"\newcommand{{\optWelfareSe}}{{{f(se, 2)}}}",
-        rf"\newcommand{{\optWelfareT}}{{{f(mc['optimum_t'], 2)}}}",
-        rf"\newcommand{{\optWelfareQ}}{{{sci(mc['optimum_q_bh'])}}}",
-        rf"\newcommand{{\optWelfareSeMultiple}}{{{f(mc['optimum_mean'] / se, 1)}}}",
-        "",
-        "% ── The H5 decomposition (same file, factorial block) ────────────────────",
-        rf"\newcommand{{\hFiveInteraction}}{{{f(mc['interaction_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFiveInteractionLo}}{{{f(mc['interaction_lo_t'], 2, True)}}}",
-        rf"\newcommand{{\hFiveInteractionHi}}{{{f(mc['interaction_hi_t'], 2, True)}}}",
-        rf"\newcommand{{\hFiveInteractionBcaLo}}{{{f(mc['interaction_lo_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveInteractionBcaHi}}{{{f(mc['interaction_hi_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveInteractionQ}}{{{f(mc['interaction_q_bh'], 3)}}}",
-        rf"\newcommand{{\hFiveAlgorithmic}}{{{f(mc['algorithmic_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFiveAlgorithmicLo}}{{{f(mc['algorithmic_lo_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveAlgorithmicHi}}{{{f(mc['algorithmic_hi_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenous}}{{{f(mc['exogenous_mean'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenousBcaLo}}{{{f(mc['exogenous_lo_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenousBcaHi}}{{{f(mc['exogenous_hi_bca'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenousTLo}}{{{f(mc['exogenous_lo_t'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenousTHi}}{{{f(mc['exogenous_hi_t'], 2, True)}}}",
-        rf"\newcommand{{\hFiveExogenousQ}}{{{f(mc['exogenous_q_bh'], 3)}}}",
-        "",
-        "% ── Counts that are qualitative prose and stay literal are NOT here ──────",
-        "% (twelve sweep cells, forty institutional cells, five seeds). The counts",
-        "% that do carry a claim are:",
-        rf"\newcommand{{\nSweepCells}}{{{int(len(sensitivity_rows()))}}}",
-        rf"\newcommand{{\nInstitutionalCells}}{{{int(mc['n_cells_tested'])}}}",
-        rf"\newcommand{{\nRejectBh}}{{{int(mc['n_reject_bh_q05'])}}}",
-        rf"\newcommand{{\nRejectHolm}}{{{int(mc['n_reject_holm_05'])}}}",
-        rf"\newcommand{{\fwerUncorrected}}{{{f(mc['fwer_uncorrected_independent'], 3)}}}",
-        "",
-    ]
-
-    # ── The fresh-seed replication (PREREGISTRATION E1) ──────────────────────
-    # Both sets at 1 thread, one session. `fresh` is seeds 100-119; `exploratory`
-    # is 42-61 regenerated rather than the committed rigor/base/, which predates
-    # the current code and no longer reproduces (docs/REVIEW_RESPONSE.md, A3).
-    fresh = twenty_seed("fresh")
-    expl = twenty_seed("exploratory_1t")
-    lines += [
-        "% ── The fresh-seed replication (rigor/fresh, rigor/exploratory_1t) ──────",
-        rf"\newcommand{{\gapFresh}}{{{f(fresh['gini_gap']['mean'], 4, True)}}}",
-        rf"\newcommand{{\gapFreshLo}}{{{f(fresh['gini_gap']['lo'], 4, True)}}}",
-        rf"\newcommand{{\gapFreshHi}}{{{f(fresh['gini_gap']['hi'], 4, True)}}}",
-        rf"\newcommand{{\gapExploratory}}{{{f(expl['gini_gap']['mean'], 4, True)}}}",
-        rf"\newcommand{{\gapExploratoryLo}}{{{f(expl['gini_gap']['lo'], 4, True)}}}",
-        rf"\newcommand{{\gapExploratoryHi}}{{{f(expl['gini_gap']['hi'], 4, True)}}}",
-        rf"\newcommand{{\giniNcfFresh}}{{{f(fresh['gini_ncf']['mean'], 4)}}}",
-        rf"\newcommand{{\giniNcfExploratory}}{{{f(expl['gini_ncf']['mean'], 4)}}}",
-        rf"\newcommand{{\giniOracleFresh}}{{{f(fresh['gini_oracle']['mean'], 4)}}}",
-        rf"\newcommand{{\giniOracleExploratory}}{{{f(expl['gini_oracle']['mean'], 4)}}}",
-        "% The spreads the fresh/exploratory comparison quotes, so the contrast",
-        "% between them is a computed difference rather than a typed one.",
-        rf"\newcommand{{\giniNcfSdFresh}}{{{f(fresh['gini_ncf']['sd'], 4)}}}",
-        rf"\newcommand{{\giniNcfSdExploratory}}{{{f(expl['gini_ncf']['sd'], 4)}}}",
-        rf"\newcommand{{\algLossSdFresh}}{{{f(fresh['alg_loss']['sd'], 4)}}}",
-        rf"\newcommand{{\algLossSdExploratory}}{{{f(expl['alg_loss']['sd'], 4)}}}",
-        "",
-    ]
-
-    lines += revision_macros(f)
-
+    text = render()
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(lines), encoding="utf-8")
-    print(f"wrote {OUT.relative_to(ROOT)} ({len(lines)} lines, "
-          f"{sum(1 for ln in lines if ln.startswith(chr(92) + 'newcommand'))} macros)")
+    OUT.write_text(text, encoding="utf-8")
+    print(f"wrote {OUT.relative_to(ROOT)} ({text.count(chr(92) + 'newcommand')} macros)")
 
 
 if __name__ == "__main__":
